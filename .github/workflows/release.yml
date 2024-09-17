@@ -1,0 +1,63 @@
+# .github/workflows/release.yml
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: arm64
+
+      - name: Build package
+        uses: addnab/docker-run-action@v3
+        with:
+          image: docker.io/batonogov/pyinstaller-linux:latest
+          options: |
+            --platform linux/arm64
+            --volume ${{ github.workspace }}/:/src
+          run: |
+            pip install -r /src/requirements.txt
+            pyinstaller --onefile /src/src/app.py
+
+      - name: Bundle App
+        run: |
+          mkdir -p .artie && \
+          cp -r ./dist/app ./assets ./config.json .artie
+          zip -r Artie.zip .artie ./Artie\ Scraper.sh
+
+      - name: Get HEAD commit hash
+        id: get_commit
+        run: echo "::set-output name=commit_hash::$"
+
+      - name: Upload Artie.zip
+        uses: actions/upload-artifact@v3
+        with:
+          name: Artie
+          path: Artie.zip
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          echo "::set-output name=release_tag::Artie_$(date +"%Y.%m.%d_%H-%M")"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: Artie.zip
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          release_name: Release ${{ steps.get_commit.outputs.commit_hash }}

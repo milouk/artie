@@ -1,0 +1,21 @@
+name: Main branch pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: write
+  id-token: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# jobs:
+#   lint:
+#     uses: ./.github/workflows/lint.yml
+#     secrets: inherit
