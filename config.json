@@ -1,0 +1,636 @@
+{
+  "roms": "/mnt/sdcard/ROMS",
+  "logos": "assets/logos",
+  "screenscraper": {
+    "username": "",
+    "password": "",
+    "devid": "cmVhdmVu",
+    "devpassword": "MDZXZUY5bTBldWs=",
+    "threads": 3,
+    "media": {
+      "type": "box-3D",
+      "width": 400,
+      "height": 580,
+      "regions": [
+        "br",
+        "us",
+        "ame",
+        "wor"
+      ]
+    },
+    "systems": [
+      {
+        "dir": "ADVMAME",
+        "id": "75",
+        "name": "Mame",
+        "art": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/"
+      },
+      {
+        "dir": "AMIGA",
+        "id": "64",
+        "name": "Commodore Amiga",
+        "art": "/mnt/mmc/MUOS/info/catalogue/AMIGA/"
+      },
+      {
+        "dir": "AMIGACD",
+        "id": "134",
+        "name": "Commodore Amiga CD",
+        "art": "/mnt/mmc/MUOS/info/catalogue/AMIGACD/"
+      },
+      {
+        "dir": "AMIGACDTV",
+        "id": "129",
+        "name": "Commodore Amiga CD",
+        "art": "/mnt/mmc/MUOS/info/catalogue/AMIGACDTV/"
+      },
+      {
+        "dir": "ARCADE",
+        "id": "75",
+        "name": "Mame",
+        "art": "/mnt/mmc/MUOS/info/catalogue/ARCADE/"
+      },
+      {
+        "dir": "ARDUBOY",
+        "id": "263",
+        "name": "Arduboy",
+        "art": "/mnt/mmc/MUOS/info/catalogue/ARDUBOY/"
+      },
+      {
+        "dir": "ATARI2600",
+        "id": "26",
+        "name": "Atari 2600",
+        "art": "/mnt/mmc/MUOS/info/catalogue/ATARI2600/"
+      },
+      {
+        "dir": "ATARIST",
+        "id": "42",
+        "name": "Atari ST",
+        "art": "/mnt/mmc/MUOS/info/catalogue/ATARIST/"
+      },
+      {
+        "dir": "ATOMISWAVE",
+        "id": "53",
+        "name": "Atari ST",
+        "art": "/mnt/mmc/MUOS/info/catalogue/ATOMISWAVE/"
+      },
+      {
+        "dir": "COLECO",
+        "id": "183",
+        "name": "Coleco",
+        "art": "/mnt/mmc/MUOS/info/catalogue/COLECO/"
+      },
+      {
+        "dir": "COLSGM",
+        "id": "183",
+        "name": "Coleco",
+        "art": "/mnt/mmc/MUOS/info/catalogue/COLSGM/"
+      },
+      {
+        "dir": "C64",
+        "id": "66",
+        "name": "Commodore 64",
+        "art": "/mnt/mmc/MUOS/info/catalogue/C64/"
+      },
+      {
+        "dir": "CPC",
+        "id": "65",
+        "name": "Amstrad CPC",
+        "art": "/mnt/mmc/MUOS/info/catalogue/CPC/"
+      },
+      {
+        "dir": "CPET",
+        "id": "240",
+        "name": "Commodore PET",
+        "art": "/mnt/mmc/MUOS/info/catalogue/CPET/"
+      },
+      {
+        "dir": "CPLUS4",
+        "id": "99",
+        "name": "Commodore Plus 4",
+        "art": "/mnt/mmc/MUOS/info/catalogue/CPLUS4/"
+      },
+      {
+        "dir": "CPS1",
+        "id": "6",
+        "name": "Capcom Play System",
+        "art": "/mnt/mmc/MUOS/info/catalogue/CPS1/"
+      },
+      {
+        "dir": "CPS2",
+        "id": "7",
+        "name": "Capcom Play System 2",
+        "art": "/mnt/mmc/MUOS/info/catalogue/CPS2/"
+      },
+      {
+        "dir": "CPS3",
+        "id": "8",
+        "name": "Capcom Play System 3",
+        "art": "/mnt/mmc/MUOS/info/catalogue/CPS3/"
+      },
+      {
+        "dir": "DAPHNE",
+        "id": "49",
+        "name": "Daphne",
+        "art": "/mnt/mmc/MUOS/info/catalogue/DAPHNE/"
+      },
+      {
+        "dir": "DC",
+        "id": "23",
+        "name": "dreamcast",
+        "art": "/mnt/mmc/MUOS/info/catalogue/DC/"
+      },
+      {
+        "dir": "DOS",
+        "id": "135",
+        "name": "DOS",
+        "art": "/mnt/mmc/MUOS/info/catalogue/DOS/"
+      },
+      {
+        "dir": "EASYRPG",
+        "id": "231",
+        "name": "EasyRPG",
+        "art": "/mnt/mmc/MUOS/info/catalogue/EASYRPG/"
+      },
+      {
+        "dir": "EBK",
+        "id": "93",
+        "name": "EBK",
+        "art": "/mnt/mmc/MUOS/info/catalogue/EBK/"
+      },
+      {
+        "dir": "ATARI800",
+        "id": "43",
+        "name": "Atari 800",
+        "art": "/mnt/mmc/MUOS/info/catalogue/ATARI800/"
+      },
+      {
+        "dir": "CHANNELF",
+        "id": "80",
+        "name": "Fairchild Channel F",
+        "art": "/mnt/mmc/MUOS/info/catalogue/CHANNELF/"
+      },
+      {
+        "dir": "FBA2012",
+        "id": "75",
+        "name": "FBA2012",
+        "art": "/mnt/mmc/MUOS/info/catalogue/FBA2012/"
+      },
+      {
+        "dir": "FBALPHA",
+        "id": "75",
+        "name": "FBAlpha",
+        "art": "/mnt/mmc/MUOS/info/catalogue/FBALPHA/"
+      },
+      {
+        "dir": "FBNEO",
+        "id": "",
+        "name": "FBNeo (Empty)",
+        "art": "/mnt/mmc/MUOS/info/catalogue/FBNEO/"
+      },
+      {
+        "dir": "FC",
+        "id": "3",
+        "name": "NES (Famicom)",
+        "art": "/mnt/mmc/MUOS/info/catalogue/FC/"
+      },
+      {
+        "dir": "FDS",
+        "id": "106",
+        "name": "Famicom Disk System",
+        "art": "/mnt/mmc/MUOS/info/catalogue/FDS/"
+      },
+      {
+        "dir": "ATARI5200",
+        "id": "40",
+        "name": "Atari 5200",
+        "art": "/mnt/mmc/MUOS/info/catalogue/ATARI5200/"
+      },
+      {
+        "dir": "GB",
+        "id": "9",
+        "name": "Game Boy",
+        "art": "/mnt/mmc/MUOS/info/catalogue/GB/"
+      },
+      {
+        "dir": "GBA",
+        "id": "12",
+        "name": "Game Boy Advance",
+        "art": "/mnt/mmc/MUOS/info/catalogue/GBA/"
+      },
+      {
+        "dir": "GBC",
+        "id": "10",
+        "name": "Game Boy Color",
+        "art": "/mnt/mmc/MUOS/info/catalogue/GBC/"
+      },
+      {
+        "dir": "GG",
+        "id": "21",
+        "name": "Sega Game Gear",
+        "art": "/mnt/mmc/MUOS/info/catalogue/GG/"
+      },
+      {
+        "dir": "GW",
+        "id": "52",
+        "name": "Nintendo Game & Watch",
+        "art": "/mnt/mmc/MUOS/info/catalogue/GW/"
+      },
+      {
+        "dir": "INTELLIVISION",
+        "id": "115",
+        "name": "Intellivision",
+        "art": "/mnt/mmc/MUOS/info/catalogue/INTELLIVISION/"
+      },
+      {
+        "dir": "JAGUAR",
+        "id": "27",
+        "name": "Atari Jaguar",
+        "art": "/mnt/mmc/MUOS/info/catalogue/JAGUAR/"
+      },
+      {
+        "dir": "LOWRESNX",
+        "id": "244",
+        "name": "LowRes NX",
+        "art": "/mnt/mmc/MUOS/info/catalogue/LOWRESNX/"
+      },
+      {
+        "dir": "LUTRO",
+        "id": "206",
+        "name": "Lutro",
+        "art": "/mnt/mmc/MUOS/info/catalogue/LUTRO/"
+      },
+      {
+        "dir": "LYNX",
+        "id": "28",
+        "name": "Atari Lynx",
+        "art": "/mnt/mmc/MUOS/info/catalogue/LYNX/"
+      },
+      {
+        "dir": "MAME",
+        "id": "75",
+        "name": "Mame 2000",
+        "art": "/mnt/mmc/MUOS/info/catalogue/MAME/"
+      },
+      {
+        "dir": "MAME2003PLUS",
+        "id": "75",
+        "name": "Mame 2003",
+        "art": "/mnt/mmc/MUOS/info/catalogue/MAME2003PLUS/"
+      },
+      {
+        "dir": "MAME2010",
+        "id": "75",
+        "name": "Mame 2003",
+        "art": "/mnt/mmc/MUOS/info/catalogue/MAME2010/"
+      },
+      {
+        "dir": "MBA",
+        "id": "75",
+        "name": "MBA",
+        "art": "/mnt/mmc/MUOS/info/catalogue/MBA/"
+      },
+      {
+        "dir": "MD",
+        "id": "1",
+        "name": "Sega Genesis (Mega Drive)",
+        "art": "/mnt/mmc/MUOS/info/catalogue/MD/"
+      },
+      {
+        "dir": "MDMSU",
+        "id": "1",
+        "name": "Sega Genesis (Mega Drive) Hacks",
+        "art": "/mnt/mmc/MUOS/info/catalogue/MDMSU/"
+      },
+      {
+        "dir": "MEGADUCK",
+        "id": "90",
+        "name": "Megaduck",
+        "art": "/mnt/mmc/MUOS/info/catalogue/MEGADUCK/"
+      },
+      {
+        "dir": "MS",
+        "id": "2",
+        "name": "Sega Master System",
+        "art": "/mnt/mmc/MUOS/info/catalogue/MS/"
+      },
+      {
+        "dir": "MSX",
+        "id": "113",
+        "name": "MSX",
+        "art": "/mnt/mmc/MUOS/info/catalogue/MSX/"
+      },
+      {
+        "dir": "MSX2",
+        "id": "116",
+        "name": "MSX",
+        "art": "/mnt/mmc/MUOS/info/catalogue/MSX2/"
+      },
+      {
+        "dir": "N64",
+        "id": "14",
+        "name": "Nintendo 64",
+        "art": "/mnt/mmc/MUOS/info/catalogue/N64/"
+      },
+      {
+        "dir": "N64DD",
+        "id": "122",
+        "name": "Nintendo 64DD",
+        "art": "/mnt/mmc/MUOS/info/catalogue/N64DD/"
+      },
+      {
+        "dir": "NAOMI",
+        "id": "56",
+        "name": "Sega Naomi",
+        "art": "/mnt/mmc/MUOS/info/catalogue/NAOMI/"
+      },
+      {
+        "dir": "NDS",
+        "id": "15",
+        "name": "NDS",
+        "art": "/mnt/mmc/MUOS/info/catalogue/NDS/"
+      },
+      {
+        "dir": "NEOCD",
+        "id": "70",
+        "name": "Neo Geo CD",
+        "art": "/mnt/mmc/MUOS/info/catalogue/NEOCD/"
+      },
+      {
+        "dir": "NEOGEO",
+        "id": "142",
+        "name": "Neo Geo AES",
+        "art": "/mnt/mmc/MUOS/info/catalogue/NEOGEO/"
+      },
+      {
+        "dir": "NGP",
+        "id": "25",
+        "name": "Neo Geo Pocket",
+        "art": "/mnt/mmc/MUOS/info/catalogue/NGP/"
+      },
+      {
+        "dir": "NGC",
+        "id": "82",
+        "name": "Neo-geo Pocket Color",
+        "art": "/mnt/mmc/MUOS/info/catalogue/NGC/"
+      },
+      {
+        "dir": "ODYSSEY",
+        "id": "104",
+        "name": "Videopac / Magnavox Odyssey 2",
+        "art": "/mnt/mmc/MUOS/info/catalogue/ODYSSEY/"
+      },
+      {
+        "dir": "OPENBOR",
+        "id": "214",
+        "name": "OpenBOR",
+        "art": "/mnt/mmc/MUOS/info/catalogue/OPENBOR/"
+      },
+      {
+        "dir": "PALMOS",
+        "id": "219",
+        "name": "Palm",
+        "art": "/mnt/mmc/MUOS/info/catalogue/PALMOS/"
+      },
+      {
+        "dir": "PANASONIC",
+        "id": "29",
+        "name": "3DO",
+        "art": "/mnt/mmc/MUOS/info/catalogue/PANASONIC/"
+      },
+      {
+        "dir": "PCE",
+        "id": "31",
+        "name": "NEC TurboGrafx-16 / PC Engine",
+        "art": "/mnt/mmc/MUOS/info/catalogue/PCE/"
+      },
+      {
+        "dir": "PCECD",
+        "id": "114",
+        "name": "NEC TurboGrafx-CD",
+        "art": "/mnt/mmc/MUOS/info/catalogue/PCECD/"
+      },
+      {
+        "dir": "PC88",
+        "id": "221",
+        "name": "NEC PC-8000 & PC-8800 series / NEC PC-8801",
+        "art": "/mnt/mmc/MUOS/info/catalogue/PC88/"
+      },
+      {
+        "dir": "PCFX",
+        "id": "72",
+        "name": "NEC PC-FX",
+        "art": "/mnt/mmc/MUOS/info/catalogue/PCFX/"
+      },
+      {
+        "dir": "PC98",
+        "id": "208",
+        "name": "NEC PC-98 / NEC PC-9801",
+        "art": "/mnt/mmc/MUOS/info/catalogue/PC98/"
+      },
+      {
+        "dir": "PICO",
+        "id": "234",
+        "name": "PICO",
+        "art": "/mnt/mmc/MUOS/info/catalogue/PICO/"
+      },
+      {
+        "dir": "POKEMINI",
+        "id": "211",
+        "name": "PokeMini",
+        "art": "/mnt/mmc/MUOS/info/catalogue/POKEMINI/"
+      },
+      {
+        "dir": "PORTS",
+        "id": "137",
+        "name": "PC Win9X",
+        "art": "/mnt/mmc/MUOS/info/catalogue/PORTS/"
+      },
+      {
+        "dir": "PS",
+        "id": "57",
+        "name": "Sony Playstation",
+        "art": "/mnt/mmc/MUOS/info/catalogue/PS/"
+      },
+      {
+        "dir": "PSP",
+        "id": "61",
+        "name": "Sony PSP",
+        "art": "/mnt/mmc/MUOS/info/catalogue/PSP/"
+      },
+      {
+        "dir": "PSPMINIS",
+        "id": "172",
+        "name": "Sony PSP Minis",
+        "art": "/mnt/mmc/MUOS/info/catalogue/PSPMINIS/"
+      },
+      {
+        "dir": "SATURN",
+        "id": "22",
+        "name": "Sony PSP Minis",
+        "art": "/mnt/mmc/MUOS/info/catalogue/SATURN/"
+      },
+      {
+        "dir": "SATELLAVIEW",
+        "id": "107",
+        "name": "Satellaview",
+        "art": "/mnt/mmc/MUOS/info/catalogue/SATELLAVIEW/"
+      },
+      {
+        "dir": "SCUMMVM",
+        "id": "123",
+        "name": "ScummVM",
+        "art": "/mnt/mmc/MUOS/info/catalogue/SCUMMVM/"
+      },
+      {
+        "dir": "SEGACD",
+        "id": "20",
+        "name": "Sega CD",
+        "art": "/mnt/mmc/MUOS/info/catalogue/SEGACD/"
+      },
+      {
+        "dir": "SG1000",
+        "id": "109",
+        "name": "Sega SG-1000",
+        "art": "/mnt/mmc/MUOS/info/catalogue/SG1000/"
+      },
+      {
+        "dir": "ATARI7800",
+        "id": "41",
+        "name": "Atari 7800",
+        "art": "/mnt/mmc/MUOS/info/catalogue/ATARI7800/"
+      },
+      {
+        "dir": "SFC",
+        "id": "4",
+        "name": "Super Nintendo (SNES)",
+        "art": "/mnt/mmc/MUOS/info/catalogue/SFC/"
+      },
+      {
+        "dir": "SFCMSU",
+        "id": "4",
+        "name": "Super Nintendo (SNES) hacks",
+        "art": "/mnt/mmc/MUOS/info/catalogue/SFCMSU/"
+      },
+      {
+        "dir": "SGB",
+        "id": "127",
+        "name": "Super Game Boy",
+        "art": "/mnt/mmc/MUOS/info/catalogue/SGB/"
+      },
+      {
+        "dir": "SFX",
+        "id": "105",
+        "name": "NEC PC Engine SuperGrafx",
+        "art": "/mnt/mmc/MUOS/info/catalogue/SFX/"
+      },
+      {
+        "dir": "SUFAMI",
+        "id": "108",
+        "name": "Sufami Turbo",
+        "art": "/mnt/mmc/MUOS/info/catalogue/SUFAMI/"
+      },
+      {
+        "dir": "WS",
+        "id": "207",
+        "name": "Watara Supervision",
+        "art": "/mnt/mmc/MUOS/info/catalogue/WS/"
+      },
+      {
+        "dir": "WSC",
+        "id": "207",
+        "name": "Watara Supervision",
+        "art": "/mnt/mmc/MUOS/info/catalogue/WSC/"
+      },
+      {
+        "dir": "SEGA32X",
+        "id": "19",
+        "name": "Sega 32X",
+        "art": "/mnt/mmc/MUOS/info/catalogue/SEGA32X/"
+      },
+      {
+        "dir": "SFX",
+        "id": "19",
+        "name": "Sega 32X",
+        "art": "/mnt/mmc/MUOS/info/catalogue/SFX/"
+      },
+      {
+        "dir": "THOMSON",
+        "id": "141",
+        "name": "Thomson",
+        "art": "/mnt/mmc/MUOS/info/catalogue/THOMSON/"
+      },
+      {
+        "dir": "TIC",
+        "id": "222",
+        "name": "TIC-80",
+        "art": "/mnt/mmc/MUOS/info/catalogue/TIC/"
+      },
+      {
+        "dir": "UZEBOX",
+        "id": "216",
+        "name": "Uzebox",
+        "art": "/mnt/mmc/MUOS/info/catalogue/UZEBOX/"
+      },
+      {
+        "dir": "VB",
+        "id": "11",
+        "name": "Virtual Boy",
+        "art": "/mnt/mmc/MUOS/info/catalogue/VB/"
+      },
+      {
+        "dir": "VECTREX",
+        "id": "102",
+        "name": "Vectrex",
+        "art": "roms/vectrex/art"
+      },
+      {
+        "dir": "VIC20",
+        "id": "73",
+        "name": "Commodore VIC-20",
+        "art": "roms/vic20/art"
+      },
+      {
+        "dir": "VIDEOPAC",
+        "id": "104",
+        "name": "Videopac",
+        "art": "roms/videopac/art"
+      },
+      {
+        "dir": "VMU",
+        "id": "23",
+        "name": "Dreamcast VMU (useless)",
+        "art": "roms/vmu/art"
+      },
+      {
+        "dir": "WS",
+        "id": "45",
+        "name": "Bandai WonderSwan & Color",
+        "art": "roms/ws/art"
+      },
+      {
+        "dir": "X68000",
+        "id": "79",
+        "name": "Sharp X68000",
+        "art": "roms/x68000/art"
+      },
+      {
+        "dir": "X1",
+        "id": "220",
+        "name": "Sharp X1",
+        "art": "roms/x1/art"
+      },
+      {
+        "dir": "ZXEIGHTYONE",
+        "id": "77",
+        "name": "Sinclair ZX-81",
+        "art": "roms/zxeightyone/art"
+      },
+      {
+        "dir": "ZXS",
+        "id": "76",
+        "name": "Sinclair ZX Spectrum",
+        "art": "roms/zxs/art"
+      }
+    ]
+  }
+}

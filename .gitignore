@@ -1,0 +1,7 @@
+__pycache__
+roms
+dist
+build
+app.spec
+.DS_Store
+build.sh
