@@ -129,7 +129,6 @@ class App:
                     (20, 50 + (i * 35)),
                     600,
                     i == (selected_position % max_elem),
-                    logo,
                 )
 
             self.button_circle((30, 450), "A", "Select")
