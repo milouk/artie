@@ -2,7 +2,7 @@ import struct
 import logging
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.ERROR)
 
 KEY_MAPPING = {
     304: "A",

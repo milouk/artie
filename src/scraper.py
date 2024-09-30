@@ -12,12 +12,12 @@ import requests
 BASE_URL = "https://www.screenscraper.fr/api2/jeuInfos.php"
 MAX_FILE_SIZE_BYTES = 104857600  # 100MB
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png")
-VALID_MEDIA_TYPES = {"box-2D", "box-3D", "mixrbv1", "mixrbv2"}
+VALID_MEDIA_TYPES = {"box-2D", "box-3D", "mixrbv1", "mixrbv2", "ss"}
 
 
 def configure_logging():
     logging.basicConfig(
-        level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+        level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
 
