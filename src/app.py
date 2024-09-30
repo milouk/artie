@@ -94,7 +94,7 @@ class App:
         filtered_systems = [
             system for system in available_systems if system in all_systems
         ]
-        return filtered_systems
+        return sorted(filtered_systems)
 
     def get_roms(self, system: str) -> list[Rom]:
         roms = []
@@ -109,7 +109,7 @@ class App:
                     name = file_path.stem
                     rom = Rom(filename=file, name=name)
                     roms.append(rom)
-        return roms
+        return sorted(roms, key=lambda rom: rom.name)
 
     def delete_all_files_in_directory(self, directory_path):
         directory = Path(directory_path)
@@ -166,7 +166,7 @@ class App:
         if len(available_systems) >= 1:
             start_idx = int(selected_position / max_elem) * max_elem
             end_idx = start_idx + max_elem
-            for i, system in enumerate(sorted(available_systems[start_idx:end_idx])):
+            for i, system in enumerate(available_systems[start_idx:end_idx]):
                 logo = f"{self.systems_logo_path}/{system}.png"
                 self.row_list(
                     system,
@@ -241,7 +241,6 @@ class App:
             time.sleep(2)
             gr.draw_clear()
             exit_menu = True
-            return
 
         box_dir = Path(system["box"])
         preview_dir = Path(system["preview"])
@@ -388,9 +387,7 @@ class App:
 
         start_idx = int(roms_selected_position / max_elem) * max_elem
         end_idx = start_idx + max_elem
-        for i, rom in enumerate(
-            sorted(roms_without_image[start_idx:end_idx], key=lambda rom: rom.name)
-        ):
+        for i, rom in enumerate(roms_without_image[start_idx:end_idx]):
             self.row_list(
                 rom.name[:48] + "..." if len(rom.name) > 50 else rom.name,
                 (20, 50 + (i * 35)),
