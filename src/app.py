@@ -10,7 +10,8 @@ import input
 from PIL import Image
 from scraper import (
     check_destination,
-    download_media,
+    fetch_art,
+    fetch_synopsis,
     find_game,
     get_image_files_without_extension,
 )
@@ -36,7 +37,7 @@ class App:
         self.systems_mapping = {}
         self.roms_path = ""
         self.systems_logo_path = ""
-        self.media = {}
+        self.content = {}
         self.threads = 1
         self.username = ""
         self.password = ""
@@ -52,7 +53,7 @@ class App:
         self.dev_password = self.config.get("screenscraper").get("devpassword")
         self.username = self.config.get("screenscraper").get("username")
         self.password = self.config.get("screenscraper").get("password")
-        self.media = self.config.get("screenscraper").get("media")
+        self.content = self.config.get("screenscraper").get("content")
         self.threads = self.config.get("threads")
         for system in self.config["screenscraper"]["systems"]:
             self.systems_mapping[system["dir"]] = system
@@ -99,16 +100,23 @@ class App:
         roms = []
         system_path = Path(self.roms_path) / system
 
-        for file in os.listdir(system_path):
-            file_path = Path(system_path) / file
-            if file.startswith("."):
-                continue
-            if file_path.is_file() and self.is_valid_rom(file):
-                name = file_path.stem
-                rom = Rom(filename=file, name=name)
-                roms.append(rom)
-
+        for root, _, files in os.walk(system_path):
+            for file in files:
+                file_path = Path(root) / file
+                if file.startswith("."):
+                    continue
+                if file_path.is_file() and self.is_valid_rom(file):
+                    name = file_path.stem
+                    rom = Rom(filename=file, name=name)
+                    roms.append(rom)
         return roms
+
+    def delete_all_files_in_directory(self, directory_path):
+        directory = Path(directory_path)
+        if directory.is_dir():
+            for file in directory.iterdir():
+                if file.is_file():
+                    file.unlink()
 
     def load_emulators(self) -> None:
         global selected_position, selected_system, current_window, skip_input_check
@@ -138,11 +146,27 @@ class App:
                 gr.draw_paint()
                 skip_input_check = True
                 return
+            elif input.key_pressed("X"):
+                selected_system = available_systems[selected_position]
+                system = self.systems_mapping.get(selected_system)
+                if system:
+                    self.delete_all_files_in_directory(system["box"])
+                    self.delete_all_files_in_directory(system["preview"])
+                    self.delete_all_files_in_directory(system["synopsis"])
+
+                    gr.draw_log(
+                        f"Deleting all existing {selected_system} media...",
+                        fill=gr.COLOR_BLUE,
+                        outline=gr.COLOR_BLUE_D1,
+                    )
+                    gr.draw_paint()
+                    skip_input_check = True
+                return
 
         if len(available_systems) >= 1:
             start_idx = int(selected_position / max_elem) * max_elem
             end_idx = start_idx + max_elem
-            for i, system in enumerate(available_systems[start_idx:end_idx]):
+            for i, system in enumerate(sorted(available_systems[start_idx:end_idx])):
                 logo = f"{self.systems_logo_path}/{system}.png"
                 self.row_list(
                     system,
@@ -153,12 +177,14 @@ class App:
                 )
 
             self.button_circle((30, 450), "A", "Select")
+            self.button_circle((170, 450), "X", "Delete")
+
         else:
             gr.draw_text(
                 (320, 240), f"No Emulators found in {self.roms_path}", anchor="mm"
             )
 
-        self.button_circle((133, 450), "M", "Exit")
+        self.button_circle((300, 450), "M", "Exit")
 
         gr.draw_paint()
 
@@ -177,10 +203,9 @@ class App:
         }
         return os.path.splitext(rom)[1] not in invalid_extensions
 
-    def save_to_disk(self, rom, scraped_media, art_folder):
-        img_path: Path = art_folder / f"{rom.name}.png"
-        check_destination(img_path)
-        img_path.write_bytes(scraped_media)
+    def save_file_to_disk(self, data, destination):
+        check_destination(destination)
+        destination.write_bytes(data)
         gr.draw_log("Scraping completed!", fill=gr.COLOR_BLUE, outline=gr.COLOR_BLUE_D1)
         return True
 
@@ -194,10 +219,10 @@ class App:
             self.password,
         )
         if game:
-            medias = game["response"]["jeu"]["medias"]
-            media = download_media(medias, self.media)
-            if media:
-                return media
+            scraped_box, scraped_preview = fetch_art(game, self.content)
+            scraped_synopsis = fetch_synopsis(game, self.content)
+            return scraped_box, scraped_preview, scraped_synopsis
+        return None, None, None
 
     def load_roms(self) -> None:
         global selected_position, current_window, roms_selected_position, skip_input_check, selected_system
@@ -217,14 +242,16 @@ class App:
             gr.draw_clear()
             exit_menu = True
 
-        art_folder = Path(system["art"])
+        box_dir = Path(system["box"])
+        preview_dir = Path(system["preview"])
+        synopsis_dir = Path(system["synopsis"])
         system_id = system["id"]
 
-        if not art_folder.exists():
-            art_folder.mkdir()
+        if not box_dir.exists():
+            box_dir.mkdir()
             imgs_files: List[str] = []
         else:
-            imgs_files = get_image_files_without_extension(art_folder)
+            imgs_files = get_image_files_without_extension(box_dir)
 
         roms_without_image = [rom for rom in roms_list if rom.name not in imgs_files]
 
@@ -247,9 +274,18 @@ class App:
             gr.draw_log("Scraping...", fill=gr.COLOR_BLUE, outline=gr.COLOR_BLUE_D1)
             gr.draw_paint()
             rom = roms_without_image[roms_selected_position]
-            scraped_media = self.scrape(rom, system_path, system_id)
-            if scraped_media:
-                self.save_to_disk(rom, scraped_media, art_folder)
+            scraped_box, scraped_preview, scraped_synopsis = self.scrape(
+                rom, system_path, system_id
+            )
+            if scraped_box:
+                destination: Path = box_dir / f"{rom.name}.png"
+                self.save_file_to_disk(scraped_box, destination)
+            if scraped_preview:
+                destination: Path = preview_dir / f"{rom.name}.png"
+                self.save_file_to_disk(scraped_preview, destination)
+            if scraped_synopsis:
+                destination: Path = synopsis_dir / f"{rom.name}.txt"
+                self.save_file_to_disk(scraped_synopsis.encode("utf-8"), destination)
             else:
                 gr.draw_log(
                     "Scraping failed!", fill=gr.COLOR_BLUE, outline=gr.COLOR_BLUE_D1
@@ -270,9 +306,20 @@ class App:
             gr.draw_paint()
             for rom in roms_without_image:
                 if rom.name not in imgs_files:
-                    scraped_media = self.scrape(rom, system_path, system_id)
-                    if scraped_media:
-                        self.save_to_disk(rom, scraped_media, art_folder)
+                    scraped_box, scraped_preview, scraped_synopsis = self.scrape(
+                        rom, system_path, system_id
+                    )
+                    if scraped_box:
+                        destination: Path = box_dir / f"{rom.name}.png"
+                        self.save_file_to_disk(scraped_box, destination)
+                    if scraped_preview:
+                        destination: Path = preview_dir / f"{rom.name}.png"
+                        self.save_file_to_disk(scraped_preview, destination)
+                    if scraped_synopsis:
+                        destination: Path = synopsis_dir / f"{rom.name}.txt"
+                        self.save_file_to_disk(
+                            scraped_synopsis.encode("utf-8"), destination
+                        )
                     else:
                         gr.draw_log(
                             "Scraping failed!",
@@ -340,7 +387,9 @@ class App:
 
         start_idx = int(roms_selected_position / max_elem) * max_elem
         end_idx = start_idx + max_elem
-        for i, rom in enumerate(roms_without_image[start_idx:end_idx]):
+        for i, rom in enumerate(
+            sorted(roms_without_image[start_idx:end_idx], key=lambda rom: rom.name)
+        ):
             self.row_list(
                 rom.name[:48] + "..." if len(rom.name) > 50 else rom.name,
                 (20, 50 + (i * 35)),

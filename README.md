@@ -2,6 +2,9 @@
 
 Artie is a simple art scraper designed for Anbernic devices running MuOS. It helps you download and manage artwork for your ROMs, enhancing your gaming experience with beautiful visuals.
 
+![Artie Screenshot 1](artie1.png)
+![Artie Screenshot 2](artie2.png)
+
 ## Features
 
 - Easy-to-use interface
