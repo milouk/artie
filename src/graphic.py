@@ -52,6 +52,13 @@ def crate_image():
     return image
 
 
+def draw_image(position, image, max_width, max_height):
+    global activeImage
+    image.thumbnail((max_width, max_height), Image.LANCZOS)
+    new_position = (position[0] - image.width, position[1])
+    activeImage.paste(image, new_position)
+
+
 def draw_active(image):
     global activeImage, activeDraw
     activeImage = image

@@ -374,8 +374,22 @@ class App:
             try:
                 image = Image.open(image_path)
                 image_width, image_height = image.size
-                # gr.draw_image((pos[0] + 5, pos[1] + (32 - image_height) // 2), image)
-                text_offset_x += image_width + 5
+                aspect_ratio = image_width / image_height
+
+                new_width = min(150, image_width)
+                new_height = new_width / aspect_ratio
+
+                if new_height < 50:
+                    new_height = 50
+                    new_width = new_height * aspect_ratio
+
+                gr.draw_image(
+                    (pos[0] + width - 30, pos[1] + 5),
+                    image,
+                    new_width,
+                    new_height,
+                )
+
             except Exception as e:
                 print(f"Error loading image from {image_path}: {e}")
 
