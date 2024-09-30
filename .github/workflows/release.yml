@@ -2,8 +2,8 @@
 name: Release
 
 on:
-  push:
-    branches: [main]
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -38,26 +38,10 @@ jobs:
           cp -r ./dist/app ./assets ./config.json .artie
           zip -r Artie.zip .artie ./Artie\ Scraper.sh
 
-      - name: Get HEAD commit hash
-        id: get_commit
-        run: echo "::set-output name=commit_hash::$"
-
-      - name: Upload Artie.zip
-        uses: actions/upload-artifact@v3
-        with:
-          name: Artie
-          path: Artie.zip
-
-      - name: Generate release tag
-        id: tag
-        run: |
-          echo "::set-output name=release_tag::Artie_$(date +"%Y.%m.%d_%H-%M")"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload assets
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: ${{startsWith(github.ref, 'refs/tags/') }}
         with:
           files: Artie.zip
-          tag_name: ${{ steps.tag.outputs.release_tag }}
-          release_name: Release ${{ steps.get_commit.outputs.commit_hash }}
