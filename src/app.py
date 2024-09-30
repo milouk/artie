@@ -119,28 +119,6 @@ class App:
 
         available_systems = self.get_available_systems()
 
-        if len(available_systems) >= 1:
-            start_idx = int(selected_position / max_elem) * max_elem
-            end_idx = start_idx + max_elem
-            for i, system in enumerate(available_systems[start_idx:end_idx]):
-                logo = f"{self.systems_logo_path}/{system}.png"
-                self.row_list(
-                    system,
-                    (20, 50 + (i * 35)),
-                    600,
-                    i == (selected_position % max_elem),
-                )
-
-            self.button_circle((30, 450), "A", "Select")
-        else:
-            gr.draw_text(
-                (320, 240), f"No Emulators found in {self.roms_path}", anchor="mm"
-            )
-
-        self.button_circle((133, 450), "M", "Exit")
-
-        gr.draw_paint()
-
         if available_systems:
             if input.key_pressed("DY"):
                 if input.current_value == 1:
@@ -160,6 +138,29 @@ class App:
                 gr.draw_paint()
                 skip_input_check = True
                 return
+
+        if len(available_systems) >= 1:
+            start_idx = int(selected_position / max_elem) * max_elem
+            end_idx = start_idx + max_elem
+            for i, system in enumerate(available_systems[start_idx:end_idx]):
+                logo = f"{self.systems_logo_path}/{system}.png"
+                self.row_list(
+                    system,
+                    (20, 50 + (i * 35)),
+                    600,
+                    i == (selected_position % max_elem),
+                    # logo,
+                )
+
+            self.button_circle((30, 450), "A", "Select")
+        else:
+            gr.draw_text(
+                (320, 240), f"No Emulators found in {self.roms_path}", anchor="mm"
+            )
+
+        self.button_circle((133, 450), "M", "Exit")
+
+        gr.draw_paint()
 
     def is_valid_rom(self, rom):
         invalid_extensions = {
