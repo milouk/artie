@@ -1,12 +1,7 @@
 #!/bin/sh
 echo app >/tmp/act_go
 
-progdir=$(
-    cd $(dirname "$0")
-    pwd
-)
-
-ARTIE_DIR="${progdir}/.artie"
+ARTIE_DIR="/mnt/mmc/MUOS/application/.artie"
 
 cd "$ARTIE_DIR" || exit
 
