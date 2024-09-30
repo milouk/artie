@@ -23,7 +23,7 @@ Follow these steps to install Artie:
 3. **Configure Artie**:
 
    - Open `config.json` and add your ScreenScraper credentials.
-   - Customize other settings such as ROMs path, art path per system, etc.
+   - *Customize other settings such as ROMs path, art path per system, etc.*
 
 4. **Copy Files to MuOS**:
 
