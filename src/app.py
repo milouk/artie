@@ -100,15 +100,15 @@ class App:
         roms = []
         system_path = Path(self.roms_path) / system
 
-        for file in os.listdir(system_path):
-            file_path = Path(system_path) / file
-            if file.startswith("."):
-                continue
-            if file_path.is_file() and self.is_valid_rom(file):
-                name = file_path.stem
-                rom = Rom(filename=file, name=name)
-                roms.append(rom)
-
+        for root, _, files in os.walk(system_path):
+            for file in files:
+                file_path = Path(root) / file
+                if file.startswith("."):
+                    continue
+                if file_path.is_file() and self.is_valid_rom(file):
+                    name = file_path.stem
+                    rom = Rom(filename=file, name=name)
+                    roms.append(rom)
         return roms
 
     def load_emulators(self) -> None:
