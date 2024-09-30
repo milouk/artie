@@ -1,7 +1,12 @@
 #!/bin/sh
 echo app >/tmp/act_go
 
-ARTIE_DIR="$DC_STO_ROM_MOUNT/MUOS/application/.artie"
+progdir=$(
+    cd $(dirname "$0")
+    pwd
+)
+
+ARTIE_DIR="${progdir}/.artie"
 
 cd "$ARTIE_DIR" || exit
 
