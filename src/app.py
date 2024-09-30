@@ -166,7 +166,7 @@ class App:
         if len(available_systems) >= 1:
             start_idx = int(selected_position / max_elem) * max_elem
             end_idx = start_idx + max_elem
-            for i, system in enumerate(available_systems[start_idx:end_idx]):
+            for i, system in enumerate(sorted(available_systems[start_idx:end_idx])):
                 logo = f"{self.systems_logo_path}/{system}.png"
                 self.row_list(
                     system,
@@ -387,7 +387,9 @@ class App:
 
         start_idx = int(roms_selected_position / max_elem) * max_elem
         end_idx = start_idx + max_elem
-        for i, rom in enumerate(roms_without_image[start_idx:end_idx]):
+        for i, rom in enumerate(
+            sorted(roms_without_image[start_idx:end_idx], key=lambda rom: rom.name)
+        ):
             self.row_list(
                 rom.name[:48] + "..." if len(rom.name) > 50 else rom.name,
                 (20, 50 + (i * 35)),
