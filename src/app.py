@@ -241,6 +241,7 @@ class App:
             time.sleep(2)
             gr.draw_clear()
             exit_menu = True
+            return
 
         box_dir = Path(system["box"])
         preview_dir = Path(system["preview"])
@@ -248,7 +249,7 @@ class App:
         system_id = system["id"]
 
         if not box_dir.exists():
-            box_dir.mkdir()
+            box_dir.mkdir(parents=True, exist_ok=True)
             imgs_files: List[str] = []
         else:
             imgs_files = get_image_files_without_extension(box_dir)
