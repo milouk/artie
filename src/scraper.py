@@ -189,10 +189,12 @@ def fetch_art(game, config):
     return box, preview
 
 
-def fetch_synopsis(game, config_media):
-    synopsis = game["response"]["jeu"]["synopsis"]
+def fetch_synopsis(game, config):
+    synopsis = game["response"]["jeu"].get("synopsis")
+    if not synopsis:
+        return None
 
-    synopsis_lang = config_media["synopsis_lang"]
+    synopsis_lang = config["synopsis_lang"]
     synopsis_text = next(
         (item["text"] for item in synopsis if item["langue"] == synopsis_lang), None
     )
