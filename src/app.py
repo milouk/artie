@@ -200,6 +200,8 @@ class App:
             ".xml",
             ".txt",
             ".dat",
+            ".mp4",
+            ".pdf",
         }
         return os.path.splitext(rom)[1] not in invalid_extensions
 
@@ -229,6 +231,17 @@ class App:
 
         exit_menu = False
         roms_list = self.get_roms(selected_system)
+        if not roms_list:
+            gr.draw_log(
+                f"No roms found in {selected_system}...",
+                fill=gr.COLOR_BLUE,
+                outline=gr.COLOR_BLUE_D1,
+            )
+            gr.draw_paint()
+            time.sleep(2)
+            gr.draw_clear()
+            exit_menu = True
+
         system_path = Path(self.roms_path) / selected_system
         system = self.systems_mapping.get(selected_system)
         if not system:
