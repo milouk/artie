@@ -111,6 +111,13 @@ class App:
                     roms.append(rom)
         return roms
 
+    def delete_all_files_in_directory(self, directory_path):
+        directory = Path(directory_path)
+        if directory.is_dir():
+            for file in directory.iterdir():
+                if file.is_file():
+                    file.unlink()
+
     def load_emulators(self) -> None:
         global selected_position, selected_system, current_window, skip_input_check
 
@@ -139,6 +146,22 @@ class App:
                 gr.draw_paint()
                 skip_input_check = True
                 return
+            elif input.key_pressed("X"):
+                selected_system = available_systems[selected_position]
+                system = self.systems_mapping.get(selected_system)
+                if system:
+                    self.delete_all_files_in_directory(system["box"])
+                    self.delete_all_files_in_directory(system["preview"])
+                    self.delete_all_files_in_directory(system["synopsis"])
+
+                    gr.draw_log(
+                        f"Deleting all existing {selected_system} media...",
+                        fill=gr.COLOR_BLUE,
+                        outline=gr.COLOR_BLUE_D1,
+                    )
+                    gr.draw_paint()
+                    skip_input_check = True
+                return
 
         if len(available_systems) >= 1:
             start_idx = int(selected_position / max_elem) * max_elem
@@ -154,12 +177,14 @@ class App:
                 )
 
             self.button_circle((30, 450), "A", "Select")
+            self.button_circle((170, 450), "X", "Delete")
+
         else:
             gr.draw_text(
                 (320, 240), f"No Emulators found in {self.roms_path}", anchor="mm"
             )
 
-        self.button_circle((133, 450), "M", "Exit")
+        self.button_circle((300, 450), "M", "Exit")
 
         gr.draw_paint()
 
