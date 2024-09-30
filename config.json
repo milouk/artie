@@ -11,16 +11,20 @@
       "synopsis_lang": "en",
       "box": {
         "type": "box-3D",
-        "height": 275,
-        "width": 515
-      },
-      "preview": {
-        "type": "ss",
         "height": 240,
         "width": 320
       },
+      "preview": {
+        "type": "ss",
+        "height": 275,
+        "width": 515
+      },
       "regions": [
         "us",
+        "eu",
+        "jp",
+        "br",
+        "ss",
         "ame",
         "wor"
       ]
