@@ -1,4 +1,8 @@
 import struct
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 
 KEY_MAPPING = {
     304: "A",
@@ -36,6 +40,7 @@ def check_input(device_path="/dev/input/event1"):
                     current_code = key_code
                     current_code_name = KEY_MAPPING.get(current_code, str(current_code))
                     current_value = key_value
+                    logging.debug(f"Key pressed: {current_code_name}, value: {current_value}")
                     return
 
 
@@ -50,3 +55,4 @@ def reset_input():
     global current_code_name, current_value
     current_code_name = ""
     current_value = 0
+    logging.debug("Input reset")
