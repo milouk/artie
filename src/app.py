@@ -10,7 +10,8 @@ import input
 from PIL import Image
 from scraper import (
     check_destination,
-    download_media,
+    fetch_art,
+    fetch_synopsis,
     find_game,
     get_image_files_without_extension,
 )
@@ -36,7 +37,7 @@ class App:
         self.systems_mapping = {}
         self.roms_path = ""
         self.systems_logo_path = ""
-        self.media = {}
+        self.content = {}
         self.threads = 1
         self.username = ""
         self.password = ""
@@ -52,7 +53,7 @@ class App:
         self.dev_password = self.config.get("screenscraper").get("devpassword")
         self.username = self.config.get("screenscraper").get("username")
         self.password = self.config.get("screenscraper").get("password")
-        self.media = self.config.get("screenscraper").get("media")
+        self.content = self.config.get("screenscraper").get("content")
         self.threads = self.config.get("threads")
         for system in self.config["screenscraper"]["systems"]:
             self.systems_mapping[system["dir"]] = system
@@ -177,10 +178,9 @@ class App:
         }
         return os.path.splitext(rom)[1] not in invalid_extensions
 
-    def save_to_disk(self, rom, scraped_media, art_folder):
-        img_path: Path = art_folder / f"{rom.name}.png"
-        check_destination(img_path)
-        img_path.write_bytes(scraped_media)
+    def save_file_to_disk(self, data, destination):
+        check_destination(destination)
+        destination.write_bytes(data)
         gr.draw_log("Scraping completed!", fill=gr.COLOR_BLUE, outline=gr.COLOR_BLUE_D1)
         return True
 
@@ -194,10 +194,10 @@ class App:
             self.password,
         )
         if game:
-            medias = game["response"]["jeu"]["medias"]
-            media = download_media(medias, self.media)
-            if media:
-                return media
+            scraped_box, scraped_preview = fetch_art(game, self.content)
+            scraped_synopsis = fetch_synopsis(game, self.content)
+            return scraped_box, scraped_preview, scraped_synopsis
+        return None, None, None
 
     def load_roms(self) -> None:
         global selected_position, current_window, roms_selected_position, skip_input_check, selected_system
@@ -217,14 +217,16 @@ class App:
             gr.draw_clear()
             exit_menu = True
 
-        art_folder = Path(system["art"])
+        box_dir = Path(system["box"])
+        preview_dir = Path(system["preview"])
+        synopsis_dir = Path(system["synopsis"])
         system_id = system["id"]
 
-        if not art_folder.exists():
-            art_folder.mkdir()
+        if not box_dir.exists():
+            box_dir.mkdir()
             imgs_files: List[str] = []
         else:
-            imgs_files = get_image_files_without_extension(art_folder)
+            imgs_files = get_image_files_without_extension(box_dir)
 
         roms_without_image = [rom for rom in roms_list if rom.name not in imgs_files]
 
@@ -247,9 +249,18 @@ class App:
             gr.draw_log("Scraping...", fill=gr.COLOR_BLUE, outline=gr.COLOR_BLUE_D1)
             gr.draw_paint()
             rom = roms_without_image[roms_selected_position]
-            scraped_media = self.scrape(rom, system_path, system_id)
-            if scraped_media:
-                self.save_to_disk(rom, scraped_media, art_folder)
+            scraped_box, scraped_preview, scraped_synopsis = self.scrape(
+                rom, system_path, system_id
+            )
+            if scraped_box:
+                destination: Path = box_dir / f"{rom.name}.png"
+                self.save_file_to_disk(scraped_box, destination)
+            if scraped_preview:
+                destination: Path = preview_dir / f"{rom.name}.png"
+                self.save_file_to_disk(scraped_preview, destination)
+            if scraped_synopsis:
+                destination: Path = synopsis_dir / f"{rom.name}.txt"
+                self.save_file_to_disk(scraped_synopsis.encode("utf-8"), destination)
             else:
                 gr.draw_log(
                     "Scraping failed!", fill=gr.COLOR_BLUE, outline=gr.COLOR_BLUE_D1
@@ -270,9 +281,20 @@ class App:
             gr.draw_paint()
             for rom in roms_without_image:
                 if rom.name not in imgs_files:
-                    scraped_media = self.scrape(rom, system_path, system_id)
-                    if scraped_media:
-                        self.save_to_disk(rom, scraped_media, art_folder)
+                    scraped_box, scraped_preview, scraped_synopsis = self.scrape(
+                        rom, system_path, system_id
+                    )
+                    if scraped_box:
+                        destination: Path = box_dir / f"{rom.name}.png"
+                        self.save_file_to_disk(scraped_box, destination)
+                    if scraped_preview:
+                        destination: Path = preview_dir / f"{rom.name}.png"
+                        self.save_file_to_disk(scraped_preview, destination)
+                    if scraped_synopsis:
+                        destination: Path = synopsis_dir / f"{rom.name}.txt"
+                        self.save_file_to_disk(
+                            scraped_synopsis.encode("utf-8"), destination
+                        )
                     else:
                         gr.draw_log(
                             "Scraping failed!",

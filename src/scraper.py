@@ -98,10 +98,11 @@ def add_wh_to_media_url(media_url, width, height):
     return urlunparse(parsed_url._replace(query=urlencode(query, doseq=True)))
 
 
-def check_media_type(media_type):
+def is_media_type_valid(media_type):
     if media_type not in VALID_MEDIA_TYPES:
         logging.error(f"Unknown media type: {media_type}")
-        return None
+        return False
+    return True
 
 
 def check_destination(dest):
@@ -161,16 +162,40 @@ def find_game(system_id, rom_path, dev_id, dev_password, username, password):
         return None
 
 
-def download_media(medias, config_media):
-    media_type = config_media["type"]
-    regions = config_media["regions"]
-    width = config_media["width"]
-    height = config_media["height"]
-    check_media_type(media_type)
+def fetch_art(game, config):
+    def fetch_media(medias, properties, regions):
+        media_type = properties["type"]
+        media_height = properties["height"]
+        media_width = properties["width"]
 
-    media_url = find_media_url_by_region(medias, media_type, regions)
-    if media_url:
-        media_url = add_wh_to_media_url(media_url, width, height)
-        return get(media_url)
-    logging.error(f"Error downloading media: {medias}")
+        if not is_media_type_valid(media_type):
+            return None
+
+        media_url = find_media_url_by_region(medias, media_type, regions)
+        if media_url:
+            media_url = add_wh_to_media_url(media_url, media_width, media_height)
+            return get(media_url)
+        return None
+
+    medias = game["response"]["jeu"]["medias"]
+    regions = config.get("regions", ["us", "ame", "wor"])
+    box = fetch_media(medias, config["box"], regions)
+    preview = fetch_media(medias, config["preview"], regions)
+
+    if not box and not preview:
+        logging.error(f"Error downloading media: {medias}")
+        return None, None
+
+    return box, preview
+
+
+def fetch_synopsis(game, config_media):
+    synopsis = game["response"]["jeu"]["synopsis"]
+
+    synopsis_lang = config_media["synopsis_lang"]
+    synopsis_text = next(
+        (item["text"] for item in synopsis if item["langue"] == synopsis_lang), None
+    )
+    if synopsis_text:
+        return synopsis_text
     return None
