@@ -3,55 +3,47 @@ import hashlib
 import json
 import os
 import re
+import logging
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+from pathlib import Path
 
 import requests
 
 BASE_URL = "https://www.screenscraper.fr/api2/jeuInfos.php"
 MAX_FILE_SIZE_BYTES = 104857600  # 100MB
+IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png")
+VALID_MEDIA_TYPES = {"box-2D", "box-3D", "mixrbv1", "mixrbv2"}
 
 
-class ScraperError(Exception):
-    pass
+def configure_logging():
+    logging.basicConfig(
+        level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
 
 
-class UnreadableBodyError(ScraperError):
-    pass
-
-
-class EmptyBodyError(ScraperError):
-    pass
-
-
-class GameNotFoundError(ScraperError):
-    pass
-
-
-class APIClosedError(ScraperError):
-    pass
-
-
-class HTTPRequestError(ScraperError):
-    pass
-
-
-class UnknownMediaTypeError(ScraperError):
-    pass
+configure_logging()
 
 
 def get_image_files_without_extension(folder):
-    image_extensions = (".jpg", ".jpeg", ".png")
-    return [f.stem for f in folder.glob("*") if f.suffix.lower() in image_extensions]
+    return [
+        f.stem for f in Path(folder).glob("*") if f.suffix.lower() in IMAGE_EXTENSIONS
+    ]
 
 
 def sha1sum(file_path):
-    if os.path.getsize(file_path) > MAX_FILE_SIZE_BYTES:
+    file_size = os.path.getsize(file_path)
+    if file_size > MAX_FILE_SIZE_BYTES:
+        logging.warning(f"File {file_path} exceeds max file size limit.")
         return ""
 
     hash_sha1 = hashlib.sha1()
-    with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_sha1.update(chunk)
+    try:
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_sha1.update(chunk)
+    except IOError as e:
+        logging.error(f"Error reading file {file_path}: {e}")
+        return ""
     return hash_sha1.hexdigest()
 
 
@@ -66,7 +58,11 @@ def clean_rom_name(file_path):
 
 
 def file_size(file_path):
-    return os.path.getsize(file_path)
+    try:
+        return os.path.getsize(file_path)
+    except OSError as e:
+        logging.error(f"Error getting size of file {file_path}: {e}")
+        return None
 
 
 def parse_find_game_url(system_id, rom_path, dev_id, dev_password, username, password):
@@ -80,14 +76,10 @@ def parse_find_game_url(system_id, rom_path, dev_id, dev_password, username, pas
         "sha1": sha1sum(rom_path),
         "systemeid": system_id,
         "romtype": "rom",
-        "romnom": clean_rom_name(rom_path) + ".zip",
+        "romnom": f"{clean_rom_name(rom_path)}.zip",
         "romtaille": str(file_size(rom_path)),
     }
-
-    url_parts = list(urlparse(BASE_URL))
-    query = urlencode(params)
-    url_parts[4] = query
-    return urlunparse(url_parts)
+    return urlunparse(urlparse(BASE_URL)._replace(query=urlencode(params)))
 
 
 def find_media_url_by_region(medias, media_type, regions):
@@ -95,71 +87,78 @@ def find_media_url_by_region(medias, media_type, regions):
         for media in medias:
             if media["type"] == media_type and media["region"] == region:
                 return media["url"]
-
-    raise ScraperError(f"Media not found for regions: {regions}")
+    logging.error(f"Media not found for regions: {regions}")
+    return None
 
 
 def add_wh_to_media_url(media_url, width, height):
     parsed_url = urlparse(media_url)
     query = parse_qs(parsed_url.query)
-    query["maxwidth"] = [str(width)]
-    query["maxheight"] = [str(height)]
-    new_query = urlencode(query, doseq=True)
-    return urlunparse(parsed_url._replace(query=new_query))
+    query.update({"maxwidth": [str(width)], "maxheight": [str(height)]})
+    return urlunparse(parsed_url._replace(query=urlencode(query, doseq=True)))
 
 
 def check_media_type(media_type):
-    if media_type not in [
-        "box-2D",
-        "box-3D",
-        "mixrbv1",
-        "mixrbv2",
-    ]:
-        raise UnknownMediaTypeError("Unknown media type")
+    if media_type not in VALID_MEDIA_TYPES:
+        logging.error(f"Unknown media type: {media_type}")
+        return None
 
 
 def check_destination(dest):
     if os.path.exists(dest):
-        raise ScraperError(f"Destination file already exists: {dest}")
+        logging.error(f"Destination file already exists: {dest}")
+        return None
     dest_dir = os.path.dirname(dest)
-    os.makedirs(dest_dir, exist_ok=True)
+    try:
+        os.makedirs(dest_dir, exist_ok=True)
+    except OSError as e:
+        logging.error(f"Error creating directory {dest_dir}: {e}")
+        return None
 
 
 def get(url):
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-    except requests.RequestException as e:
-        if isinstance(e, requests.Timeout):
-            raise HTTPRequestError("Request aborted")
-        raise HTTPRequestError("Error making HTTP request")
-
-    body = response.content
-    return body
+    with requests.Session() as session:
+        try:
+            response = session.get(url, timeout=10)
+            response.raise_for_status()
+        except requests.Timeout:
+            logging.error("Request timed out")
+            return None
+        except requests.RequestException as e:
+            logging.error(f"Error making HTTP request: {e}")
+            return None
+        return response.content
 
 
 def find_game(system_id, rom_path, dev_id, dev_password, username, password):
-    result = {}
     game_url = parse_find_game_url(
         system_id, rom_path, dev_id, dev_password, username, password
     )
-
-    body = get(game_url)
-    body_str = body.decode("utf-8")
-
-    if "API closed" in body_str:
-        raise APIClosedError()
-    if "Erreur" in body_str:
-        raise GameNotFoundError()
-    if not body:
-        raise EmptyBodyError()
     try:
+        body = get(game_url)
+    except Exception as e:
+        logging.error(f"Error fetching game data: {e}")
+        return None
 
-        result = json.loads(body_str)
-    except json.JSONDecodeError:
-        raise UnreadableBodyError()
+    if not body:
+        return None
 
-    return result
+    body_str = body.decode("utf-8")
+    if "API closed" in body_str:
+        logging.error("API is closed")
+        return None
+    if "Erreur" in body_str:
+        logging.error("Game not found")
+        return None
+    if not body:
+        logging.error("Empty response body")
+        return None
+
+    try:
+        return json.loads(body_str)
+    except json.JSONDecodeError as e:
+        logging.error(f"Error decoding JSON response: {e}")
+        return None
 
 
 def download_media(medias, config_media):
@@ -169,11 +168,9 @@ def download_media(medias, config_media):
     height = config_media["height"]
     check_media_type(media_type)
 
-    try:
-        media_url = find_media_url_by_region(medias, media_type, regions)
+    media_url = find_media_url_by_region(medias, media_type, regions)
+    if media_url:
         media_url = add_wh_to_media_url(media_url, width, height)
-        res = get(media_url)
-    except ScraperError as e:
-        raise e
-
-    return res
+        return get(media_url)
+    logging.error(f"Error downloading media: {medias}")
+    return None
