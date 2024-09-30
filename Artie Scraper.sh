@@ -7,4 +7,11 @@ cd "$ARTIE_DIR" || exit
 
 echo "app" >/tmp/fg_proc
 
-./app
+program="./app"
+
+log_file="${ARTIE_DIR}/log.txt"
+
+if ! $program >"$log_file" 2>&1; then
+    echo "Error: Failed to execute $program"
+    exit 1
+fi
