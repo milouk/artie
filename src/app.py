@@ -32,6 +32,8 @@ class Rom:
 
 
 class App:
+    LOG_WAIT = 2.5
+
     def __init__(self):
         self.config = {}
         self.systems_mapping = {}
@@ -171,6 +173,7 @@ class App:
                     )
                     gr.draw_paint()
                     skip_input_check = True
+                    time.sleep(self.LOG_WAIT)
                 return
 
         if len(available_systems) >= 1:
@@ -248,7 +251,7 @@ class App:
                 outline=gr.COLOR_BLUE_D1,
             )
             gr.draw_paint()
-            time.sleep(2)
+            time.sleep(self.LOG_WAIT)
             gr.draw_clear()
             exit_menu = True
 
@@ -261,7 +264,7 @@ class App:
                 outline=gr.COLOR_BLUE_D1,
             )
             gr.draw_paint()
-            time.sleep(2)
+            time.sleep(self.LOG_WAIT)
             gr.draw_clear()
             exit_menu = True
 
@@ -282,12 +285,12 @@ class App:
             current_window = "emulators"
             selected_system = ""
             gr.draw_log(
-                "No roms missing media found...",
+                "No roms with missing media found...",
                 fill=gr.COLOR_BLUE,
                 outline=gr.COLOR_BLUE_D1,
             )
             gr.draw_paint()
-            time.sleep(2)
+            time.sleep(self.LOG_WAIT)
             gr.draw_clear()
             exit_menu = True
 
@@ -315,7 +318,7 @@ class App:
                 )
                 print(f"Failed to get screenshot for {rom.name}")
             gr.draw_paint()
-            time.sleep(3)
+            time.sleep(self.LOG_WAIT)
             exit_menu = True
         elif input.key_pressed("START"):
             progress: int = 0
@@ -365,7 +368,7 @@ class App:
                 width=800,
             )
             gr.draw_paint()
-            time.sleep(4)
+            time.sleep(self.LOG_WAIT)
             exit_menu = True
         elif input.key_pressed("DY"):
             if input.current_value == 1:
