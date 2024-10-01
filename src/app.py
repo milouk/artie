@@ -125,6 +125,16 @@ class App:
         gr.draw_rectangle_r([10, 40, 630, 440], 15, fill=gr.COLOR_GRAY_D2, outline=None)
         gr.draw_text((320, 20), "Artie Scraper", anchor="mm")
 
+        if Path(self.roms_path).exists() and not any(Path(self.roms_path).iterdir()):
+            gr.draw_log(
+                "Wrong Roms path, check config.json",
+                fill=gr.COLOR_BLUE,
+                outline=gr.COLOR_BLUE_D1,
+            )
+            gr.draw_paint()
+            time.sleep(self.LOG_WAIT)
+            sys.exit()
+
         available_systems = self.get_available_systems()
 
         if available_systems:
