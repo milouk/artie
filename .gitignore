@@ -5,3 +5,4 @@ build
 app.spec
 .DS_Store
 build.sh
+todo.txt
