@@ -32,7 +32,7 @@ class Rom:
 
 
 class App:
-    LOG_WAIT = 2.5
+    LOG_WAIT = 2
 
     def __init__(self):
         self.config = {}
@@ -321,7 +321,8 @@ class App:
             if scraped_synopsis:
                 destination: Path = synopsis_dir / f"{rom.name}.txt"
                 self.save_file_to_disk(scraped_synopsis.encode("utf-8"), destination)
-            else:
+
+            if not scraped_box and not scraped_preview and not scraped_synopsis:
                 gr.draw_log(
                     "Scraping failed!", fill=gr.COLOR_BLUE, outline=gr.COLOR_BLUE_D1
                 )
@@ -355,6 +356,8 @@ class App:
                         self.save_file_to_disk(
                             scraped_synopsis.encode("utf-8"), destination
                         )
+                    if scraped_box or scraped_preview or scraped_synopsis:
+                        success += 1
                     else:
                         gr.draw_log(
                             "Scraping failed!",
