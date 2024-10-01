@@ -194,7 +194,7 @@ def fetch_synopsis(game, config):
     if not synopsis:
         return None
 
-    synopsis_lang = config["synopsis_lang"]
+    synopsis_lang = config["synopsis"]["lang"]
     synopsis_text = next(
         (item["text"] for item in synopsis if item["langue"] == synopsis_lang), None
     )

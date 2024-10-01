@@ -225,6 +225,8 @@ class App:
         return True
 
     def scrape(self, rom, system_path, system_id):
+        scraped_box = scraped_preview = scraped_synopsis = None
+
         game = find_game(
             system_id,
             system_path / rom.filename,
@@ -233,11 +235,18 @@ class App:
             self.username,
             self.password,
         )
+
         if game:
-            scraped_box, scraped_preview = fetch_art(game, self.content)
-            scraped_synopsis = fetch_synopsis(game, self.content)
-            return scraped_box, scraped_preview, scraped_synopsis
-        return None, None, None
+            content = self.content
+            if (
+                content["box"]["enabled"] == "true"
+                or content["preview"]["enabled"] == "true"
+            ):
+                scraped_box, scraped_preview = fetch_art(game, content)
+            if content["synopsis"]["enabled"] == "true":
+                scraped_synopsis = fetch_synopsis(game, content)
+
+        return scraped_box, scraped_preview, scraped_synopsis
 
     def load_roms(self) -> None:
         global selected_position, current_window, roms_selected_position, skip_input_check, selected_system

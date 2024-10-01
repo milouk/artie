@@ -8,13 +8,18 @@
     "devpassword": "MDZXZUY5bTBldWs=",
     "threads": 3,
     "content": {
-      "synopsis_lang": "en",
+      "synopsis_lang": {
+        "enabled": true,
+        "lang": "en"
+      },
       "box": {
+        "enabled": true,
         "type": "box-3D",
         "height": 240,
         "width": 320
       },
       "preview": {
+        "enabled": true,
         "type": "ss",
         "height": 275,
         "width": 515
