@@ -28,9 +28,10 @@ scraping = False
 
 
 class Rom:
-    def __init__(self, name, filename):
+    def __init__(self, name, filename, path):
         self.name = name
         self.filename = filename
+        self.path = path
 
 
 class App:
@@ -117,9 +118,9 @@ class App:
                     continue
                 if file_path.is_file() and self.is_valid_rom(file):
                     name = file_path.stem
-                    rom = Rom(filename=file, name=name)
+                    rom = Rom(filename=file, name=name, path=file_path)
                     roms.append(rom)
-        return sorted(roms, key=lambda rom: rom.name)
+        return roms
 
     def delete_all_files_in_directory(self, directory_path):
         directory = Path(directory_path)
@@ -233,12 +234,11 @@ class App:
         gr.draw_log("Scraping completed!", fill=gr.COLOR_BLUE, outline=gr.COLOR_BLUE_D1)
         return True
 
-    def scrape(self, rom, system_path, system_id):
+    def scrape(self, rom, system_id):
         scraped_box = scraped_preview = scraped_synopsis = None
-
         game = find_game(
             system_id,
-            system_path / rom.filename,
+            rom.path,
             self.dev_id,
             self.dev_password,
             self.username,
@@ -272,7 +272,6 @@ class App:
             gr.draw_clear()
             exit_menu = True
 
-        system_path = Path(self.roms_path) / selected_system
         system = self.systems_mapping.get(selected_system)
         if not system:
             gr.draw_log(
