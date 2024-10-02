@@ -134,7 +134,7 @@ class App:
         gr.draw_rectangle_r([10, 40, 630, 440], 15, fill=gr.COLOR_GRAY_D2, outline=None)
         gr.draw_text((320, 20), "Artie Scraper v1.0.2", anchor="mm")
 
-        if Path(self.roms_path).exists() and not any(Path(self.roms_path).iterdir()):
+        if not Path(self.roms_path).exists() or not any(Path(self.roms_path).iterdir()):
             gr.draw_log(
                 "Wrong Roms path, check config.json",
                 fill=gr.COLOR_BLUE,
@@ -468,8 +468,14 @@ class App:
                 flag
                 for flag, condition in [
                     ("Box", self.box_enabled and rom not in roms_without_box),
-                    ("Preview", self.preview_enabled and rom not in roms_without_preview),
-                    ("Text", self.synopsis_enabled and rom not in roms_without_synopsis),
+                    (
+                        "Preview",
+                        self.preview_enabled and rom not in roms_without_preview,
+                    ),
+                    (
+                        "Text",
+                        self.synopsis_enabled and rom not in roms_without_synopsis,
+                    ),
                 ]
                 if condition
             ]
