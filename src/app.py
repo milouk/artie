@@ -215,6 +215,7 @@ class App:
             ".dat",
             ".mp4",
             ".pdf",
+            ".inf",
         }
         return os.path.splitext(rom)[1] not in invalid_extensions
 
