@@ -70,7 +70,6 @@ class App:
             self.systems_mapping[system["dir"]] = system
 
     def start(self, config_file: str) -> None:
-        print("Starting Artie...")
         self.load_config(config_file)
         self.load_emulators()
 
@@ -85,7 +84,6 @@ class App:
 
         if input.key_pressed("MENUF"):
             gr.draw_end()
-            print("Exiting Artie...")
             sys.exit()
 
         if current_window == "emulators":
@@ -134,7 +132,7 @@ class App:
 
         gr.draw_clear()
         gr.draw_rectangle_r([10, 40, 630, 440], 15, fill=gr.COLOR_GRAY_D2, outline=None)
-        gr.draw_text((320, 20), "Artie Scraper", anchor="mm")
+        gr.draw_text((320, 20), "Artie Scraper v1.0.2", anchor="mm")
 
         if Path(self.roms_path).exists() and not any(Path(self.roms_path).iterdir()):
             gr.draw_log(
