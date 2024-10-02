@@ -4,8 +4,8 @@
   "screenscraper": {
     "username": "",
     "password": "",
-    "devid": "cmVhdmVu",
-    "devpassword": "MDZXZUY5bTBldWs=",
+    "devid": "bWlsb3Vr",
+    "devpassword": "dVdDNVVsWHhaaFo=",
     "threads": 1,
     "content": {
       "synopsis": {
@@ -35,6 +35,14 @@
       ]
     },
     "systems": [
+      {
+        "dir": "TEST",
+        "id": "-1",
+        "name": "test",
+        "box": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/text/"
+      },
       {
         "dir": "ADVMAME",
         "id": "75",
