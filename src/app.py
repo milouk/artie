@@ -448,16 +448,16 @@ class App:
 
         gr.draw_rectangle_r([10, 40, 630, 440], 15, fill=gr.COLOR_GRAY_D2, outline=None)
 
-        base_text = f"{selected_system} - Roms: {len(roms_list)}"
+        base_text = f"{selected_system} - Total Roms: {len(roms_list)} ----"
 
         if self.box_enabled:
-            base_text += f" Missing box: {len(roms_without_box)}"
+            base_text += f" No box: {len(roms_without_box)} /"
 
         if self.preview_enabled:
-            base_text += f" Missing preview: {len(roms_without_preview)}"
+            base_text += f" No preview: {len(roms_without_preview)} /"
 
         if self.synopsis_enabled:
-            base_text += f" Missing text: {len(roms_without_synopsis)}"
+            base_text += f" No text: {len(roms_without_synopsis)}"
 
         gr.draw_text((320, 10), base_text, anchor="mm")
 
