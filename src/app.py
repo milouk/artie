@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from typing import List
 
-import graphic as gr
+from graphic import GUI
 import input
 from PIL import Image
 from scraper import (
@@ -49,6 +49,7 @@ class App:
         self.threads = 1
         self.username = ""
         self.password = ""
+        self.gui = GUI()
 
     def load_config(self, config_file):
         with open(config_file, "r") as file:
@@ -71,11 +72,14 @@ class App:
 
     def start(self, config_file: str) -> None:
         self.load_config(config_file)
+        self.gui.draw_start()
+        self.gui.screen_reset()
+        main_gui = self.gui.create_image()
+        self.gui.draw_active(main_gui)
         self.load_emulators()
 
     def update(self) -> None:
-        global current_window, selected_position, skip_input_check
-
+        global skip_input_check, current_window
         if skip_input_check:
             input.reset_input()
             skip_input_check = False
@@ -83,27 +87,23 @@ class App:
             input.check_input()
 
         if input.key_pressed("MENUF"):
-            gr.draw_end()
+            self.gui.draw_end()
             sys.exit()
 
         if current_window == "emulators":
             self.load_emulators()
         elif current_window == "roms":
             self.load_roms()
-        else:
-            self.load_emulators()
 
-    def get_available_systems(self) -> list[str]:
-        all_systems = list(self.systems_mapping.keys())
+    def get_available_systems(self) -> List[str]:
         available_systems = [
             d.upper()
             for d in os.listdir(self.roms_path)
-            if os.path.isdir(os.path.join(self.roms_path, d))
+            if Path(self.roms_path, d).is_dir()
         ]
-        filtered_systems = [
-            system for system in available_systems if system in all_systems
-        ]
-        return sorted(filtered_systems)
+        return sorted(
+            [system for system in available_systems if system in self.systems_mapping]
+        )
 
     def get_roms(self, system: str) -> list[Rom]:
         roms = []
@@ -127,20 +127,42 @@ class App:
                 if file.is_file():
                     file.unlink()
 
+    def delete_system_media(self) -> None:
+        global selected_system
+        system = self.systems_mapping.get(selected_system)
+        if system:
+            for media_type in ["box", "preview", "synopsis"]:
+                self.delete_all_files_in_directory(system.get(media_type, ""))
+
+    def draw_available_systems(self, available_systems: List[str]) -> None:
+        max_elem = 11
+        start_idx = (selected_position // max_elem) * max_elem
+        end_idx = start_idx + max_elem
+        for i, system in enumerate(available_systems[start_idx:end_idx]):
+            logo = f"{self.systems_logo_path}/{system}.png"
+            self.row_list(
+                system, (20, 50 + (i * 35)), 600, i == (selected_position % max_elem)
+            )
+
+        self.button_circle((30, 450), "A", "Select")
+        self.button_circle((170, 450), "X", "Delete")
+
     def load_emulators(self) -> None:
         global selected_position, selected_system, current_window, skip_input_check
 
-        gr.draw_clear()
-        gr.draw_rectangle_r([10, 40, 630, 440], 15, fill=gr.COLOR_GRAY_D2, outline=None)
-        gr.draw_text((320, 20), "Artie Scraper v1.0.2", anchor="mm")
+        self.gui.draw_clear()
+        self.gui.draw_rectangle_r(
+            [10, 40, 630, 440], 15, fill=self.gui.COLOR_GRAY_D2, outline=None
+        )
+        self.gui.draw_text((320, 20), "Artie Scraper v1.0.2", anchor="mm")
 
         if not Path(self.roms_path).exists() or not any(Path(self.roms_path).iterdir()):
-            gr.draw_log(
+            self.gui.draw_log(
                 "Wrong Roms path, check config.json",
-                fill=gr.COLOR_BLUE,
-                outline=gr.COLOR_BLUE_D1,
+                fill=self.gui.COLOR_BLUE,
+                outline=self.gui.COLOR_BLUE_D1,
             )
-            gr.draw_paint()
+            self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
             sys.exit()
 
@@ -157,56 +179,36 @@ class App:
             elif input.key_pressed("A"):
                 selected_system = available_systems[selected_position]
                 current_window = "roms"
-                gr.draw_log(
+                self.gui.draw_log(
                     "Checking existing media...",
-                    fill=gr.COLOR_BLUE,
-                    outline=gr.COLOR_BLUE_D1,
+                    fill=self.gui.COLOR_BLUE,
+                    outline=self.gui.COLOR_BLUE_D1,
                 )
-                gr.draw_paint()
+                self.gui.draw_paint()
                 skip_input_check = True
                 return
             elif input.key_pressed("X"):
                 selected_system = available_systems[selected_position]
-                system = self.systems_mapping.get(selected_system)
-                if system:
-                    self.delete_all_files_in_directory(system["box"])
-                    self.delete_all_files_in_directory(system["preview"])
-                    self.delete_all_files_in_directory(system["synopsis"])
-
-                    gr.draw_log(
-                        f"Deleting all existing {selected_system} media...",
-                        fill=gr.COLOR_BLUE,
-                        outline=gr.COLOR_BLUE_D1,
-                    )
-                    gr.draw_paint()
-                    skip_input_check = True
-                    time.sleep(self.LOG_WAIT)
+                self.delete_system_media()
+                self.gui.draw_log(
+                    f"Deleting all existing {selected_system} media...",
+                    fill=self.gui.COLOR_BLUE,
+                )
+                self.gui.draw_paint()
+                skip_input_check = True
+                time.sleep(self.LOG_WAIT)
                 return
 
         if len(available_systems) >= 1:
-            start_idx = int(selected_position / max_elem) * max_elem
-            end_idx = start_idx + max_elem
-            for i, system in enumerate(available_systems[start_idx:end_idx]):
-                logo = f"{self.systems_logo_path}/{system}.png"
-                self.row_list(
-                    system,
-                    (20, 50 + (i * 35)),
-                    600,
-                    i == (selected_position % max_elem),
-                    # logo,
-                )
-
-            self.button_circle((30, 450), "A", "Select")
-            self.button_circle((170, 450), "X", "Delete")
-
+            self.draw_available_systems(available_systems)
         else:
-            gr.draw_text(
+            self.gui.draw_text(
                 (320, 240), f"No Emulators found in {self.roms_path}", anchor="mm"
             )
 
         self.button_circle((300, 450), "M", "Exit")
 
-        gr.draw_paint()
+        self.gui.draw_paint()
 
     def is_valid_rom(self, rom):
         invalid_extensions = {
@@ -229,7 +231,11 @@ class App:
     def save_file_to_disk(self, data, destination):
         check_destination(destination)
         destination.write_bytes(data)
-        gr.draw_log("Scraping completed!", fill=gr.COLOR_BLUE, outline=gr.COLOR_BLUE_D1)
+        self.gui.draw_log(
+            "Scraping completed!",
+            fill=self.gui.COLOR_BLUE,
+            outline=self.gui.COLOR_BLUE_D1,
+        )
         return True
 
     def scrape(self, rom, system_id):
@@ -260,26 +266,26 @@ class App:
         exit_menu = False
         roms_list = self.get_roms(selected_system)
         if not roms_list:
-            gr.draw_log(
+            self.gui.draw_log(
                 f"No roms found in {selected_system}...",
-                fill=gr.COLOR_BLUE,
-                outline=gr.COLOR_BLUE_D1,
+                fill=self.gui.COLOR_BLUE,
+                outline=self.gui.COLOR_BLUE_D1,
             )
-            gr.draw_paint()
+            self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
-            gr.draw_clear()
+            self.gui.draw_clear()
             exit_menu = True
 
         system = self.systems_mapping.get(selected_system)
         if not system:
-            gr.draw_log(
+            self.gui.draw_log(
                 "System is unknown...",
-                fill=gr.COLOR_BLUE,
-                outline=gr.COLOR_BLUE_D1,
+                fill=self.gui.COLOR_BLUE,
+                outline=self.gui.COLOR_BLUE_D1,
             )
-            gr.draw_paint()
+            self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
-            gr.draw_clear()
+            self.gui.draw_clear()
             exit_menu = True
 
         box_dir = Path(system["box"])
@@ -326,21 +332,23 @@ class App:
         if len(roms_to_scrape) < 1:
             current_window = "emulators"
             selected_system = ""
-            gr.draw_log(
+            self.gui.draw_log(
                 "No roms with missing media found...",
-                fill=gr.COLOR_BLUE,
-                outline=gr.COLOR_BLUE_D1,
+                fill=self.gui.COLOR_BLUE,
+                outline=self.gui.COLOR_BLUE_D1,
             )
-            gr.draw_paint()
+            self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
-            gr.draw_clear()
+            self.gui.draw_clear()
             exit_menu = True
 
         if input.key_pressed("B"):
             exit_menu = True
         elif input.key_pressed("A"):
-            gr.draw_log("Scraping...", fill=gr.COLOR_BLUE, outline=gr.COLOR_BLUE_D1)
-            gr.draw_paint()
+            self.gui.draw_log(
+                "Scraping...", fill=self.gui.COLOR_BLUE, outline=self.gui.COLOR_BLUE_D1
+            )
+            self.gui.draw_paint()
             rom = roms_to_scrape[roms_selected_position]
             scraped_box, scraped_preview, scraped_synopsis = self.scrape(rom, system_id)
             if scraped_box:
@@ -354,23 +362,25 @@ class App:
                 self.save_file_to_disk(scraped_synopsis.encode("utf-8"), destination)
 
             if not scraped_box and not scraped_preview and not scraped_synopsis:
-                gr.draw_log(
-                    "Scraping failed!", fill=gr.COLOR_BLUE, outline=gr.COLOR_BLUE_D1
+                self.gui.draw_log(
+                    "Scraping failed!",
+                    fill=self.gui.COLOR_BLUE,
+                    outline=self.gui.COLOR_BLUE_D1,
                 )
                 print(f"Failed to get screenshot for {rom.name}")
-            gr.draw_paint()
+            self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
             exit_menu = True
         elif input.key_pressed("START"):
             progress: int = 0
             success: int = 0
             failure: int = 0
-            gr.draw_log(
+            self.gui.draw_log(
                 f"Scraping {progress} of {len(roms_to_scrape)}",
-                fill=gr.COLOR_BLUE,
-                outline=gr.COLOR_BLUE_D1,
+                fill=self.gui.COLOR_BLUE,
+                outline=self.gui.COLOR_BLUE_D1,
             )
-            gr.draw_paint()
+            self.gui.draw_paint()
             for rom in roms_to_scrape:
                 scraped_box, scraped_preview, scraped_synopsis = self.scrape(
                     rom, system_id
@@ -389,27 +399,27 @@ class App:
                 if scraped_box or scraped_preview or scraped_synopsis:
                     success += 1
                 else:
-                    gr.draw_log(
+                    self.gui.draw_log(
                         "Scraping failed!",
-                        fill=gr.COLOR_BLUE,
-                        outline=gr.COLOR_BLUE_D1,
+                        fill=self.gui.COLOR_BLUE,
+                        outline=self.gui.COLOR_BLUE_D1,
                     )
                     print(f"Failed to get screenshot for {rom.name}")
                     failure += 1
                 progress += 1
-                gr.draw_log(
+                self.gui.draw_log(
                     f"Scraping {progress} of {len(roms_to_scrape)}",
-                    fill=gr.COLOR_BLUE,
-                    outline=gr.COLOR_BLUE_D1,
+                    fill=self.gui.COLOR_BLUE,
+                    outline=self.gui.COLOR_BLUE_D1,
                 )
-                gr.draw_paint()
-            gr.draw_log(
+                self.gui.draw_paint()
+            self.gui.draw_log(
                 f"Scraping completed! Success: {success} Errors: {failure}",
-                fill=gr.COLOR_BLUE,
-                outline=gr.COLOR_BLUE_D1,
+                fill=self.gui.COLOR_BLUE,
+                outline=self.gui.COLOR_BLUE_D1,
                 width=800,
             )
-            gr.draw_paint()
+            self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
             exit_menu = True
         elif input.key_pressed("DY"):
@@ -439,14 +449,16 @@ class App:
         if exit_menu:
             current_window = "emulators"
             selected_system = ""
-            gr.draw_clear()
+            self.gui.draw_clear()
             roms_selected_position = 0
             skip_input_check = True
             return
 
-        gr.draw_clear()
+        self.gui.draw_clear()
 
-        gr.draw_rectangle_r([10, 40, 630, 440], 15, fill=gr.COLOR_GRAY_D2, outline=None)
+        self.gui.draw_rectangle_r(
+            [10, 40, 630, 440], 15, fill=self.gui.COLOR_GRAY_D2, outline=None
+        )
 
         base_text = f"{selected_system} - Total Roms: {len(roms_list)} ----"
 
@@ -459,7 +471,7 @@ class App:
         if self.synopsis_enabled:
             base_text += f" No text: {len(roms_without_synopsis)}"
 
-        gr.draw_text((320, 10), base_text, anchor="mm")
+        self.gui.draw_text((320, 10), base_text, anchor="mm")
 
         start_idx = int(roms_selected_position / max_elem) * max_elem
         end_idx = start_idx + max_elem
@@ -496,7 +508,7 @@ class App:
         self.button_circle((300, 450), "B", "Back")
         self.button_circle((480, 450), "M", "Exit")
 
-        gr.draw_paint()
+        self.gui.draw_paint()
 
     def row_list(
         self,
@@ -506,10 +518,10 @@ class App:
         selected: bool,
         image_path: str = None,
     ) -> None:
-        gr.draw_rectangle_r(
+        self.gui.draw_rectangle_r(
             [pos[0], pos[1], pos[0] + width, pos[1] + 32],
             5,
-            fill=(gr.COLOR_BLUE if selected else gr.COLOR_GRAY_L1),
+            fill=(self.gui.COLOR_BLUE if selected else self.gui.COLOR_GRAY_L1),
         )
 
         text_offset_x = pos[0] + 5
@@ -526,7 +538,7 @@ class App:
                     new_height = 50
                     new_width = new_height * aspect_ratio
 
-                gr.draw_image(
+                self.gui.draw_image(
                     (pos[0] + width - 30, pos[1] + 5),
                     image,
                     new_width,
@@ -537,19 +549,19 @@ class App:
                 print(f"Error loading image from {image_path}: {e}")
 
         # Draw the text
-        gr.draw_text((text_offset_x, pos[1] + 5), text)
+        self.gui.draw_text((text_offset_x, pos[1] + 5), text)
 
     def button_circle(self, pos: tuple[int, int], button: str, text: str) -> None:
-        gr.draw_circle(pos, 25, fill=gr.COLOR_BLUE_D1)
-        gr.draw_text((pos[0] + 12, pos[1] + 12), button, anchor="mm")
-        gr.draw_text((pos[0] + 30, pos[1] + 12), text, font=13, anchor="lm")
+        self.gui.draw_circle(pos, 25, fill=self.gui.COLOR_BLUE_D1)
+        self.gui.draw_text((pos[0] + 12, pos[1] + 12), button, anchor="mm")
+        self.gui.draw_text((pos[0] + 30, pos[1] + 12), text, font=13, anchor="lm")
 
     def button_rectangle(self, pos: tuple[int, int], button: str, text: str) -> None:
-        gr.draw_rectangle_r(
-            (pos[0], pos[1], pos[0] + 60, pos[1] + 25), 5, fill=gr.COLOR_GRAY_L1
+        self.gui.draw_rectangle_r(
+            (pos[0], pos[1], pos[0] + 60, pos[1] + 25), 5, fill=self.gui.COLOR_GRAY_L1
         )
-        gr.draw_text((pos[0] + 30, pos[1] + 12), button, anchor="mm")
-        gr.draw_text((pos[0] + 65, pos[1] + 12), text, font=13, anchor="lm")
+        self.gui.draw_text((pos[0] + 30, pos[1] + 12), button, anchor="mm")
+        self.gui.draw_text((pos[0] + 65, pos[1] + 12), text, font=13, anchor="lm")
 
 
 if __name__ == "__main__":
