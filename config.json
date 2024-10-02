@@ -8,7 +8,7 @@
     "devpassword": "MDZXZUY5bTBldWs=",
     "threads": 3,
     "content": {
-      "synopsis_lang": {
+      "synopsis": {
         "enabled": true,
         "lang": "en"
       },

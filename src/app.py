@@ -10,10 +10,12 @@ import input
 from PIL import Image
 from scraper import (
     check_destination,
-    fetch_art,
+    fetch_box,
+    fetch_preview,
     fetch_synopsis,
     find_game,
     get_image_files_without_extension,
+    get_txt_files_without_extension,
 )
 
 selected_position = 0
@@ -40,6 +42,9 @@ class App:
         self.roms_path = ""
         self.systems_logo_path = ""
         self.content = {}
+        self.box_enabled = True
+        self.preview_enabled = True
+        self.synopsis_enabled = True
         self.threads = 1
         self.username = ""
         self.password = ""
@@ -56,6 +61,9 @@ class App:
         self.username = self.config.get("screenscraper").get("username")
         self.password = self.config.get("screenscraper").get("password")
         self.content = self.config.get("screenscraper").get("content")
+        self.box_enabled = self.content["box"]["enabled"]
+        self.preview_enabled = self.content["preview"]["enabled"]
+        self.synopsis_enabled = self.content["synopsis"]["enabled"]
         self.threads = self.config.get("threads")
         for system in self.config["screenscraper"]["systems"]:
             self.systems_mapping[system["dir"]] = system
@@ -239,12 +247,11 @@ class App:
 
         if game:
             content = self.content
-            if (
-                content["box"]["enabled"] == "true"
-                or content["preview"]["enabled"] == "true"
-            ):
-                scraped_box, scraped_preview = fetch_art(game, content)
-            if content["synopsis"]["enabled"] == "true":
+            if self.box_enabled:
+                scraped_box = fetch_box(game, content)
+            if self.preview_enabled:
+                scraped_preview = fetch_preview(game, content)
+            if self.synopsis_enabled:
                 scraped_synopsis = fetch_synopsis(game, content)
 
         return scraped_box, scraped_preview, scraped_synopsis
@@ -283,15 +290,43 @@ class App:
         synopsis_dir = Path(system["synopsis"])
         system_id = system["id"]
 
-        if not box_dir.exists():
+        if self.box_enabled and not box_dir.exists():
             box_dir.mkdir(parents=True, exist_ok=True)
-            imgs_files: List[str] = []
+            roms_without_box: List[Rom] = roms_list
+        elif self.box_enabled:
+            box_files = get_image_files_without_extension(box_dir)
+            roms_without_box = [rom for rom in roms_list if rom.name not in box_files]
         else:
-            imgs_files = get_image_files_without_extension(box_dir)
+            roms_without_box = []
 
-        roms_without_image = [rom for rom in roms_list if rom.name not in imgs_files]
+        if self.preview_enabled and not preview_dir.exists():
+            preview_dir.mkdir(parents=True, exist_ok=True)
+            roms_without_preview: List[Rom] = roms_list
+        elif self.preview_enabled:
+            preview_files = get_image_files_without_extension(preview_dir)
+            roms_without_preview = [
+                rom for rom in roms_list if rom.name not in preview_files
+            ]
+        else:
+            roms_without_preview = []
 
-        if len(roms_without_image) < 1:
+        if self.synopsis_enabled and not synopsis_dir.exists():
+            synopsis_dir.mkdir(parents=True, exist_ok=True)
+            roms_without_synopsis: List[Rom] = roms_list
+        elif self.synopsis_enabled:
+            synopsis_files = get_txt_files_without_extension(synopsis_dir)
+            roms_without_synopsis = [
+                rom for rom in roms_list if rom.name not in synopsis_files
+            ]
+        else:
+            roms_without_synopsis = []
+
+        roms_to_scrape = sorted(
+            list(set(roms_without_box + roms_without_preview + roms_without_synopsis)),
+            key=lambda rom: rom.name,
+        )
+
+        if len(roms_to_scrape) < 1:
             current_window = "emulators"
             selected_system = ""
             gr.draw_log(
@@ -309,10 +344,8 @@ class App:
         elif input.key_pressed("A"):
             gr.draw_log("Scraping...", fill=gr.COLOR_BLUE, outline=gr.COLOR_BLUE_D1)
             gr.draw_paint()
-            rom = roms_without_image[roms_selected_position]
-            scraped_box, scraped_preview, scraped_synopsis = self.scrape(
-                rom, system_path, system_id
-            )
+            rom = roms_to_scrape[roms_selected_position]
+            scraped_box, scraped_preview, scraped_synopsis = self.scrape(rom, system_id)
             if scraped_box:
                 destination: Path = box_dir / f"{rom.name}.png"
                 self.save_file_to_disk(scraped_box, destination)
@@ -336,44 +369,43 @@ class App:
             success: int = 0
             failure: int = 0
             gr.draw_log(
-                f"Scraping {progress} of {len(roms_without_image)}",
+                f"Scraping {progress} of {len(roms_to_scrape)}",
                 fill=gr.COLOR_BLUE,
                 outline=gr.COLOR_BLUE_D1,
             )
             gr.draw_paint()
-            for rom in roms_without_image:
-                if rom.name not in imgs_files:
-                    scraped_box, scraped_preview, scraped_synopsis = self.scrape(
-                        rom, system_path, system_id
+            for rom in roms_to_scrape:
+                scraped_box, scraped_preview, scraped_synopsis = self.scrape(
+                    rom, system_id
+                )
+                if scraped_box:
+                    destination: Path = box_dir / f"{rom.name}.png"
+                    self.save_file_to_disk(scraped_box, destination)
+                if scraped_preview:
+                    destination: Path = preview_dir / f"{rom.name}.png"
+                    self.save_file_to_disk(scraped_preview, destination)
+                if scraped_synopsis:
+                    destination: Path = synopsis_dir / f"{rom.name}.txt"
+                    self.save_file_to_disk(
+                        scraped_synopsis.encode("utf-8"), destination
                     )
-                    if scraped_box:
-                        destination: Path = box_dir / f"{rom.name}.png"
-                        self.save_file_to_disk(scraped_box, destination)
-                    if scraped_preview:
-                        destination: Path = preview_dir / f"{rom.name}.png"
-                        self.save_file_to_disk(scraped_preview, destination)
-                    if scraped_synopsis:
-                        destination: Path = synopsis_dir / f"{rom.name}.txt"
-                        self.save_file_to_disk(
-                            scraped_synopsis.encode("utf-8"), destination
-                        )
-                    if scraped_box or scraped_preview or scraped_synopsis:
-                        success += 1
-                    else:
-                        gr.draw_log(
-                            "Scraping failed!",
-                            fill=gr.COLOR_BLUE,
-                            outline=gr.COLOR_BLUE_D1,
-                        )
-                        print(f"Failed to get screenshot for {rom.name}")
-                        failure += 1
-                    progress += 1
+                if scraped_box or scraped_preview or scraped_synopsis:
+                    success += 1
+                else:
                     gr.draw_log(
-                        f"Scraping {progress} of {len(roms_without_image)}",
+                        "Scraping failed!",
                         fill=gr.COLOR_BLUE,
                         outline=gr.COLOR_BLUE_D1,
                     )
-                    gr.draw_paint()
+                    print(f"Failed to get screenshot for {rom.name}")
+                    failure += 1
+                progress += 1
+                gr.draw_log(
+                    f"Scraping {progress} of {len(roms_to_scrape)}",
+                    fill=gr.COLOR_BLUE,
+                    outline=gr.COLOR_BLUE_D1,
+                )
+                gr.draw_paint()
             gr.draw_log(
                 f"Scraping completed! Success: {success} Errors: {failure}",
                 fill=gr.COLOR_BLUE,
@@ -418,17 +450,39 @@ class App:
         gr.draw_clear()
 
         gr.draw_rectangle_r([10, 40, 630, 440], 15, fill=gr.COLOR_GRAY_D2, outline=None)
-        gr.draw_text(
-            (320, 10),
-            f"{selected_system} - Roms: {len(roms_list)} Missing media: {len(roms_without_image)}",
-            anchor="mm",
-        )
+
+        base_text = f"{selected_system} - Roms: {len(roms_list)}"
+
+        if self.box_enabled:
+            base_text += f" Missing box: {len(roms_without_box)}"
+
+        if self.preview_enabled:
+            base_text += f" Missing preview: {len(roms_without_preview)}"
+
+        if self.synopsis_enabled:
+            base_text += f" Missing text: {len(roms_without_synopsis)}"
+
+        gr.draw_text((320, 10), base_text, anchor="mm")
 
         start_idx = int(roms_selected_position / max_elem) * max_elem
         end_idx = start_idx + max_elem
-        for i, rom in enumerate(roms_without_image[start_idx:end_idx]):
+        for i, rom in enumerate(roms_to_scrape[start_idx:end_idx]):
+            already_scraped = [
+                flag
+                for flag, condition in [
+                    ("Box", self.box_enabled and rom not in roms_without_box),
+                    ("Preview", self.preview_enabled and rom not in roms_without_preview),
+                    ("Text", self.synopsis_enabled and rom not in roms_without_synopsis),
+                ]
+                if condition
+            ]
+
+            already_scraped = "/".join(already_scraped)
+            base_entry_text = rom.name[:48] + "..." if len(rom.name) > 50 else rom.name
+            if already_scraped:
+                base_entry_text += " " * 75 + already_scraped
             self.row_list(
-                rom.name[:48] + "..." if len(rom.name) > 50 else rom.name,
+                base_entry_text,
                 (20, 50 + (i * 35)),
                 600,
                 i == (roms_selected_position % max_elem),
