@@ -9,7 +9,7 @@ Artie is a simple art scraper designed for Anbernic devices running MuOS. It hel
 
 ## Features
 
-- Easy-to-use and minimal UI.
+- Easy-to-use and minimal UI inspired from [tiny-scraper](https://github.com/Julioevm/tiny-scraper).
 - Scrape per system or rom.
 - Integrates seamlessly with MuOS.
 - Highly customizable through `config.json`.
