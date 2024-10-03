@@ -11,7 +11,7 @@ import requests
 
 BASE_URL = "https://www.screenscraper.fr/api2/jeuInfos.php"
 MAX_FILE_SIZE_BYTES = 104857600  # 100MB
-IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png")
+IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png"]
 VALID_MEDIA_TYPES = {"box-2D", "box-3D", "mixrbv1", "mixrbv2", "ss"}
 
 
@@ -28,6 +28,10 @@ def get_image_files_without_extension(folder):
     return [
         f.stem for f in Path(folder).glob("*") if f.suffix.lower() in IMAGE_EXTENSIONS
     ]
+
+
+def get_txt_files_without_extension(folder):
+    return [f.stem for f in Path(folder).glob("*") if f.suffix.lower() == ".txt"]
 
 
 def sha1sum(file_path):
@@ -162,31 +166,39 @@ def find_game(system_id, rom_path, dev_id, dev_password, username, password):
         return None
 
 
-def fetch_art(game, config):
-    def fetch_media(medias, properties, regions):
-        media_type = properties["type"]
-        media_height = properties["height"]
-        media_width = properties["width"]
+def _fetch_media(medias, properties, regions):
+    media_type = properties["type"]
+    media_height = properties["height"]
+    media_width = properties["width"]
 
-        if not is_media_type_valid(media_type):
-            return None
-
-        media_url = find_media_url_by_region(medias, media_type, regions)
-        if media_url:
-            media_url = add_wh_to_media_url(media_url, media_width, media_height)
-            return get(media_url)
+    if not is_media_type_valid(media_type):
         return None
 
+    media_url = find_media_url_by_region(medias, media_type, regions)
+    if media_url:
+        media_url = add_wh_to_media_url(media_url, media_width, media_height)
+        return get(media_url)
+    return None
+
+
+def fetch_box(game, config):
     medias = game["response"]["jeu"]["medias"]
     regions = config.get("regions", ["us", "ame", "wor"])
-    box = fetch_media(medias, config["box"], regions)
-    preview = fetch_media(medias, config["preview"], regions)
+    box = _fetch_media(medias, config["box"], regions)
+    if not box:
+        logging.error(f"Error downloading box: {game['response']['jeu']['medias']}")
+        return None
+    return box
 
-    if not box and not preview:
-        logging.error(f"Error downloading media: {medias}")
-        return None, None
 
-    return box, preview
+def fetch_preview(game, config):
+    medias = game["response"]["jeu"]["medias"]
+    regions = config.get("regions", ["us", "ame", "wor"])
+    preview = _fetch_media(medias, config["preview"], regions)
+    if not preview:
+        logging.error(f"Error downloading preview: {game['response']['jeu']['medias']}")
+        return None
+    return preview
 
 
 def fetch_synopsis(game, config):
@@ -194,7 +206,7 @@ def fetch_synopsis(game, config):
     if not synopsis:
         return None
 
-    synopsis_lang = config["synopsis_lang"]
+    synopsis_lang = config["synopsis"]["lang"]
     synopsis_text = next(
         (item["text"] for item in synopsis if item["langue"] == synopsis_lang), None
     )

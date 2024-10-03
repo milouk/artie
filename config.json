@@ -4,17 +4,22 @@
   "screenscraper": {
     "username": "",
     "password": "",
-    "devid": "cmVhdmVu",
-    "devpassword": "MDZXZUY5bTBldWs=",
-    "threads": 3,
+    "devid": "bWlsb3Vr",
+    "devpassword": "dVdDNVVsWHhaaFo=",
+    "threads": 1,
     "content": {
-      "synopsis_lang": "en",
+      "synopsis": {
+        "enabled": true,
+        "lang": "en"
+      },
       "box": {
+        "enabled": true,
         "type": "box-3D",
         "height": 240,
         "width": 320
       },
       "preview": {
+        "enabled": true,
         "type": "ss",
         "height": 275,
         "width": 515
@@ -30,6 +35,14 @@
       ]
     },
     "systems": [
+      {
+        "dir": "TEST",
+        "id": "-1",
+        "name": "test",
+        "box": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/text/"
+      },
       {
         "dir": "ADVMAME",
         "id": "75",

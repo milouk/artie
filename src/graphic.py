@@ -4,117 +4,113 @@ from fcntl import ioctl
 
 from PIL import Image, ImageDraw, ImageFont
 
-fb: int
-mm: mmap.mmap
-screen_width = 640
-screen_height = 480
-bytes_per_pixel = 4
-screen_size = screen_width * screen_height * bytes_per_pixel
 
-fontFile = {}
-fontFile[15] = ImageFont.truetype("assets/Roboto-Condensed.ttf", 15)
-fontFile[13] = ImageFont.truetype("assets/Roboto-Condensed.ttf", 13)
-fontFile[11] = ImageFont.truetype("assets/Roboto-Condensed.ttf", 11)
+class GUI:
+    def __init__(self):
+        self.fb = None
+        self.mm = None
+        self.screen_width = 640
+        self.screen_height = 480
+        self.bytes_per_pixel = 4
+        self.screen_size = self.screen_width * self.screen_height * self.bytes_per_pixel
 
-COLOR_BLUE = "#bb7200"
-COLOR_BLUE_D1 = "#7f4f00"
-COLOR_GRAY = "#292929"
-COLOR_GRAY_L1 = "#383838"
-COLOR_GRAY_D2 = "#141414"
+        self.fontFile = {
+            15: ImageFont.truetype("assets/Roboto-Condensed.ttf", 15),
+            13: ImageFont.truetype("assets/Roboto-Condensed.ttf", 13),
+            11: ImageFont.truetype("assets/Roboto-Condensed.ttf", 11),
+        }
 
-activeImage: Image.Image
-activeDraw: ImageDraw.ImageDraw
+        self.COLOR_BLUE = "#bb7200"
+        self.COLOR_BLUE_D1 = "#7f4f00"
+        self.COLOR_GRAY = "#292929"
+        self.COLOR_GRAY_L1 = "#383838"
+        self.COLOR_GRAY_D2 = "#141414"
 
+        self.activeImage = None
+        self.activeDraw = None
 
-def screen_reset():
-    ioctl(
-        fb,
-        0x4601,
-        b"\x80\x02\x00\x00\xe0\x01\x00\x00\x80\x02\x00\x00\xc0\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00 \x00\x00\x00\x00\x00\x00\x00\x10\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x08\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x18\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00\x00^\x00\x00\x00\x96\x00\x00\x00\x00\x00\x00\x00\xc2\xa2\x00\x00\x1a\x00\x00\x00T\x00\x00\x00\x0c\x00\x00\x00\x1e\x00\x00\x00\x14\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-    )
-    ioctl(fb, 0x4611, 0)
+    def screen_reset(self):
+        if self.fb:
+            ioctl(
+                self.fb,
+                0x4601,
+                b"\x80\x02\x00\x00\xe0\x01\x00\x00\x80\x02\x00\x00\xc0\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00 \x00\x00\x00\x00\x00\x00\x00\x10\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x08\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x18\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00\x00^\x00\x00\x00\x96\x00\x00\x00\x00\x00\x00\x00\xc2\xa2\x00\x00\x1a\x00\x00\x00T\x00\x00\x00\x0c\x00\x00\x00\x1e\x00\x00\x00\x14\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+            )
+            ioctl(self.fb, 0x4611, 0)
 
+    def draw_start(self):
+        self.fb = os.open("/dev/fb0", os.O_RDWR)
+        self.mm = mmap.mmap(self.fb, self.screen_size)
 
-def draw_start():
-    global fb, mm
-    fb = os.open("/dev/fb0", os.O_RDWR)
-    mm = mmap.mmap(fb, screen_size)
+    def draw_end(self):
+        if self.mm and self.fb:
+            self.mm.close()
+            os.close(self.fb)
 
+    def create_image(self):
+        image = Image.new(
+            "RGBA", (self.screen_width, self.screen_height), color="black"
+        )
+        return image
 
-def draw_end():
-    global fb, mm
-    mm.close()
-    os.close(fb)
+    def draw_image(self, position, image, max_width, max_height):
+        if self.activeImage:
+            image.thumbnail((max_width, max_height), Image.LANCZOS)
+            new_position = (position[0] - image.width, position[1])
+            self.activeImage.paste(image, new_position)
 
+    def draw_active(self, image):
+        self.activeImage = image
+        self.activeDraw = ImageDraw.Draw(self.activeImage)
 
-def crate_image():
-    image = Image.new("RGBA", (screen_width, screen_height), color="black")
-    return image
+    def draw_paint(self):
+        if self.mm and self.activeImage:
+            self.mm.seek(0)
+            self.mm.write(self.activeImage.tobytes())
 
+    def draw_clear(self):
+        if self.activeDraw:
+            self.activeDraw.rectangle(
+                (0, 0, self.screen_width, self.screen_height), fill="black"
+            )
 
-def draw_image(position, image, max_width, max_height):
-    global activeImage
-    image.thumbnail((max_width, max_height), Image.LANCZOS)
-    new_position = (position[0] - image.width, position[1])
-    activeImage.paste(image, new_position)
+    def draw_text(self, position, text, font=15, color="white", **kwargs):
+        if self.activeDraw:
+            self.activeDraw.text(
+                position, text, font=self.fontFile[font], fill=color, **kwargs
+            )
 
+    def draw_rectangle(self, position, fill=None, outline=None, width=1):
+        if self.activeDraw:
+            self.activeDraw.rectangle(position, fill=fill, outline=outline, width=width)
 
-def draw_active(image):
-    global activeImage, activeDraw
-    activeImage = image
-    activeDraw = ImageDraw.Draw(activeImage)
+    def draw_rectangle_r(self, position, radius, fill=None, outline=None):
+        if self.activeDraw:
+            self.activeDraw.rounded_rectangle(
+                position, radius, fill=fill, outline=outline
+            )
 
+    def draw_circle(self, position, radius, fill=None, outline="white"):
+        if self.activeDraw:
+            self.activeDraw.ellipse(
+                [
+                    position[0],
+                    position[1],
+                    position[0] + radius,
+                    position[1] + radius,
+                ],
+                fill=fill,
+                outline=outline,
+            )
 
-def draw_paint():
-    global activeImage, mm
-    mm.seek(0)
-    mm.write(activeImage.tobytes())
+    def draw_log(self, text, fill="Black", outline="black", width=500):
+        # Center the rectangle horizontally
+        x = (self.screen_width - width) / 2
+        # Center the rectangle vertically
+        y = (self.screen_height - 80) / 2  # 80 is the height of the rectangle
+        self.draw_rectangle_r([x, y, x + width, y + 80], 5, fill=fill, outline=outline)
 
-
-def draw_clear():
-    global activeDraw
-    activeDraw.rectangle((0, 0, screen_width, screen_height), fill="black")
-
-
-def draw_text(position, text, font=15, color="white", **kwargs):
-    global activeDraw
-    activeDraw.text(position, text, font=fontFile[font], fill=color, **kwargs)
-
-
-def draw_rectangle(position, fill=None, outline=None, width=1):
-    global activeDraw
-    activeDraw.rectangle(position, fill=fill, outline=outline, width=width)
-
-
-def draw_rectangle_r(position, radius, fill=None, outline=None):
-    global activeDraw
-    activeDraw.rounded_rectangle(position, radius, fill=fill, outline=outline)
-
-
-def draw_circle(position, radius, fill=None, outline="white"):
-    global activeDraw
-    activeDraw.ellipse(
-        [position[0], position[1], position[0] + radius, position[1] + radius],
-        fill=fill,
-        outline=outline,
-    )
-
-
-def draw_log(text, fill="Black", outline="black", width=500):
-    # Center the rectangle horizontally
-    x = (screen_width - width) / 2
-    # Center the rectangle vertically
-    y = (screen_height - 80) / 2  # 80 is the height of the rectangle
-    draw_rectangle_r([x, y, x + width, y + 80], 5, fill=fill, outline=outline)
-
-    # Center the text within the rectangle
-    text_x = x + width / 2
-    text_y = y + 40  # Vertically center within the 80px height
-    draw_text((text_x, text_y), text, anchor="mm")  # Use middle-middle anchor
-
-
-draw_start()
-screen_reset()
-
-imgMain = crate_image()
-draw_active(imgMain)
+        # Center the text within the rectangle
+        text_x = x + width / 2
+        text_y = y + 40  # Vertically center within the 80px height
+        self.draw_text((text_x, text_y), text, anchor="mm")  # Use middle-middle anchor
