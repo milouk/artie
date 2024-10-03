@@ -120,7 +120,7 @@ class App:
                     roms.append(rom)
         return roms
 
-    def delete_all_files_in_directory(self, filenames, directory_path):
+    def delete_files_in_directory(self, filenames, directory_path):
         directory = Path(directory_path)
         if directory.is_dir():
             for file in directory.iterdir():
@@ -132,8 +132,15 @@ class App:
         system = self.systems_mapping.get(selected_system)
         if system:
             roms = [rom.name for rom in self.get_roms(selected_system)]
-            for media_type in ["box", "preview", "synopsis"]:
-                self.delete_all_files_in_directory(roms, system.get(media_type, ""))
+            media_types = []
+            if self.box_enabled:
+                media_types.append("box")
+            if self.preview_enabled:
+                media_types.append("preview")
+            if self.synopsis_enabled:
+                media_types.append("synopsis")
+            for media_type in media_types:
+                self.delete_files_in_directory(roms, system.get(media_type, ""))
 
     def draw_available_systems(self, available_systems: List[str]) -> None:
         max_elem = 11
