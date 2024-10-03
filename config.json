@@ -111,9 +111,9 @@
         "dir": "ATOMISWAVE",
         "id": "53",
         "name": "Atari ST",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Atari ST-STE-TT-Falcon/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Atari ST-STE-TT-Falcon/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari ST-STE-TT-Falcon/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Atomiswave Naomi/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Atomiswave Naomi/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Atomiswave Naomi/text/"
       },
       {
         "dir": "COLECO",
@@ -199,9 +199,9 @@
         "dir": "DC",
         "id": "23",
         "name": "dreamcast",
-        "box": "/mnt/mmc/MUOS/info/catalogue/DC/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/DC/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/DC/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Dreamcast/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Dreamcast/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Dreamcast/text/"
       },
       {
         "dir": "DOS",
@@ -327,17 +327,17 @@
         "dir": "GW",
         "id": "52",
         "name": "Nintendo Game & Watch",
-        "box": "/mnt/mmc/MUOS/info/catalogue/GW/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/GW/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/GW/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/Handheld Electronic - Game and Watch/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Handheld Electronic - Game and Watch/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Handheld Electronic - Game and Watch/text/"
       },
       {
         "dir": "INTELLIVISION",
         "id": "115",
         "name": "Intellivision",
-        "box": "/mnt/mmc/MUOS/info/catalogue/INTELLIVISION/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/INTELLIVISION/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/INTELLIVISION/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/Mattel - Intellivision/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Mattel - Intellivision/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Mattel - Intellivision/text/"
       },
       {
         "dir": "JAGUAR",
@@ -503,9 +503,9 @@
         "dir": "NGP",
         "id": "25",
         "name": "Neo Geo Pocket",
-        "box": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/text/"
       },
       {
         "dir": "NGC",
@@ -551,17 +551,17 @@
         "dir": "PCE",
         "id": "31",
         "name": "NEC TurboGrafx-16 / PC Engine",
-        "box": "/mnt/mmc/MUOS/info/catalogue/PCE/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/PCE/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/PCE/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine/text/"
       },
       {
         "dir": "PCECD",
         "id": "114",
         "name": "NEC TurboGrafx-CD",
-        "box": "/mnt/mmc/MUOS/info/catalogue/PCECD/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/PCECD/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/PCECD/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine CD/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine CD/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine CD/text/"
       },
       {
         "dir": "PC88",
@@ -727,17 +727,17 @@
         "dir": "WS",
         "id": "207",
         "name": "Watara Supervision",
-        "box": "/mnt/mmc/MUOS/info/catalogue/WS/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/WS/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/WS/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/text/"
       },
       {
         "dir": "WSC",
         "id": "207",
         "name": "Watara Supervision",
-        "box": "/mnt/mmc/MUOS/info/catalogue/WSC/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/WSC/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/WSC/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/text/"
       },
       {
         "dir": "SEGA32X",
@@ -759,17 +759,17 @@
         "dir": "TIC",
         "id": "222",
         "name": "TIC-80",
-        "box": "/mnt/mmc/MUOS/info/catalogue/TIC/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/TIC/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/TIC/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/TIC-80/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/TIC-80/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/TIC-80/text/"
       },
       {
         "dir": "UZEBOX",
         "id": "216",
         "name": "Uzebox",
-        "box": "/mnt/mmc/MUOS/info/catalogue/UZEBOX/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/UZEBOX/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/UZEBOX/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/Uzebox/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Uzebox/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Uzebox/text/"
       },
       {
         "dir": "VB",
@@ -783,9 +783,9 @@
         "dir": "VECTREX",
         "id": "102",
         "name": "Vectrex",
-        "box": "/mnt/mmc/MUOS/info/catalogue/VECTREX/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/VECTREX/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/VECTREX/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/GCE-Vectrex/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/GCE-Vectrex/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/GCE-Vectrex/text/"
       },
       {
         "dir": "VIC20",
@@ -804,6 +804,14 @@
         "synopsis": "/mnt/mmc/MUOS/info/catalogue/VIDEOPAC/text/"
       },
       {
+        "dir": "VIRCON32",
+        "id": "272",
+        "name": "Vircon32",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Vircon32/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Vircon32/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Vircon32/text/"
+      },
+      {
         "dir": "VMU",
         "id": "23",
         "name": "Dreamcast VMU (useless)",
@@ -812,9 +820,25 @@
         "synopsis": "/mnt/mmc/MUOS/info/catalogue/VMU/text/"
       },
       {
-        "dir": "WS",
+        "dir": "WASM4",
+        "id": "262",
+        "name": "WASM4",
+        "box": "/mnt/mmc/MUOS/info/catalogue/WASM-4/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/WASM-4/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/WASM-4/text/"
+      },
+      {
+        "dir": "WONDERSWAN",
         "id": "45",
-        "name": "Bandai WonderSwan & Color",
+        "name": "Bandai WonderSwan",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Bandai WonderSwan-Color/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Bandai WonderSwan-Color/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Bandai WonderSwan-Color/text/"
+      },
+      {
+        "dir": "WONDERSWANCOLOR",
+        "id": "46",
+        "name": "Bandai WonderSwan Color",
         "box": "/mnt/mmc/MUOS/info/catalogue/Bandai WonderSwan-Color/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Bandai WonderSwan-Color/preview/",
         "synopsis": "/mnt/mmc/MUOS/info/catalogue/Bandai WonderSwan-Color/text/"
