@@ -5,8 +5,8 @@ import time
 from pathlib import Path
 from typing import List
 
-from graphic import GUI
 import input
+from graphic import GUI
 from PIL import Image
 from scraper import (
     check_destination,
@@ -424,7 +424,7 @@ class App:
             exit_menu = True
         elif input.key_pressed("DY"):
             if input.current_value == 1:
-                if roms_selected_position < len(roms_list) - 1:
+                if roms_selected_position < len(roms_to_scrape) - 1:
                     roms_selected_position += 1
             elif input.current_value == -1:
                 if roms_selected_position > 0:
