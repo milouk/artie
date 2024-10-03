@@ -494,10 +494,14 @@ class App:
                 if condition
             ]
 
-            already_scraped = "/".join(already_scraped)
-            base_entry_text = rom.name[:48] + "..." if len(rom.name) > 50 else rom.name
-            if already_scraped:
-                base_entry_text += " " * 75 + already_scraped
+            already_scraped_text = "/".join(already_scraped)
+            max_length = 48
+            base_entry_text = (
+                rom.name[:max_length] + "..."
+                if len(rom.name) > max_length
+                else rom.name
+            )
+
             self.row_list(
                 base_entry_text,
                 (20, 50 + (i * 35)),
@@ -505,6 +509,13 @@ class App:
                 i == (roms_selected_position % max_elem),
             )
 
+            if already_scraped_text:
+                self.row_list(
+                    already_scraped_text,
+                    (500, 50 + (i * 35)),
+                    50,
+                    i == (roms_selected_position % max_elem),
+                )
         self.button_rectangle((30, 450), "Start", "All")
         self.button_circle((170, 450), "A", "Download")
         self.button_circle((300, 450), "B", "Back")
