@@ -97,12 +97,16 @@ class App:
 
     def get_available_systems(self) -> List[str]:
         available_systems = [
-            d.upper()
+            d.lower()
             for d in os.listdir(self.roms_path)
             if Path(self.roms_path, d).is_dir()
         ]
         return sorted(
-            [system for system in available_systems if system in self.systems_mapping]
+            [
+                system
+                for system in available_systems
+                if system.lower() in map(str.lower, self.systems_mapping.keys())
+            ],
         )
 
     def get_roms(self, system: str) -> list[Rom]:
