@@ -120,19 +120,20 @@ class App:
                     roms.append(rom)
         return roms
 
-    def delete_all_files_in_directory(self, directory_path):
+    def delete_all_files_in_directory(self, filenames, directory_path):
         directory = Path(directory_path)
         if directory.is_dir():
             for file in directory.iterdir():
-                if file.is_file():
+                if file.is_file() and file.stem in filenames:
                     file.unlink()
 
     def delete_system_media(self) -> None:
         global selected_system
         system = self.systems_mapping.get(selected_system)
         if system:
+            roms = [rom.name for rom in self.get_roms(selected_system)]
             for media_type in ["box", "preview", "synopsis"]:
-                self.delete_all_files_in_directory(system.get(media_type, ""))
+                self.delete_all_files_in_directory(roms, system.get(media_type, ""))
 
     def draw_available_systems(self, available_systems: List[str]) -> None:
         max_elem = 11
