@@ -460,18 +460,20 @@ class App:
             [10, 40, 630, 440], 15, fill=self.gui.COLOR_GRAY_D2, outline=None
         )
 
-        base_text = f"{selected_system} - Total Roms: {len(roms_list)} ----"
+        rom_text = f"{selected_system} - Total Roms: {len(roms_list)}"
 
+        missing_parts = []
         if self.box_enabled:
-            base_text += f" No box: {len(roms_without_box)} /"
-
+            missing_parts.append(f"No box: {len(roms_without_box)}")
         if self.preview_enabled:
-            base_text += f" No preview: {len(roms_without_preview)} /"
-
+            missing_parts.append(f"No preview: {len(roms_without_preview)}")
         if self.synopsis_enabled:
-            base_text += f" No text: {len(roms_without_synopsis)}"
+            missing_parts.append(f"No text: {len(roms_without_synopsis)}")
 
-        self.gui.draw_text((320, 10), base_text, anchor="mm")
+        missing_text = " / ".join(missing_parts)
+
+        self.gui.draw_text((90, 10), rom_text, anchor="mm")
+        self.gui.draw_text((500, 10), missing_text, anchor="mm")
 
         start_idx = int(roms_selected_position / max_elem) * max_elem
         end_idx = start_idx + max_elem
