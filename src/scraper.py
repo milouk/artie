@@ -83,7 +83,11 @@ def parse_find_game_url(system_id, rom_path, dev_id, dev_password, username, pas
         "romnom": f"{clean_rom_name(rom_path)}.zip",
         "romtaille": str(file_size(rom_path)),
     }
-    return urlunparse(urlparse(BASE_URL)._replace(query=urlencode(params)))
+    try:
+        return urlunparse(urlparse(BASE_URL)._replace(query=urlencode(params)))
+    except UnicodeDecodeError as e:
+        logging.error(f"Error encoding URL: {e}. ROM params: {params}")
+        return None
 
 
 def find_media_url_by_region(medias, media_type, regions):
