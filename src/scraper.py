@@ -9,7 +9,8 @@ from pathlib import Path
 
 import requests
 
-BASE_URL = "https://www.screenscraper.fr/api2/jeuInfos.php"
+GAME_INFO_URL = "https://www.screenscraper.fr/api2/jeuInfos.php"
+USER_INFO_URL = "https://api.screenscraper.fr/api2/ssuserInfos.php"
 MAX_FILE_SIZE_BYTES = 104857600  # 100MB
 IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png"]
 VALID_MEDIA_TYPES = {"box-2D", "box-3D", "mixrbv1", "mixrbv2", "ss"}
@@ -84,9 +85,25 @@ def parse_find_game_url(system_id, rom_path, dev_id, dev_password, username, pas
         "romtaille": str(file_size(rom_path)),
     }
     try:
-        return urlunparse(urlparse(BASE_URL)._replace(query=urlencode(params)))
+        return urlunparse(urlparse(GAME_INFO_URL)._replace(query=urlencode(params)))
     except UnicodeDecodeError as e:
         logging.error(f"Error encoding URL: {e}. ROM params: {params}")
+        return None
+
+
+def parse_user_info_url(dev_id, dev_password, username, password):
+    params = {
+        "devid": base64.b64decode(dev_id).decode(),
+        "devpassword": base64.b64decode(dev_password).decode(),
+        "softname": "crossmix",
+        "output": "json",
+        "ssid": username,
+        "sspassword": password,
+    }
+    try:
+        return urlunparse(urlparse(USER_INFO_URL)._replace(query=urlencode(params)))
+    except UnicodeDecodeError as e:
+        logging.error(f"Error encoding URL: {e}. User info params: {params}")
         return None
 
 
