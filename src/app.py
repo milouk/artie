@@ -210,6 +210,22 @@ class App:
                 skip_input_check = True
                 time.sleep(self.LOG_WAIT)
                 return
+            elif input.key_pressed("L1"):
+                if selected_position > 0:
+                    selected_position = max(0, selected_position - max_elem)
+            elif input.key_pressed("R1"):
+                if selected_position < len(available_systems) - 1:
+                    selected_position = min(
+                        len(available_systems) - 1, selected_position + max_elem
+                    )
+            elif input.key_pressed("L2"):
+                if selected_position > 0:
+                    selected_position = max(0, selected_position - 100)
+            elif input.key_pressed("R2"):
+                if selected_position < len(available_systems) - 1:
+                    selected_position = min(
+                        len(available_systems) - 1, selected_position + 100
+                    )
 
         if len(available_systems) >= 1:
             self.draw_available_systems(available_systems)
