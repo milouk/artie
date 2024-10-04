@@ -281,23 +281,26 @@ class App:
 
     def scrape(self, rom, system_id):
         scraped_box = scraped_preview = scraped_synopsis = None
-        game = get_game_data(
-            system_id,
-            rom.path,
-            self.dev_id,
-            self.dev_password,
-            self.username,
-            self.password,
-        )
+        try:
+            game = get_game_data(
+                system_id,
+                rom.path,
+                self.dev_id,
+                self.dev_password,
+                self.username,
+                self.password,
+            )
 
-        if game:
-            content = self.content
-            if self.box_enabled:
-                scraped_box = fetch_box(game, content)
-            if self.preview_enabled:
-                scraped_preview = fetch_preview(game, content)
-            if self.synopsis_enabled:
-                scraped_synopsis = fetch_synopsis(game, content)
+            if game:
+                content = self.content
+                if self.box_enabled:
+                    scraped_box = fetch_box(game, content)
+                if self.preview_enabled:
+                    scraped_preview = fetch_preview(game, content)
+                if self.synopsis_enabled:
+                    scraped_synopsis = fetch_synopsis(game, content)
+        except Exception as e:
+            print(f"Error scraping {rom.name}: {e}")
 
         return scraped_box, scraped_preview, scraped_synopsis
 
