@@ -36,14 +36,6 @@
     },
     "systems": [
       {
-        "dir": "TEST",
-        "id": "-1",
-        "name": "test",
-        "box": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/text/"
-      },
-      {
         "dir": "ADVMAME",
         "id": "75",
         "name": "Mame",
