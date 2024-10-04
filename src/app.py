@@ -13,9 +13,10 @@ from scraper import (
     fetch_box,
     fetch_preview,
     fetch_synopsis,
-    find_game,
+    get_game_data,
     get_image_files_without_extension,
     get_txt_files_without_extension,
+    get_user_data,
 )
 
 selected_position = 0
@@ -266,9 +267,21 @@ class App:
         )
         return True
 
+    def get_user_threads(self):
+        user_info = get_user_data(
+            self.dev_id,
+            self.dev_password,
+            self.username,
+            self.password,
+        )
+        if not user_info:
+            self.threads = 1
+        else:
+            self.threads = min(self.threads, user_info.get("maxthreads"))
+
     def scrape(self, rom, system_id):
         scraped_box = scraped_preview = scraped_synopsis = None
-        game = find_game(
+        game = get_game_data(
             system_id,
             rom.path,
             self.dev_id,
