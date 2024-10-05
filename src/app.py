@@ -59,6 +59,7 @@ class App:
         self.config = json.loads(file_contents)
         self.roms_path = self.config.get("roms")
         self.systems_logo_path = self.config.get("logos")
+        self.colors = self.config.get("colors")
         self.dev_id = self.config.get("screenscraper").get("devid")
         self.dev_password = self.config.get("screenscraper").get("devpassword")
         self.username = self.config.get("screenscraper").get("username")
@@ -70,6 +71,12 @@ class App:
         self.threads = self.config.get("threads")
         for system in self.config["screenscraper"]["systems"]:
             self.systems_mapping[system["dir"]] = system
+
+        self.gui.COLOR_PRIMARY = self.colors.get("primary")
+        self.gui.COLOR_PRIMARY_DARK = self.colors.get("primary_dark")
+        self.gui.COLOR_SECONDARY = self.colors.get("secondary")
+        self.gui.COLOR_SECONDARY_LIGHT = self.colors.get("secondary_light")
+        self.gui.COLOR_SECONDARY_DARK = self.colors.get("secondary_dark")
 
     def start(self, config_file: str) -> None:
         self.load_config(config_file)
@@ -164,17 +171,11 @@ class App:
         global selected_position, selected_system, current_window, skip_input_check
 
         self.gui.draw_clear()
-        self.gui.draw_rectangle_r(
-            [10, 40, 630, 440], 15, fill=self.gui.COLOR_GRAY_D2, outline=None
-        )
+        self.gui.draw_rectangle_r([10, 40, 630, 440], 15)
         self.gui.draw_text((320, 20), "Artie Scraper v1.0.2", anchor="mm")
 
         if not Path(self.roms_path).exists() or not any(Path(self.roms_path).iterdir()):
-            self.gui.draw_log(
-                "Wrong Roms path, check config.json",
-                fill=self.gui.COLOR_BLUE,
-                outline=self.gui.COLOR_BLUE_D1,
-            )
+            self.gui.draw_log("Wrong Roms path, check config.json")
             self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
             sys.exit()
@@ -192,21 +193,14 @@ class App:
             elif input.key_pressed("A"):
                 selected_system = available_systems[selected_position]
                 current_window = "roms"
-                self.gui.draw_log(
-                    "Checking existing media...",
-                    fill=self.gui.COLOR_BLUE,
-                    outline=self.gui.COLOR_BLUE_D1,
-                )
+                self.gui.draw_log("Checking existing media...")
                 self.gui.draw_paint()
                 skip_input_check = True
                 return
             elif input.key_pressed("X"):
                 selected_system = available_systems[selected_position]
                 self.delete_system_media()
-                self.gui.draw_log(
-                    f"Deleting all existing {selected_system} media...",
-                    fill=self.gui.COLOR_BLUE,
-                )
+                self.gui.draw_log(f"Deleting all existing {selected_system} media...")
                 self.gui.draw_paint()
                 skip_input_check = True
                 time.sleep(self.LOG_WAIT)
@@ -260,11 +254,7 @@ class App:
     def save_file_to_disk(self, data, destination):
         check_destination(destination)
         destination.write_bytes(data)
-        self.gui.draw_log(
-            "Scraping completed!",
-            fill=self.gui.COLOR_BLUE,
-            outline=self.gui.COLOR_BLUE_D1,
-        )
+        self.gui.draw_log("Scraping completed!")
         return True
 
     def get_user_threads(self):
@@ -310,11 +300,7 @@ class App:
         exit_menu = False
         roms_list = self.get_roms(selected_system)
         if not roms_list:
-            self.gui.draw_log(
-                f"No roms found in {selected_system}...",
-                fill=self.gui.COLOR_BLUE,
-                outline=self.gui.COLOR_BLUE_D1,
-            )
+            self.gui.draw_log(f"No roms found in {selected_system}...")
             self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
             self.gui.draw_clear()
@@ -322,11 +308,7 @@ class App:
 
         system = self.systems_mapping.get(selected_system)
         if not system:
-            self.gui.draw_log(
-                "System is unknown...",
-                fill=self.gui.COLOR_BLUE,
-                outline=self.gui.COLOR_BLUE_D1,
-            )
+            self.gui.draw_log("System is unknown...")
             self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
             self.gui.draw_clear()
@@ -376,11 +358,7 @@ class App:
         if len(roms_to_scrape) < 1:
             current_window = "emulators"
             selected_system = ""
-            self.gui.draw_log(
-                "No roms with missing media found...",
-                fill=self.gui.COLOR_BLUE,
-                outline=self.gui.COLOR_BLUE_D1,
-            )
+            self.gui.draw_log("No roms with missing media found...")
             self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
             self.gui.draw_clear()
@@ -389,9 +367,7 @@ class App:
         if input.key_pressed("B"):
             exit_menu = True
         elif input.key_pressed("A"):
-            self.gui.draw_log(
-                "Scraping...", fill=self.gui.COLOR_BLUE, outline=self.gui.COLOR_BLUE_D1
-            )
+            self.gui.draw_log("Scraping...")
             self.gui.draw_paint()
             rom = roms_to_scrape[roms_selected_position]
             scraped_box, scraped_preview, scraped_synopsis = self.scrape(rom, system_id)
@@ -406,11 +382,7 @@ class App:
                 self.save_file_to_disk(scraped_synopsis.encode("utf-8"), destination)
 
             if not scraped_box and not scraped_preview and not scraped_synopsis:
-                self.gui.draw_log(
-                    "Scraping failed!",
-                    fill=self.gui.COLOR_BLUE,
-                    outline=self.gui.COLOR_BLUE_D1,
-                )
+                self.gui.draw_log("Scraping failed!")
                 print(f"Failed to get screenshot for {rom.name}")
             self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
@@ -419,11 +391,7 @@ class App:
             progress: int = 0
             success: int = 0
             failure: int = 0
-            self.gui.draw_log(
-                f"Scraping {progress} of {len(roms_to_scrape)}",
-                fill=self.gui.COLOR_BLUE,
-                outline=self.gui.COLOR_BLUE_D1,
-            )
+            self.gui.draw_log(f"Scraping {progress} of {len(roms_to_scrape)}")
             self.gui.draw_paint()
             for rom in roms_to_scrape:
                 scraped_box, scraped_preview, scraped_synopsis = self.scrape(
@@ -443,25 +411,14 @@ class App:
                 if scraped_box or scraped_preview or scraped_synopsis:
                     success += 1
                 else:
-                    self.gui.draw_log(
-                        "Scraping failed!",
-                        fill=self.gui.COLOR_BLUE,
-                        outline=self.gui.COLOR_BLUE_D1,
-                    )
+                    self.gui.draw_log("Scraping failed!")
                     print(f"Failed to get screenshot for {rom.name}")
                     failure += 1
                 progress += 1
-                self.gui.draw_log(
-                    f"Scraping {progress} of {len(roms_to_scrape)}",
-                    fill=self.gui.COLOR_BLUE,
-                    outline=self.gui.COLOR_BLUE_D1,
-                )
+                self.gui.draw_log(f"Scraping {progress} of {len(roms_to_scrape)}")
                 self.gui.draw_paint()
             self.gui.draw_log(
-                f"Scraping completed! Success: {success} Errors: {failure}",
-                fill=self.gui.COLOR_BLUE,
-                outline=self.gui.COLOR_BLUE_D1,
-                width=800,
+                f"Scraping completed! Success: {success} Errors: {failure}"
             )
             self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
@@ -500,9 +457,7 @@ class App:
 
         self.gui.draw_clear()
 
-        self.gui.draw_rectangle_r(
-            [10, 40, 630, 440], 15, fill=self.gui.COLOR_GRAY_D2, outline=None
-        )
+        self.gui.draw_rectangle_r([10, 40, 630, 440], 15)
 
         rom_text = f"{selected_system} - Total Roms: {len(roms_list)}"
 
@@ -578,7 +533,9 @@ class App:
         self.gui.draw_rectangle_r(
             [pos[0], pos[1], pos[0] + width, pos[1] + 32],
             5,
-            fill=(self.gui.COLOR_BLUE if selected else self.gui.COLOR_GRAY_L1),
+            fill=(
+                self.gui.COLOR_PRIMARY if selected else self.gui.COLOR_SECONDARY_LIGHT
+            ),
         )
 
         text_offset_x = pos[0] + 5
@@ -609,13 +566,15 @@ class App:
         self.gui.draw_text((text_offset_x, pos[1] + 5), text)
 
     def button_circle(self, pos: tuple[int, int], button: str, text: str) -> None:
-        self.gui.draw_circle(pos, 25, fill=self.gui.COLOR_BLUE_D1)
+        self.gui.draw_circle(pos, 25)
         self.gui.draw_text((pos[0] + 12, pos[1] + 12), button, anchor="mm")
         self.gui.draw_text((pos[0] + 30, pos[1] + 12), text, font=13, anchor="lm")
 
     def button_rectangle(self, pos: tuple[int, int], button: str, text: str) -> None:
         self.gui.draw_rectangle_r(
-            (pos[0], pos[1], pos[0] + 60, pos[1] + 25), 5, fill=self.gui.COLOR_GRAY_L1
+            (pos[0], pos[1], pos[0] + 60, pos[1] + 25),
+            5,
+            fill=self.gui.COLOR_SECONDARY_LIGHT,
         )
         self.gui.draw_text((pos[0] + 30, pos[1] + 12), button, anchor="mm")
         self.gui.draw_text((pos[0] + 65, pos[1] + 12), text, font=13, anchor="lm")
