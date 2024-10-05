@@ -70,7 +70,7 @@ class App:
         self.synopsis_enabled = self.content["synopsis"]["enabled"]
         self.threads = self.config.get("threads")
         for system in self.config["screenscraper"]["systems"]:
-            self.systems_mapping[system["dir"]] = system
+            self.systems_mapping[system["dir"].lower()] = system
 
         self.gui.COLOR_PRIMARY = self.colors.get("primary")
         self.gui.COLOR_PRIMARY_DARK = self.colors.get("primary_dark")
@@ -110,11 +110,7 @@ class App:
             if Path(self.roms_path, d).is_dir()
         ]
         return sorted(
-            [
-                system
-                for system in available_systems
-                if system.lower() in map(str.lower, self.systems_mapping.keys())
-            ],
+            [system for system in available_systems if system in self.systems_mapping]
         )
 
     def get_roms(self, system: str) -> list[Rom]:
