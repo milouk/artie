@@ -117,7 +117,9 @@ class App:
         roms = []
         system_path = Path(self.roms_path) / system
 
-        for root, _, files in os.walk(system_path):
+        for root, dirs, files in os.walk(system_path):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+
             for file in files:
                 file_path = Path(root) / file
                 if file.startswith("."):
