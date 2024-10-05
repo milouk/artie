@@ -9,7 +9,7 @@ from pathlib import Path
 
 import requests
 
-GAME_INFO_URL = "https://www.screenscraper.fr/api2/jeuInfos.php"
+GAME_INFO_URL = "https://api.screenscraper.fr/api2/jeuInfos.php"
 USER_INFO_URL = "https://api.screenscraper.fr/api2/ssuserInfos.php"
 MAX_FILE_SIZE_BYTES = 104857600  # 100MB
 IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png"]
