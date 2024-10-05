@@ -6,6 +6,14 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 class GUI:
+    COLOR_PRIMARY = "#bb7200"
+    COLOR_PRIMARY_DARK = "#7f4f00"
+    COLOR_SECONDARY = "#292929"
+    COLOR_SECONDARY_LIGHT = "#383838"
+    COLOR_SECONDARY_DARK = "#141414"
+    COLOR_WHITE = "#ffffff"
+    COLOR_BLACK = "#000000"
+
     def __init__(self):
         self.fb = None
         self.mm = None
@@ -19,12 +27,6 @@ class GUI:
             13: ImageFont.truetype("assets/Roboto-Condensed.ttf", 13),
             11: ImageFont.truetype("assets/Roboto-Condensed.ttf", 11),
         }
-
-        self.COLOR_BLUE = "#bb7200"
-        self.COLOR_BLUE_D1 = "#7f4f00"
-        self.COLOR_GRAY = "#292929"
-        self.COLOR_GRAY_L1 = "#383838"
-        self.COLOR_GRAY_D2 = "#141414"
 
         self.activeImage = None
         self.activeDraw = None
@@ -49,7 +51,7 @@ class GUI:
 
     def create_image(self):
         image = Image.new(
-            "RGBA", (self.screen_width, self.screen_height), color="black"
+            "RGBA", (self.screen_width, self.screen_height), color=self.COLOR_BLACK
         )
         return image
 
@@ -71,10 +73,10 @@ class GUI:
     def draw_clear(self):
         if self.activeDraw:
             self.activeDraw.rectangle(
-                (0, 0, self.screen_width, self.screen_height), fill="black"
+                (0, 0, self.screen_width, self.screen_height), fill=self.COLOR_BLACK
             )
 
-    def draw_text(self, position, text, font=15, color="white", **kwargs):
+    def draw_text(self, position, text, font=15, color=COLOR_WHITE, **kwargs):
         if self.activeDraw:
             self.activeDraw.text(
                 position, text, font=self.fontFile[font], fill=color, **kwargs
@@ -84,13 +86,17 @@ class GUI:
         if self.activeDraw:
             self.activeDraw.rectangle(position, fill=fill, outline=outline, width=width)
 
-    def draw_rectangle_r(self, position, radius, fill=None, outline=None):
+    def draw_rectangle_r(
+        self, position, radius, fill=COLOR_SECONDARY_DARK, outline=None
+    ):
         if self.activeDraw:
             self.activeDraw.rounded_rectangle(
                 position, radius, fill=fill, outline=outline
             )
 
-    def draw_circle(self, position, radius, fill=None, outline="white"):
+    def draw_circle(
+        self, position, radius, fill=COLOR_PRIMARY_DARK, outline=COLOR_WHITE
+    ):
         if self.activeDraw:
             self.activeDraw.ellipse(
                 [
@@ -103,7 +109,7 @@ class GUI:
                 outline=outline,
             )
 
-    def draw_log(self, text, fill="Black", outline="black", width=500):
+    def draw_log(self, text, fill=COLOR_PRIMARY, outline=COLOR_PRIMARY_DARK, width=500):
         # Center the rectangle horizontally
         x = (self.screen_width - width) / 2
         # Center the rectangle vertically

@@ -9,7 +9,8 @@ from pathlib import Path
 
 import requests
 
-BASE_URL = "https://www.screenscraper.fr/api2/jeuInfos.php"
+GAME_INFO_URL = "https://www.screenscraper.fr/api2/jeuInfos.php"
+USER_INFO_URL = "https://api.screenscraper.fr/api2/ssuserInfos.php"
 MAX_FILE_SIZE_BYTES = 104857600  # 100MB
 IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png"]
 VALID_MEDIA_TYPES = {"box-2D", "box-3D", "mixrbv1", "mixrbv2", "ss"}
@@ -83,7 +84,27 @@ def parse_find_game_url(system_id, rom_path, dev_id, dev_password, username, pas
         "romnom": f"{clean_rom_name(rom_path)}.zip",
         "romtaille": str(file_size(rom_path)),
     }
-    return urlunparse(urlparse(BASE_URL)._replace(query=urlencode(params)))
+    try:
+        return urlunparse(urlparse(GAME_INFO_URL)._replace(query=urlencode(params)))
+    except UnicodeDecodeError as e:
+        logging.error(f"Error encoding URL: {e}. ROM params: {params}")
+        return None
+
+
+def parse_user_info_url(dev_id, dev_password, username, password):
+    params = {
+        "devid": base64.b64decode(dev_id).decode(),
+        "devpassword": base64.b64decode(dev_password).decode(),
+        "softname": "crossmix",
+        "output": "json",
+        "ssid": username,
+        "sspassword": password,
+    }
+    try:
+        return urlunparse(urlparse(USER_INFO_URL)._replace(query=urlencode(params)))
+    except UnicodeDecodeError as e:
+        logging.error(f"Error encoding URL: {e}. User info params: {params}")
+        return None
 
 
 def find_media_url_by_region(medias, media_type, regions):
@@ -135,35 +156,39 @@ def get(url):
         return response.content
 
 
-def find_game(system_id, rom_path, dev_id, dev_password, username, password):
-    game_url = parse_find_game_url(
-        system_id, rom_path, dev_id, dev_password, username, password
-    )
+def fetch_data(url):
     try:
-        body = get(game_url)
-    except Exception as e:
-        logging.error(f"Error fetching game data: {e}")
-        return None
+        body = get(url)
+        if not body:
+            logging.error("Empty response body")
+            return None
 
-    if not body:
-        return None
+        body_str = body.decode("utf-8")
+        if "API closed" in body_str:
+            logging.error("API is closed")
+            return None
+        if "Erreur" in body_str:
+            logging.error("Error found in response: %s", body_str)
+            return None
 
-    body_str = body.decode("utf-8")
-    if "API closed" in body_str:
-        logging.error("API is closed")
-        return None
-    if "Erreur" in body_str:
-        logging.error("Game not found")
-        return None
-    if not body:
-        logging.error("Empty response body")
-        return None
-
-    try:
         return json.loads(body_str)
     except json.JSONDecodeError as e:
         logging.error(f"Error decoding JSON response: {e}")
-        return None
+    except Exception as e:
+        logging.error(f"Error fetching data from URL: {e}")
+    return None
+
+
+def get_game_data(system_id, rom_path, dev_id, dev_password, username, password):
+    game_url = parse_find_game_url(
+        system_id, rom_path, dev_id, dev_password, username, password
+    )
+    return fetch_data(game_url)
+
+
+def get_user_data(dev_id, dev_password, username, password):
+    user_info_url = parse_user_info_url(dev_id, dev_password, username, password)
+    return fetch_data(user_info_url)
 
 
 def _fetch_media(medias, properties, regions):
