@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import sys
 import time
@@ -7,6 +8,7 @@ from typing import List
 
 import input
 from graphic import GUI
+from logger import LoggerSingleton as logger
 from PIL import Image
 from scraper import (
     check_destination,
@@ -19,13 +21,14 @@ from scraper import (
     get_user_data,
 )
 
+VERSION = "1.0.2"
+
 selected_position = 0
 roms_selected_position = 0
 selected_system = ""
 current_window = "emulators"
 max_elem = 11
 skip_input_check = False
-scraping = False
 
 
 class Rom:
@@ -78,8 +81,15 @@ class App:
         self.gui.COLOR_SECONDARY_LIGHT = self.colors.get("secondary_light")
         self.gui.COLOR_SECONDARY_DARK = self.colors.get("secondary_dark")
 
+    def setup_logging(self):
+        log_level_str = self.config.get("log_level", "INFO").upper()
+        log_level = getattr(logging, log_level_str, logging.INFO)
+        logger.setup_logger(log_level)
+
     def start(self, config_file: str) -> None:
         self.load_config(config_file)
+        self.setup_logging()
+        logger.log_debug(f"Artie Scraper v{VERSION}")
         self.gui.draw_start()
         self.gui.screen_reset()
         main_gui = self.gui.create_image()
@@ -253,6 +263,7 @@ class App:
         check_destination(destination)
         destination.write_bytes(data)
         self.gui.draw_log("Scraping completed!")
+        logger.log_debug(f"Saved file to {destination}")
         return True
 
     def get_user_threads(self):
@@ -288,7 +299,7 @@ class App:
                 if self.synopsis_enabled:
                     scraped_synopsis = fetch_synopsis(game, content)
         except Exception as e:
-            print(f"Error scraping {rom.name}: {e}")
+            logger.log_error(f"Error scraping {rom.name}: {e}")
 
         return scraped_box, scraped_preview, scraped_synopsis
 
@@ -381,7 +392,7 @@ class App:
 
             if not scraped_box and not scraped_preview and not scraped_synopsis:
                 self.gui.draw_log("Scraping failed!")
-                print(f"Failed to get screenshot for {rom.name}")
+                logger.log_error(f"Failed to get screenshot for {rom.name}")
             self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
             exit_menu = True
@@ -410,7 +421,7 @@ class App:
                     success += 1
                 else:
                     self.gui.draw_log("Scraping failed!")
-                    print(f"Failed to get screenshot for {rom.name}")
+                    logger.log_error(f"Failed to get screenshot for {rom.name}")
                     failure += 1
                 progress += 1
                 self.gui.draw_log(f"Scraping {progress} of {len(roms_to_scrape)}")
@@ -558,9 +569,8 @@ class App:
                 )
 
             except Exception as e:
-                print(f"Error loading image from {image_path}: {e}")
+                logger.log_error(f"Error loading image from {image_path}: {e}")
 
-        # Draw the text
         self.gui.draw_text((text_offset_x, pos[1] + 5), text)
 
     def button_circle(self, pos: tuple[int, int], button: str, text: str) -> None:
