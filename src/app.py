@@ -180,7 +180,7 @@ class App:
 
         self.gui.draw_clear()
         self.gui.draw_rectangle_r([10, 40, 630, 440], 15)
-        self.gui.draw_text((320, 20), "Artie Scraper v1.0.2", anchor="mm")
+        self.gui.draw_text((320, 20), f"Artie Scraper v{VERSION}", anchor="mm")
 
         if not Path(self.roms_path).exists() or not any(Path(self.roms_path).iterdir()):
             self.gui.draw_log("Wrong Roms path, check config.json")
