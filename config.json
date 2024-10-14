@@ -1,6 +1,14 @@
 {
   "roms": "/mnt/sdcard/ROMS",
   "logos": "assets/logos",
+  "log_level": "info",
+  "colors": {
+    "primary": "#bb7200",
+    "primary_dark": "#7f4f00",
+    "secondary": "#292929",
+    "secondary_light": "#383838",
+    "secondary_dark": "#141414"
+  },
   "screenscraper": {
     "username": "",
     "password": "",
@@ -35,14 +43,6 @@
       ]
     },
     "systems": [
-      {
-        "dir": "TEST",
-        "id": "-1",
-        "name": "test",
-        "box": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/text/"
-      },
       {
         "dir": "ADVMAME",
         "id": "75",
