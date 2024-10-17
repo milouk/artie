@@ -167,25 +167,25 @@
         "dir": "CPS1",
         "id": "6",
         "name": "Capcom Play System",
-        "box": "/mnt/mmc/MUOS/info/catalogue/CPS1/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/CPS1/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/CPS1/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/Arcade/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Arcade/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arcade/text/"
       },
       {
         "dir": "CPS2",
         "id": "7",
         "name": "Capcom Play System 2",
-        "box": "/mnt/mmc/MUOS/info/catalogue/CPS2/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/CPS2/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/CPS2/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/Arcade/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Arcade/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arcade/text/"
       },
       {
         "dir": "CPS3",
         "id": "8",
         "name": "Capcom Play System 3",
-        "box": "/mnt/mmc/MUOS/info/catalogue/CPS3/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/CPS3/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/CPS3/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/Arcade/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Arcade/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arcade/text/"
       },
       {
         "dir": "DAPHNE",
@@ -268,7 +268,7 @@
         "synopsis": "/mnt/mmc/MUOS/info/catalogue/FBNEO/text/"
       },
       {
-        "dir": "FC",
+        "dir": "NES",
         "id": "3",
         "name": "NES (Famicom)",
         "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo NES-Famicom/box/",
@@ -375,9 +375,9 @@
         "dir": "MAME",
         "id": "75",
         "name": "Mame 2000",
-        "box": "/mnt/mmc/MUOS/info/catalogue/MAME/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/MAME/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/MAME/text/"
+        "box": "/mnt/mmc/MUOS/info/catalogue/Arcade/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Arcade/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arcade/text/"
       },
       {
         "dir": "MAME2003PLUS",
@@ -404,7 +404,7 @@
         "synopsis": "/mnt/mmc/MUOS/info/catalogue/MBA/text/"
       },
       {
-        "dir": "MD",
+        "dir": "MEGADRIVE",
         "id": "1",
         "name": "Sega Genesis (Mega Drive)",
         "box": "/mnt/mmc/MUOS/info/catalogue/Sega Mega Drive - Genesis/box/",
@@ -684,7 +684,7 @@
         "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari 7800/text/"
       },
       {
-        "dir": "SFC",
+        "dir": "SNES",
         "id": "4",
         "name": "Super Nintendo (SNES)",
         "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/box/",
