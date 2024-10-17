@@ -419,9 +419,8 @@ class App:
             failure: int = 0
             self.gui.draw_log(f"Scraping {progress} of {len(roms_to_scrape)}")
             self.gui.draw_paint()
-            with concurrent.futures.ThreadPoolExecutor(
-                max_workers=self.threads
-            ) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                logger.log_debug(f"Available threads: {self.threads}")
                 futures = {
                     executor.submit(
                         self.process_rom,
