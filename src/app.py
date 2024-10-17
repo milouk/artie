@@ -22,7 +22,7 @@ from scraper import (
     get_user_data,
 )
 
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 
 selected_position = 0
 roms_selected_position = 0
