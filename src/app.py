@@ -1,3 +1,4 @@
+import concurrent.futures
 import json
 import logging
 import os
@@ -270,7 +271,6 @@ class App:
     def save_file_to_disk(self, data, destination):
         check_destination(destination)
         destination.write_bytes(data)
-        self.gui.draw_log("Scraping completed!")
         logger.log_debug(f"Saved file to {destination}")
         return True
 
@@ -310,6 +310,19 @@ class App:
             logger.log_error(f"Error scraping {rom.name}: {e}")
 
         return scraped_box, scraped_preview, scraped_synopsis
+
+    def process_rom(self, rom, system_id, box_dir, preview_dir, synopsis_dir):
+        scraped_box, scraped_preview, scraped_synopsis = self.scrape(rom, system_id)
+        if scraped_box:
+            destination: Path = box_dir / f"{rom.name}.png"
+            self.save_file_to_disk(scraped_box, destination)
+        if scraped_preview:
+            destination: Path = preview_dir / f"{rom.name}.png"
+            self.save_file_to_disk(scraped_preview, destination)
+        if scraped_synopsis:
+            destination: Path = synopsis_dir / f"{rom.name}.txt"
+            self.save_file_to_disk(scraped_synopsis.encode("utf-8"), destination)
+        return scraped_box, scraped_preview, scraped_synopsis, rom.name
 
     def load_roms(self) -> None:
         global selected_position, current_window, roms_selected_position, skip_input_check, selected_system
@@ -387,20 +400,15 @@ class App:
             self.gui.draw_log("Scraping...")
             self.gui.draw_paint()
             rom = roms_to_scrape[roms_selected_position]
-            scraped_box, scraped_preview, scraped_synopsis = self.scrape(rom, system_id)
-            if scraped_box:
-                destination: Path = box_dir / f"{rom.name}.png"
-                self.save_file_to_disk(scraped_box, destination)
-            if scraped_preview:
-                destination: Path = preview_dir / f"{rom.name}.png"
-                self.save_file_to_disk(scraped_preview, destination)
-            if scraped_synopsis:
-                destination: Path = synopsis_dir / f"{rom.name}.txt"
-                self.save_file_to_disk(scraped_synopsis.encode("utf-8"), destination)
+            scraped_box, scraped_preview, scraped_synopsis, _ = self.process_rom(
+                rom, system_id, box_dir, preview_dir, synopsis_dir
+            )
 
             if not scraped_box and not scraped_preview and not scraped_synopsis:
                 self.gui.draw_log("Scraping failed!")
                 logger.log_error(f"Failed to get screenshot for {rom.name}")
+            else:
+                self.gui.draw_log("Scraping completed!")
             self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
             exit_menu = True
@@ -410,30 +418,32 @@ class App:
             failure: int = 0
             self.gui.draw_log(f"Scraping {progress} of {len(roms_to_scrape)}")
             self.gui.draw_paint()
-            for rom in roms_to_scrape:
-                scraped_box, scraped_preview, scraped_synopsis = self.scrape(
-                    rom, system_id
-                )
-                if scraped_box:
-                    destination: Path = box_dir / f"{rom.name}.png"
-                    self.save_file_to_disk(scraped_box, destination)
-                if scraped_preview:
-                    destination: Path = preview_dir / f"{rom.name}.png"
-                    self.save_file_to_disk(scraped_preview, destination)
-                if scraped_synopsis:
-                    destination: Path = synopsis_dir / f"{rom.name}.txt"
-                    self.save_file_to_disk(
-                        scraped_synopsis.encode("utf-8"), destination
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=self.threads
+            ) as executor:
+                futures = {
+                    executor.submit(
+                        self.process_rom,
+                        rom,
+                        system_id,
+                        box_dir,
+                        preview_dir,
+                        synopsis_dir,
+                    ): rom
+                    for rom in roms_to_scrape
+                }
+                for future in concurrent.futures.as_completed(futures):
+                    scraped_box, scraped_preview, scraped_synopsis, rom_name = (
+                        future.result()
                     )
-                if scraped_box or scraped_preview or scraped_synopsis:
-                    success += 1
-                else:
-                    self.gui.draw_log("Scraping failed!")
-                    logger.log_error(f"Failed to get screenshot for {rom.name}")
-                    failure += 1
-                progress += 1
-                self.gui.draw_log(f"Scraping {progress} of {len(roms_to_scrape)}")
-                self.gui.draw_paint()
+                    if scraped_box or scraped_preview or scraped_synopsis:
+                        success += 1
+                    else:
+                        logger.log_error(f"Failed to get screenshot for {rom_name}")
+                        failure += 1
+                    progress += 1
+                    self.gui.draw_log(f"Scraping {progress} of {len(roms_to_scrape)}")
+                    self.gui.draw_paint()
             self.gui.draw_log(
                 f"Scraping completed! Success: {success} Errors: {failure}"
             )
