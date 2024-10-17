@@ -81,6 +81,7 @@ class App:
         self.preview_enabled = self.content["preview"]["enabled"]
         self.synopsis_enabled = self.content["synopsis"]["enabled"]
         self.threads = self.config.get("threads")
+        self.get_user_threads()
         for system in self.config["screenscraper"]["systems"]:
             self.systems_mapping[system["dir"].lower()] = system
 
