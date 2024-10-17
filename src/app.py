@@ -59,7 +59,15 @@ class App:
         with open(config_file, "r") as file:
             file_contents = file.read()
 
-        self.config = json.loads(file_contents)
+        try:
+            self.config = json.loads(file_contents)
+        except json.JSONDecodeError as e:
+            logger.log_error(f"Error loading config file: {e}")
+            self.gui.draw_log("Your config.json file is not a valid json file...")
+            self.gui.draw_paint()
+            time.sleep(self.LOG_WAIT)
+            sys.exit()
+
         self.roms_path = self.config.get("roms")
         self.systems_logo_path = self.config.get("logos")
         self.colors = self.config.get("colors")
