@@ -76,11 +76,11 @@ class App:
         self.dev_password = self.config.get("screenscraper").get("devpassword")
         self.username = self.config.get("screenscraper").get("username")
         self.password = self.config.get("screenscraper").get("password")
+        self.threads = self.config.get("screenscraper").get("threads")
         self.content = self.config.get("screenscraper").get("content")
         self.box_enabled = self.content["box"]["enabled"]
         self.preview_enabled = self.content["preview"]["enabled"]
         self.synopsis_enabled = self.content["synopsis"]["enabled"]
-        self.threads = self.config.get("screenscraper").get("threads")
         self.get_user_threads()
         for system in self.config["screenscraper"]["systems"]:
             self.systems_mapping[system["dir"].lower()] = system
