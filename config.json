@@ -605,8 +605,8 @@
       },
       {
         "dir": "PORTS",
-        "id": "137",
-        "name": "PC Win9X",
+        "id": "138",
+        "name": "PC Windows",
         "box": "/mnt/mmc/MUOS/info/catalogue/PORTS/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/PORTS/preview/",
         "synopsis": "/mnt/mmc/MUOS/info/catalogue/PORTS/text/"
