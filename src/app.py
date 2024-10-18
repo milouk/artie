@@ -76,11 +76,11 @@ class App:
         self.dev_password = self.config.get("screenscraper").get("devpassword")
         self.username = self.config.get("screenscraper").get("username")
         self.password = self.config.get("screenscraper").get("password")
+        self.threads = self.config.get("screenscraper").get("threads")
         self.content = self.config.get("screenscraper").get("content")
         self.box_enabled = self.content["box"]["enabled"]
         self.preview_enabled = self.content["preview"]["enabled"]
         self.synopsis_enabled = self.content["synopsis"]["enabled"]
-        self.threads = self.config.get("threads")
         self.get_user_threads()
         for system in self.config["screenscraper"]["systems"]:
             self.systems_mapping[system["dir"].lower()] = system
@@ -285,7 +285,8 @@ class App:
         if not user_info:
             self.threads = 1
         else:
-            self.threads = min(self.threads, user_info.get("maxthreads"))
+            self.threads = min(self.threads, int(user_info["response"]["ssuser"]["maxthreads"]))
+        logger.log_info(f"number of threads: {self.threads}")
 
     def scrape(self, rom, system_id):
         scraped_box = scraped_preview = scraped_synopsis = None
