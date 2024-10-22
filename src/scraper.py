@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import html
 import json
 import os
 import re
@@ -230,5 +231,5 @@ def fetch_synopsis(game, config):
         (item["text"] for item in synopsis if item["langue"] == synopsis_lang), None
     )
     if synopsis_text:
-        return synopsis_text
+        return html.unescape(synopsis_text)
     return None
