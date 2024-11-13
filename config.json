@@ -15,6 +15,7 @@
     "devid": "bWlsb3Vr",
     "devpassword": "dVdDNVVsWHhaaFo=",
     "threads": 1,
+    "show_scraped_roms": true,
     "content": {
       "synopsis": {
         "enabled": true,
