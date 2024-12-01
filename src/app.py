@@ -5,8 +5,9 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import List, Callable
+from typing import Callable, List
 
+import exceptions
 import input
 from graphic import GUI
 from logger import LoggerSingleton as logger
@@ -290,47 +291,58 @@ class App:
         return True
 
     def get_user_threads(self):
-        user_info = get_user_data(
-            self.dev_id,
-            self.dev_password,
-            self.username,
-            self.password,
-        )
-        if not user_info:
-            self.threads = 1
-        else:
-            self.threads = min(
-                self.threads, int(user_info["response"]["ssuser"]["maxthreads"])
-            )
-        logger.log_info(f"number of threads: {self.threads}")
-
-    def scrape(self, rom, system_id):
-        scraped_box = scraped_preview = scraped_synopsis = None
         try:
-            game = get_game_data(
-                system_id,
-                rom.path,
+            user_info = get_user_data(
                 self.dev_id,
                 self.dev_password,
                 self.username,
                 self.password,
             )
+            max_threads = int(
+                user_info.get("response", {}).get("ssuser", {}).get("maxthreads", 1)
+            )
+            self.threads = min(self.threads, max_threads)
+        except exceptions.ScraperError as e:
+            error_msg = f"Error fetching user data: {e}"
 
-            if game:
-                content = self.content
-                if self.box_enabled:
-                    scraped_box = fetch_box(game, content)
-                if self.preview_enabled:
-                    scraped_preview = fetch_preview(game, content)
-                if self.synopsis_enabled:
-                    scraped_synopsis = fetch_synopsis(game, content)
-        except Exception as e:
-            logger.log_error(f"Error scraping {rom.name}: {e}")
+        if error_msg:
+            self.threads = 1
+            logger.log_error(error_msg)
+            self.gui.draw_log(error_msg)
+            self.gui.draw_paint()
+            time.sleep(self.LOG_WAIT)
+            self.gui.draw_clear()
+
+        logger.log_info(f"number of threads: {self.threads}")
+
+    def scrape(self, rom, system_id):
+        scraped_box = scraped_preview = scraped_synopsis = None
+        game = get_game_data(
+            system_id,
+            rom.path,
+            self.dev_id,
+            self.dev_password,
+            self.username,
+            self.password,
+        )
+
+        if game:
+            content = self.content
+            if self.box_enabled:
+                scraped_box = fetch_box(game, content)
+            if self.preview_enabled:
+                scraped_preview = fetch_preview(game, content)
+            if self.synopsis_enabled:
+                scraped_synopsis = fetch_synopsis(game, content)
 
         return scraped_box, scraped_preview, scraped_synopsis
 
     def process_rom(self, rom, system_id, box_dir, preview_dir, synopsis_dir):
-        scraped_box, scraped_preview, scraped_synopsis = self.scrape(rom, system_id)
+        try:
+            scraped_box, scraped_preview, scraped_synopsis = self.scrape(rom, system_id)
+        except (exceptions.ForbiddenError, exceptions.RateLimitError) as e:
+            raise e
+
         if scraped_box:
             destination: Path = box_dir / f"{rom.name}.png"
             self.save_file_to_disk(scraped_box, destination)
@@ -422,15 +434,23 @@ class App:
             self.gui.draw_log("Scraping...")
             self.gui.draw_paint()
             rom = roms_to_scrape[roms_selected_position]
-            scraped_box, scraped_preview, scraped_synopsis, _ = self.process_rom(
-                rom, system_id, box_dir, preview_dir, synopsis_dir
-            )
+            error_msg = None
 
-            if not scraped_box and not scraped_preview and not scraped_synopsis:
+            try:
+                scraped_box, scraped_preview, scraped_synopsis, _ = self.process_rom(
+                    rom, system_id, box_dir, preview_dir, synopsis_dir
+                )
+            except exceptions.ScraperError as e:
+                error_msg = e.get_message()
+
+            if error_msg:
+                self.gui.draw_log(error_msg)
+            elif not scraped_box and not scraped_preview and not scraped_synopsis:
                 self.gui.draw_log("Scraping failed!")
                 logger.log_error(f"Failed to get screenshot for {rom.name}")
             else:
                 self.gui.draw_log("Scraping completed!")
+
             self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
             exit_menu = True
@@ -461,9 +481,17 @@ class App:
                     for rom in roms_to_scrape
                 }
                 for future in concurrent.futures.as_completed(futures):
-                    scraped_box, scraped_preview, scraped_synopsis, rom_name = (
-                        future.result()
-                    )
+                    try:
+                        scraped_box, scraped_preview, scraped_synopsis, rom_name = (
+                            future.result()
+                        )
+                    except (exceptions.RateLimitError, exceptions.ForbiddenError):
+                        break
+                    except exceptions.ScraperError as e:
+                        logger.log_error(f"Error scraping {rom_name}: {e}")
+                        failure += 1
+                        continue
+
                     if scraped_box or scraped_preview or scraped_synopsis:
                         success += 1
                     else:
