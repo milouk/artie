@@ -16,6 +16,7 @@ Artie is a simple art scraper designed for Anbernic devices running MuOS. It hel
 - Support for Box Art, Preview and Text (Synopsis).
 - Option to delete all media for a selected system.
 - It can work in other OSs as well with little adaptation.
+- Supported media includes `["box-2D", "box-3D", "mixrbv1", "mixrbv2", "ss", "marquee"]`
 
 ## Installation / Usage
 
