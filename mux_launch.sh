@@ -1,7 +1,7 @@
 #!/bin/sh
 echo app >/tmp/act_go
 
-ARTIE_DIR="/mnt/mmc/MUOS/application/.artie"
+ARTIE_DIR="/mnt/mmc/MUOS/application/Artie/.artie"
 
 cd "$ARTIE_DIR" || exit
 

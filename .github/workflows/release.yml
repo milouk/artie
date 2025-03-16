@@ -34,9 +34,10 @@ jobs:
 
       - name: Bundle App
         run: |
-          mkdir -p .artie && \
-          cp -r ./dist/app ./assets ./config.json .artie
-          zip -r Artie.zip .artie ./Artie\ Scraper.sh
+          mkdir -p .artie Artie && \
+          cp -r ./dist/app ./assets ./config.json .artie && \
+          cp -r ./.artie ./mux_launch.sh ./Artie
+          zip -r Artie.zip ./Artie
 
       - name: Upload assets
         uses: softprops/action-gh-release@v1

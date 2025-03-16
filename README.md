@@ -31,7 +31,7 @@ Follow these steps to install Artie:
 
 3. **Configure Artie**:
 
-   In `config.json` ensure:
+   In `Artie/.artie/config.json` ensure:
 
    a) `roms` is correctly configured to the path your roms are located.
 
@@ -41,13 +41,14 @@ Follow these steps to install Artie:
 
 4. **Copy Files to MuOS**:
 
-   - Copy the `.artie` directory and `Artie Scraper.sh` script to `/mnt/mmc/MUOS/application/`.
+   - Copy the `Artie` directory to `/mnt/mmc/MUOS/application/`.
 
    This could be done via CLI with:
 
-   `scp -r .artie/ Artie\ Scraper.sh root@<your IP>:/mnt/mmc/MUOS/application/`
+   `scp -r Artie/ root@<your IP>:/mnt/mmc/MUOS/application/`
 
 5. **Launch Artie Scraper**:
+
    - Open MuOS and launch Artie Scraper from your applications menu.
 
 ## Contributing
@@ -73,6 +74,7 @@ We welcome contributions! Feel free to open issues or submit pull requests (PRs)
    - Implement your changes and commit them with clear and concise messages.
 
 5. **Submit a Pull Request**:
+
    - Push your changes to your fork and submit a pull request to the main repository. Be sure to mention what feature you are implementing or which bug you are fixing.
 
 ### Reporting Bugs
