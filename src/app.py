@@ -51,10 +51,35 @@ class App:
         self.box_enabled = True
         self.preview_enabled = True
         self.synopsis_enabled = True
+        self.meta_enabled = True
         self.threads = 1
         self.username = ""
         self.password = ""
         self.gui = GUI()
+        self.sub_dirs = False
+
+    def update_systems_mapping(self):
+        self.systems_mapping = {}
+
+        for system in self.config["screenscraper"]["systems"]:
+            system_dir = system["dir"].lower()
+
+            # Check for exact match first
+            if os.path.isdir(os.path.join(self.roms_path, system_dir)):
+                self.systems_mapping[system_dir] = system
+            else:
+                # Check for partial matches using identifiers and excludes
+                for dir_name in os.listdir(self.roms_path):
+                    dir_lower = dir_name.lower()
+
+                    if any(identifier.lower() in dir_lower for identifier in system["identifiers"]) and \
+                            all(exclude.lower() not in dir_lower for exclude in system["excludes"]):
+                        logger.log_info(system)
+                        self.systems_mapping[dir_lower] = system
+                        break
+                    else:
+                        self.systems_mapping[system_dir] = system
+        return self.systems_mapping
 
     def load_config(self, config_file):
         with open(config_file, "r") as file:
@@ -70,6 +95,8 @@ class App:
             sys.exit()
 
         self.roms_path = self.config.get("roms")
+        if not Path(self.roms_path).exists() or not any(Path(self.roms_path).iterdir()):
+            self.roms_path = self.config.get("roms_alt")
         self.systems_logo_path = self.config.get("logos")
         self.colors = self.config.get("colors")
         self.dev_id = self.config.get("screenscraper").get("devid")
@@ -81,15 +108,19 @@ class App:
         self.box_enabled = self.content["box"]["enabled"]
         self.preview_enabled = self.content["preview"]["enabled"]
         self.synopsis_enabled = self.content["synopsis"]["enabled"]
+        self.meta_enabled = self.content["synopsis"]["meta"]
+
+        self.sub_dirs = self.config.get("sub_dirs")
         self.get_user_threads()
-        for system in self.config["screenscraper"]["systems"]:
-            self.systems_mapping[system["dir"].lower()] = system
+
+        self.update_systems_mapping()
 
         self.gui.COLOR_PRIMARY = self.colors.get("primary")
         self.gui.COLOR_PRIMARY_DARK = self.colors.get("primary_dark")
         self.gui.COLOR_SECONDARY = self.colors.get("secondary")
         self.gui.COLOR_SECONDARY_LIGHT = self.colors.get("secondary_light")
         self.gui.COLOR_SECONDARY_DARK = self.colors.get("secondary_dark")
+
 
     def setup_logging(self):
         log_level_str = self.config.get("log_level", "INFO").upper()
@@ -133,18 +164,23 @@ class App:
             [system for system in available_systems if system in self.systems_mapping]
         )
 
+
     def get_roms(self, system: str) -> list[Rom]:
         roms = []
         system_path = Path(self.roms_path) / system
 
         for root, dirs, files in os.walk(system_path):
-            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            if self.sub_dirs:
+                dirs[:] = [d for d in dirs if not d.startswith(".")]
+            else:
+                dirs[:] = []
 
             for file in files:
                 file_path = Path(root) / file
                 if file.startswith("."):
                     continue
                 if file_path.is_file() and self.is_valid_rom(file):
+                    logger.log_info(file_path)
                     name = file_path.stem
                     rom = Rom(filename=file, name=name, path=file_path)
                     roms.append(rom)
@@ -254,10 +290,8 @@ class App:
     def is_valid_rom(self, rom):
         invalid_extensions = {
             ".cue",
-            ".m3u",
             ".jpg",
             ".png",
-            ".img",
             ".sub",
             ".db",
             ".xml",
@@ -307,7 +341,7 @@ class App:
                 if self.preview_enabled:
                     scraped_preview = fetch_preview(game, content)
                 if self.synopsis_enabled:
-                    scraped_synopsis = fetch_synopsis(game, content)
+                    scraped_synopsis = fetch_synopsis(game, content, self.meta_enabled)
         except Exception as e:
             logger.log_error(f"Error scraping {rom.name}: {e}")
 
