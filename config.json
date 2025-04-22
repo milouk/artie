@@ -25,9 +25,9 @@
       },
       "box": {
         "enabled": true,
-        "type": "box-3D",
-        "height": 240,
-        "width": 320
+        "type": "mixrbv1",
+        "height": 320,
+        "width": 300
       },
       "preview": {
         "enabled": true,
@@ -38,11 +38,11 @@
       "regions": [
         "us",
         "eu",
+        "wor",
         "jp",
         "br",
         "ss",
-        "ame",
-        "wor"
+        "ame"
       ]
     },
     "systems": [

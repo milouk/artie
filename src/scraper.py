@@ -65,7 +65,7 @@ def file_size(file_path):
 
 def parse_find_game_url(system_id, rom_path, dev_id, dev_password, username, password):
     if rom_path.suffix[1:] == "m3u":
-        return parse_find_m3u_game_url(system_id, rom_path, dev_id, dev_password, username, password)
+        return parse_find_game_url_by_name(system_id, rom_path, dev_id, dev_password, username, password)
     params = {
         "devid": base64.b64decode(dev_id).decode(),
         "devpassword": base64.b64decode(dev_password).decode(),
@@ -82,12 +82,11 @@ def parse_find_game_url(system_id, rom_path, dev_id, dev_password, username, pas
     try:
         return urlunparse(urlparse(GAME_INFO_URL)._replace(query=urlencode(params)))
     except UnicodeDecodeError as e:
-        logger.log_debug("Params: %s")
-        logger.log_error(f"Error encoding URL: {e}. ROM params: {params}")
-        return None
+        # fallback to search by name if the rom is not found.
+        return parse_find_game_url_by_name(system_id, rom_path, dev_id, dev_password, username, password)
 
 
-def parse_find_m3u_game_url(system_id, rom_path, dev_id, dev_password, username, password):
+def parse_find_game_url_by_name(system_id, rom_path, dev_id, dev_password, username, password):
     params = {
         "devid": base64.b64decode(dev_id).decode(),
         "devpassword": base64.b64decode(dev_password).decode(),
@@ -105,6 +104,7 @@ def parse_find_m3u_game_url(system_id, rom_path, dev_id, dev_password, username,
         logger.log_debug("Params: %s")
         logger.log_error(f"Error encoding URL: {e}. ROM params: {params}")
         return None
+
 
 def parse_user_info_url(dev_id, dev_password, username, password):
     params = {
