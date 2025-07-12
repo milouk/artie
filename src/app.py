@@ -3,9 +3,11 @@ import json
 import logging
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import List
+
 
 import input
 from graphic import GUI
@@ -22,7 +24,7 @@ from scraper import (
     get_user_data,
 )
 
-VERSION = "1.0.5"
+VERSION = "1.0.7"
 
 selected_position = 0
 roms_selected_position = 0
@@ -30,6 +32,19 @@ selected_system = ""
 current_window = "emulators"
 max_elem = 11
 skip_input_check = False
+ping = time.time()
+
+roms_list = None
+available_systems = None
+roms_to_scrape = None
+
+roms_without_box = None
+roms_without_preview = None
+roms_without_synopsis = None
+
+preview_lock = threading.Lock()
+previews = set()
+current_preview = ""
 
 
 class Rom:
@@ -43,6 +58,10 @@ class App:
     LOG_WAIT = 2
 
     def __init__(self):
+        self.input_thread = None
+        self.colors = None
+        self.dev_id = None
+        self.dev_password = None
         self.config = {}
         self.systems_mapping = {}
         self.roms_path = ""
@@ -51,10 +70,35 @@ class App:
         self.box_enabled = True
         self.preview_enabled = True
         self.synopsis_enabled = True
+        self.meta_enabled = True
         self.threads = 1
         self.username = ""
         self.password = ""
         self.gui = GUI()
+        self.sub_dirs = False
+
+    def update_systems_mapping(self):
+        self.systems_mapping = {}
+
+        for system in self.config["screenscraper"]["systems"]:
+            system_dir = system["dir"].lower()
+
+            # Check for exact match first
+            if os.path.isdir(os.path.join(self.roms_path, system_dir)):
+                self.systems_mapping[system_dir] = system
+            else:
+                # Check for partial matches using identifiers and excludes
+                for dir_name in os.listdir(self.roms_path):
+                    dir_lower = dir_name.lower()
+
+                    if any(identifier.lower() in dir_lower for identifier in system["identifiers"]) and \
+                            all(exclude.lower() not in dir_lower for exclude in system["excludes"]):
+                        logger.log_info(system)
+                        self.systems_mapping[dir_lower] = system
+                        break
+                    else:
+                        self.systems_mapping[system_dir] = system
+        return self.systems_mapping
 
     def load_config(self, config_file):
         with open(config_file, "r") as file:
@@ -70,6 +114,8 @@ class App:
             sys.exit()
 
         self.roms_path = self.config.get("roms")
+        if not Path(self.roms_path).exists() or not any(Path(self.roms_path).iterdir()):
+            self.roms_path = self.config.get("roms_alt")
         self.systems_logo_path = self.config.get("logos")
         self.colors = self.config.get("colors")
         self.dev_id = self.config.get("screenscraper").get("devid")
@@ -81,9 +127,12 @@ class App:
         self.box_enabled = self.content["box"]["enabled"]
         self.preview_enabled = self.content["preview"]["enabled"]
         self.synopsis_enabled = self.content["synopsis"]["enabled"]
+        self.meta_enabled = self.content["synopsis"]["meta"]
+
+        self.sub_dirs = self.config.get("sub_dirs")
         self.get_user_threads()
-        for system in self.config["screenscraper"]["systems"]:
-            self.systems_mapping[system["dir"].lower()] = system
+
+        self.update_systems_mapping()
 
         self.gui.COLOR_PRIMARY = self.colors.get("primary")
         self.gui.COLOR_PRIMARY_DARK = self.colors.get("primary_dark")
@@ -97,40 +146,45 @@ class App:
         logger.setup_logger(log_level)
 
     def start(self, config_file: str) -> None:
-        self.load_config(config_file)
         self.setup_logging()
         logger.log_debug(f"Artie Scraper v{VERSION}")
+        self.load_config(config_file)
         self.gui.draw_start()
         self.gui.screen_reset()
         main_gui = self.gui.create_image()
         self.gui.draw_active(main_gui)
         self.load_emulators()
+        self.input_thread = input.start_input_thread()
 
     def update(self) -> None:
-        global skip_input_check, current_window
+        global skip_input_check, current_window, ping
         if skip_input_check:
             input.reset_input()
             skip_input_check = False
-        else:
-            input.check_input()
 
-        if input.key_pressed("MENUF"):
+        if input.key_pressed(input.MENU):
             self.gui.draw_end()
+            input.should_exit = True
+            self.input_thread.join()
             sys.exit()
 
         if current_window == "emulators":
             self.load_emulators()
         elif current_window == "roms":
             self.load_roms()
+        dt = time.time()-ping
+        if dt < 0.05:
+            time.sleep(0.05-dt)
+        ping = time.time()
 
     def get_available_systems(self) -> List[str]:
-        available_systems = [
+        out = [
             d.lower()
             for d in os.listdir(self.roms_path)
             if Path(self.roms_path, d).is_dir()
         ]
         return sorted(
-            [system for system in available_systems if system in self.systems_mapping]
+            [system for system in out if system in self.systems_mapping]
         )
 
     def get_roms(self, system: str) -> list[Rom]:
@@ -138,19 +192,24 @@ class App:
         system_path = Path(self.roms_path) / system
 
         for root, dirs, files in os.walk(system_path):
-            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            if self.sub_dirs:
+                dirs[:] = [d for d in dirs if not d.startswith(".")]
+            else:
+                dirs[:] = []
 
             for file in files:
                 file_path = Path(root) / file
                 if file.startswith("."):
                     continue
                 if file_path.is_file() and self.is_valid_rom(file):
+                    logger.log_info(file_path)
                     name = file_path.stem
                     rom = Rom(filename=file, name=name, path=file_path)
                     roms.append(rom)
         return roms
 
-    def delete_files_in_directory(self, filenames, directory_path):
+    @staticmethod
+    def delete_files_in_directory(filenames, directory_path):
         directory = Path(directory_path)
         if directory.is_dir():
             for file in directory.iterdir():
@@ -173,7 +232,6 @@ class App:
                 self.delete_files_in_directory(roms, system.get(media_type, ""))
 
     def draw_available_systems(self, available_systems: List[str]) -> None:
-        max_elem = 11
         start_idx = (selected_position // max_elem) * max_elem
         end_idx = start_idx + max_elem
         for i, system in enumerate(available_systems[start_idx:end_idx]):
@@ -186,36 +244,40 @@ class App:
         self.button_circle((170, 450), "X", "Delete")
 
     def load_emulators(self) -> None:
-        global selected_position, selected_system, current_window, skip_input_check
+        global selected_position, selected_system, current_window, skip_input_check, available_systems, \
+            roms_list, roms_to_scrape
 
         self.gui.draw_clear()
         self.gui.draw_rectangle_r([10, 40, 630, 440], 15)
         self.gui.draw_text((320, 20), f"Artie Scraper v{VERSION}", anchor="mm")
 
-        if not Path(self.roms_path).exists() or not any(Path(self.roms_path).iterdir()):
-            self.gui.draw_log("Wrong Roms path, check config.json")
-            self.gui.draw_paint()
-            time.sleep(self.LOG_WAIT)
-            sys.exit()
-
-        available_systems = self.get_available_systems()
+        if available_systems is None:
+            if not Path(self.roms_path).exists() or not any(Path(self.roms_path).iterdir()):
+                self.gui.draw_log("Wrong Roms path, check config.json")
+                self.gui.draw_paint()
+                time.sleep(self.LOG_WAIT)
+                sys.exit()
+            available_systems = self.get_available_systems()
 
         if available_systems:
-            if input.key_pressed("DY"):
-                if input.current_value == 1:
-                    if selected_position < len(available_systems) - 1:
-                        selected_position += 1
-                elif input.current_value == -1:
-                    if selected_position > 0:
-                        selected_position -= 1
-            elif input.key_pressed("A"):
+            if input.key_pressed(input.DY, 1):
+                if selected_position < len(available_systems) - 1:
+                    selected_position += 1
+                else:
+                    selected_position = 0
+            elif input.key_pressed(input.DY, -1):
+                if selected_position > 0:
+                    selected_position -= 1
+                else:
+                    selected_position = len(available_systems) - 1
+            elif input.key_pressed(input.A):
                 selected_system = available_systems[selected_position]
+                roms_list = None
+                roms_to_scrape = None
                 current_window = "roms"
-                self.gui.draw_log("Checking existing media...")
-                self.gui.draw_paint()
                 skip_input_check = True
                 return
-            elif input.key_pressed("X"):
+            elif input.key_pressed(input.X):
                 selected_system = available_systems[selected_position]
                 self.delete_system_media()
                 self.gui.draw_log(f"Deleting all existing {selected_system} media...")
@@ -223,18 +285,18 @@ class App:
                 skip_input_check = True
                 time.sleep(self.LOG_WAIT)
                 return
-            elif input.key_pressed("L1"):
+            elif input.key_pressed(input.L1):
                 if selected_position > 0:
                     selected_position = max(0, selected_position - max_elem)
-            elif input.key_pressed("R1"):
+            elif input.key_pressed(input.R1):
                 if selected_position < len(available_systems) - 1:
                     selected_position = min(
                         len(available_systems) - 1, selected_position + max_elem
                     )
-            elif input.key_pressed("L2"):
+            elif input.key_pressed(input.L2):
                 if selected_position > 0:
                     selected_position = max(0, selected_position - 100)
-            elif input.key_pressed("R2"):
+            elif input.key_pressed(input.R2):
                 if selected_position < len(available_systems) - 1:
                     selected_position = min(
                         len(available_systems) - 1, selected_position + 100
@@ -251,13 +313,12 @@ class App:
 
         self.gui.draw_paint()
 
-    def is_valid_rom(self, rom):
+    @staticmethod
+    def is_valid_rom(rom):
         invalid_extensions = {
             ".cue",
-            ".m3u",
             ".jpg",
             ".png",
-            ".img",
             ".sub",
             ".db",
             ".xml",
@@ -269,7 +330,8 @@ class App:
         }
         return os.path.splitext(rom)[1] not in invalid_extensions
 
-    def save_file_to_disk(self, data, destination):
+    @staticmethod
+    def save_file_to_disk(data, destination):
         check_destination(destination)
         destination.write_bytes(data)
         logger.log_debug(f"Saved file to {destination}")
@@ -307,7 +369,7 @@ class App:
                 if self.preview_enabled:
                     scraped_preview = fetch_preview(game, content)
                 if self.synopsis_enabled:
-                    scraped_synopsis = fetch_synopsis(game, content)
+                    scraped_synopsis = fetch_synopsis(game, content, self.meta_enabled)
         except Exception as e:
             logger.log_error(f"Error scraping {rom.name}: {e}")
 
@@ -315,9 +377,19 @@ class App:
 
     def process_rom(self, rom, system_id, box_dir, preview_dir, synopsis_dir):
         scraped_box, scraped_preview, scraped_synopsis = self.scrape(rom, system_id)
+        # I've noticed in some cases a scrape fails but succeeds on the second try, the scrapper.fr might be
+        # overwhelmed, let's give it a short break and try again.
+        if (self.box_enabled and scraped_box is None) or \
+                (self.preview_enabled and scraped_preview is None) or \
+                (self.synopsis_enabled and scraped_synopsis is None):
+            time.sleep(0.5)
+            scraped_box, scraped_preview, scraped_synopsis = self.scrape(rom, system_id)
+
         if scraped_box:
             destination: Path = box_dir / f"{rom.name}.png"
             self.save_file_to_disk(scraped_box, destination)
+            with preview_lock:
+                previews.add(str(destination))
         if scraped_preview:
             destination: Path = preview_dir / f"{rom.name}.png"
             self.save_file_to_disk(scraped_preview, destination)
@@ -327,16 +399,10 @@ class App:
         return scraped_box, scraped_preview, scraped_synopsis, rom.name
 
     def load_roms(self) -> None:
-        global selected_position, current_window, roms_selected_position, skip_input_check, selected_system
+        global selected_position, current_window, roms_selected_position, skip_input_check, current_preview, \
+            selected_system, roms_list, roms_to_scrape, roms_without_box, roms_without_preview, roms_without_synopsis
 
         exit_menu = False
-        roms_list = self.get_roms(selected_system)
-        if not roms_list:
-            self.gui.draw_log(f"No roms found in {selected_system}...")
-            self.gui.draw_paint()
-            time.sleep(self.LOG_WAIT)
-            self.gui.draw_clear()
-            exit_menu = True
 
         system = self.systems_mapping.get(selected_system)
         if not system:
@@ -346,46 +412,22 @@ class App:
             self.gui.draw_clear()
             exit_menu = True
 
+        if roms_list is None:
+            roms_list = self.get_roms(selected_system)
+            if not roms_list:
+                self.gui.draw_log(f"No roms found in {selected_system}...")
+                self.gui.draw_paint()
+                time.sleep(self.LOG_WAIT)
+                self.gui.draw_clear()
+                exit_menu = True
+
         box_dir = Path(system["box"])
         preview_dir = Path(system["preview"])
         synopsis_dir = Path(system["synopsis"])
         system_id = system["id"]
 
-        if self.box_enabled and not box_dir.exists():
-            box_dir.mkdir(parents=True, exist_ok=True)
-            roms_without_box: List[Rom] = roms_list
-        elif self.box_enabled:
-            box_files = get_image_files_without_extension(box_dir)
-            roms_without_box = [rom for rom in roms_list if rom.name not in box_files]
-        else:
-            roms_without_box = []
-
-        if self.preview_enabled and not preview_dir.exists():
-            preview_dir.mkdir(parents=True, exist_ok=True)
-            roms_without_preview: List[Rom] = roms_list
-        elif self.preview_enabled:
-            preview_files = get_image_files_without_extension(preview_dir)
-            roms_without_preview = [
-                rom for rom in roms_list if rom.name not in preview_files
-            ]
-        else:
-            roms_without_preview = []
-
-        if self.synopsis_enabled and not synopsis_dir.exists():
-            synopsis_dir.mkdir(parents=True, exist_ok=True)
-            roms_without_synopsis: List[Rom] = roms_list
-        elif self.synopsis_enabled:
-            synopsis_files = get_txt_files_without_extension(synopsis_dir)
-            roms_without_synopsis = [
-                rom for rom in roms_list if rom.name not in synopsis_files
-            ]
-        else:
-            roms_without_synopsis = []
-
-        roms_to_scrape = sorted(
-            list(set(roms_without_box + roms_without_preview + roms_without_synopsis)),
-            key=lambda rom: rom.name,
-        )
+        if roms_to_scrape is None:
+            roms_to_scrape = self.list_roms_with_missing_media(box_dir, preview_dir, roms_list, synopsis_dir)
 
         if len(roms_to_scrape) < 1:
             current_window = "emulators"
@@ -396,9 +438,11 @@ class App:
             self.gui.draw_clear()
             exit_menu = True
 
-        if input.key_pressed("B"):
+        if input.key_pressed(input.B):
+            roms_list = None
+            roms_to_scrape = None
             exit_menu = True
-        elif input.key_pressed("A"):
+        elif input.key_pressed(input.A):
             self.gui.draw_log("Scraping...")
             self.gui.draw_paint()
             rom = roms_to_scrape[roms_selected_position]
@@ -411,10 +455,21 @@ class App:
                 logger.log_error(f"Failed to get screenshot for {rom.name}")
             else:
                 self.gui.draw_log("Scraping completed!")
+                with preview_lock:
+                    if len(previews) > 0:
+                        current_preview = previews.pop()
+                    previews.clear()
+                self.gui.draw_preview("Scraping completed!", current_preview)
             self.gui.draw_paint()
+            current_preview = ""
             time.sleep(self.LOG_WAIT)
-            exit_menu = True
-        elif input.key_pressed("START"):
+            if roms_to_scrape == 1:
+                exit_menu = True
+            if roms_selected_position < 0:
+                roms_selected_position -= 1
+            roms_to_scrape = self.list_roms_with_missing_media(box_dir, preview_dir, roms_list, synopsis_dir)
+            input.reset_input()
+        elif input.key_pressed(input.START):
             progress: int = 0
             success: int = 0
             failure: int = 0
@@ -444,32 +499,41 @@ class App:
                         failure += 1
                     progress += 1
                     self.gui.draw_log(f"Scraping {progress} of {len(roms_to_scrape)}")
+                    with preview_lock:
+                        if len(previews) > 0:
+                            current_preview = previews.pop()
+                    self.gui.draw_preview(f"Scraping {progress} of {len(roms_to_scrape)}", current_preview)
                     self.gui.draw_paint()
-            self.gui.draw_log(
-                f"Scraping completed! Success: {success} Errors: {failure}"
-            )
+            with preview_lock:
+                self.gui.draw_preview(f"Scraping completed! Success: {success} Errors: {failure}", current_preview)
+                previews.clear()
+            roms_to_scrape = None
             self.gui.draw_paint()
+            current_preview = ""
             time.sleep(self.LOG_WAIT)
             exit_menu = True
-        elif input.key_pressed("DY"):
-            if input.current_value == 1:
-                if roms_selected_position < len(roms_to_scrape) - 1:
-                    roms_selected_position += 1
-            elif input.current_value == -1:
-                if roms_selected_position > 0:
-                    roms_selected_position -= 1
-        elif input.key_pressed("L1"):
+        elif input.key_pressed(input.DY, 1):
+            if roms_selected_position < len(roms_to_scrape) - 1:
+                roms_selected_position += 1
+            else:
+                roms_selected_position = 0
+        elif input.key_pressed(input.DY, -1):
+            if roms_selected_position > 0:
+                roms_selected_position -= 1
+            else:
+                roms_selected_position = len(roms_to_scrape) - 1
+        elif input.key_pressed(input.L1):
             if roms_selected_position > 0:
                 roms_selected_position = max(0, roms_selected_position - max_elem)
-        elif input.key_pressed("R1"):
+        elif input.key_pressed(input.R1):
             if roms_selected_position < len(roms_list) - 1:
                 roms_selected_position = min(
                     len(roms_list) - 1, roms_selected_position + max_elem
                 )
-        elif input.key_pressed("L2"):
+        elif input.key_pressed(input.L2):
             if roms_selected_position > 0:
                 roms_selected_position = max(0, roms_selected_position - 100)
-        elif input.key_pressed("R2"):
+        elif input.key_pressed(input.R2):
             if roms_selected_position < len(roms_list) - 1:
                 roms_selected_position = min(
                     len(roms_list) - 1, roms_selected_position + 100
@@ -496,59 +560,72 @@ class App:
             missing_parts.append(f"No preview: {len(roms_without_preview)}")
         if self.synopsis_enabled:
             missing_parts.append(f"No text: {len(roms_without_synopsis)}")
-
         missing_text = " / ".join(missing_parts)
 
-        self.gui.draw_text((90, 10), rom_text, anchor="mm")
-        self.gui.draw_text((500, 10), missing_text, anchor="mm")
+        self.gui.draw_text((120, 10), rom_text, anchor="mm")
+        self.gui.draw_text((480, 10), missing_text, anchor="mm")
 
-        start_idx = int(roms_selected_position / max_elem) * max_elem
+        start_idx = (roms_selected_position // max_elem) * max_elem
         end_idx = start_idx + max_elem
+        max_length = 48
+
         for i, rom in enumerate(roms_to_scrape[start_idx:end_idx]):
-            already_scraped = [
-                flag
-                for flag, condition in [
-                    ("Box", self.box_enabled and rom not in roms_without_box),
-                    (
-                        "Preview",
-                        self.preview_enabled and rom not in roms_without_preview,
-                    ),
-                    (
-                        "Text",
-                        self.synopsis_enabled and rom not in roms_without_synopsis,
-                    ),
-                ]
-                if condition
-            ]
-
+            # Use set membership for O(1) checks
+            already_scraped = []
+            if self.box_enabled and rom not in roms_without_box:
+                already_scraped.append("Box")
+            if self.preview_enabled and rom not in roms_without_preview:
+                already_scraped.append("Preview")
+            if self.synopsis_enabled and rom not in roms_without_synopsis:
+                already_scraped.append("Text")
             already_scraped_text = "/".join(already_scraped)
-            max_length = 48
+
             base_entry_text = (
-                rom.name[:max_length] + "..."
-                if len(rom.name) > max_length
-                else rom.name
+                rom.name[:max_length] + "..." if len(rom.name) > max_length else rom.name
             )
+            y_pos = 50 + (i * 35)
+            is_selected = i == (roms_selected_position % max_elem)
 
-            self.row_list(
-                base_entry_text,
-                (20, 50 + (i * 35)),
-                600,
-                i == (roms_selected_position % max_elem),
-            )
-
+            self.row_list(base_entry_text, (20, y_pos), 600, is_selected)
             if already_scraped_text:
-                self.row_list(
-                    already_scraped_text,
-                    (500, 50 + (i * 35)),
-                    50,
-                    i == (roms_selected_position % max_elem),
-                )
+                self.row_list(already_scraped_text, (500, y_pos), 50, is_selected)
+
         self.button_rectangle((30, 450), "Start", "All")
         self.button_circle((170, 450), "A", "Download")
         self.button_circle((300, 450), "B", "Back")
         self.button_circle((480, 450), "M", "Exit")
 
         self.gui.draw_paint()
+
+    def list_roms_with_missing_media(self, box_dir, preview_dir, roms_list, synopsis_dir):
+        global roms_without_box, roms_without_preview, roms_without_synopsis
+        if not box_dir.exists():
+            box_dir.mkdir(parents=True, exist_ok=True)
+            roms_without_box = set(roms_list) if self.box_enabled else set()
+        else:
+            box_files = get_image_files_without_extension(box_dir)
+            roms_without_box = set([rom for rom in roms_list if rom.name not in box_files]) \
+                if self.box_enabled else set()
+
+        if not preview_dir.exists():
+            preview_dir.mkdir(parents=True, exist_ok=True)
+            roms_without_preview = set(roms_list) if self.preview_enabled else set()
+        else:
+            preview_files = get_image_files_without_extension(preview_dir)
+            roms_without_preview = set([rom for rom in roms_list if rom.name not in preview_files]) \
+                if self.preview_enabled else set()
+
+        if not synopsis_dir.exists():
+            synopsis_dir.mkdir(parents=True, exist_ok=True)
+            roms_without_synopsis = set(roms_list) if self.synopsis_enabled else set()
+        else:
+            synopsis_files = get_txt_files_without_extension(synopsis_dir)
+            roms_without_synopsis = set([rom for rom in roms_list if rom.name not in synopsis_files]) \
+                if self.synopsis_enabled else set()
+        return sorted(
+            list(roms_without_box | roms_without_preview | roms_without_synopsis),
+            key=lambda rom: rom.name,
+        )
 
     def row_list(
         self,
@@ -558,13 +635,14 @@ class App:
         selected: bool,
         image_path: str = None,
     ) -> None:
-        self.gui.draw_rectangle_r(
-            [pos[0], pos[1], pos[0] + width, pos[1] + 32],
-            5,
-            fill=(
-                self.gui.COLOR_PRIMARY if selected else self.gui.COLOR_SECONDARY_LIGHT
-            ),
-        )
+        if selected:
+            self.gui.draw_rectangle_r(
+                [pos[0], pos[1], pos[0] + width, pos[1] + 32],
+                5,
+                fill=(
+                    self.gui.COLOR_PRIMARY if selected else self.gui.COLOR_SECONDARY_LIGHT
+                ),
+            )
 
         text_offset_x = pos[0] + 5
         if image_path:

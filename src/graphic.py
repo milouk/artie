@@ -23,9 +23,9 @@ class GUI:
         self.screen_size = self.screen_width * self.screen_height * self.bytes_per_pixel
 
         self.fontFile = {
-            15: ImageFont.truetype("assets/Roboto-Condensed.ttf", 15),
-            13: ImageFont.truetype("assets/Roboto-Condensed.ttf", 13),
-            11: ImageFont.truetype("assets/Roboto-Condensed.ttf", 11),
+            15: ImageFont.truetype("assets/DejaVuSansCondensed.ttf", 15),
+            13: ImageFont.truetype("assets/DejaVuSansCondensed.ttf", 13),
+            11: ImageFont.truetype("assets/DejaVuSansCondensed.ttf", 11),
         }
 
         self.activeImage = None
@@ -109,11 +109,46 @@ class GUI:
                 outline=outline,
             )
 
+    def display_picture(self, filename, position=(160, 20), max_width=None, max_height=None):
+        try:
+            img = Image.open(filename)
+            if img.mode == "RGB":
+                r, g, b = img.split()
+                img = Image.merge("RGB", (b, g, r))
+            elif img.mode == "RGBA":
+                r, g, b, a = img.split()
+                img = Image.merge("RGBA", (b, g, r, a))
+            img = img.convert("RGBA")
+            if max_width or max_height:
+                img.thumbnail((max_width or img.width, max_height or img.height), Image.LANCZOS)
+            if self.activeImage is None:
+                self.activeImage = self.create_image()
+                self.activeDraw = ImageDraw.Draw(self.activeImage)
+            self.activeImage.paste(img, position, img)
+            self.draw_paint()
+        except Exception as e:
+            print(f"Failed to load or display image: {e}")
+
+    def draw_preview(self, text, filename, fill=COLOR_SECONDARY, outline=COLOR_SECONDARY_DARK, width=500,
+                     position=(160, 20), max_width=None, max_height=None):
+        # Center the rectangle horizontally
+        x = (self.screen_width - width) / 2
+        # Place the rectangle in the bottom half of the screen
+        y = (self.screen_height / 2) - 190
+        yt = (self.screen_height / 2) + 190
+        self.draw_rectangle_r([x, y, x + width, y + 380], 5, fill=fill, outline=outline)
+
+        # Center the text within the rectangle
+        text_x = x + width / 2
+        text_y = yt - 40
+        self.draw_text((text_x, text_y), text, anchor="mm")  # Use middle-middle anchor
+        self.display_picture(filename, (160, 80))  # should be y+n but that doesn't seem to work
+
     def draw_log(self, text, fill=COLOR_PRIMARY, outline=COLOR_PRIMARY_DARK, width=500):
         # Center the rectangle horizontally
         x = (self.screen_width - width) / 2
-        # Center the rectangle vertically
-        y = (self.screen_height - 80) / 2  # 80 is the height of the rectangle
+        # Place the rectangle in the bottom half of the screen
+        y = ((self.screen_height - 80) / 4) * 3  # 80 is the height of the rectangle
         self.draw_rectangle_r([x, y, x + width, y + 80], 5, fill=fill, outline=outline)
 
         # Center the text within the rectangle

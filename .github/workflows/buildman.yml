@@ -1,0 +1,48 @@
+name: Manual Build
+
+on: 
+  workflow_dispatch
+    
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: arm64
+
+      - name: Build package
+        uses: addnab/docker-run-action@v3
+        with:
+          image: docker.io/batonogov/pyinstaller-linux:latest
+          options: |
+            --platform linux/arm64
+            --volume ${{ github.workspace }}/:/src
+          run: |
+            pip install -r /src/requirements.txt
+            pyinstaller --onefile /src/src/app.py
+
+      - name: Bundle App
+        run: |
+          mkdir -p build_files/mnt/mmc/MUOS/application/Artie/.artie ; \
+          cp -r ./dist/app ./assets ./config.json build_files/mnt/mmc/MUOS/application/Artie/.artie ; \
+          echo "Contents of .artie/:" ; \
+          ls -l build_files/mnt/mmc/MUOS/application/Artie/.artie ; \
+          cp -r ./mux_launch.sh build_files/mnt/mmc/MUOS/application/Artie ; \
+          echo "Contents of Artie/:" ; \
+          ls -l build_files/mnt/mmc/MUOS/application/Artie 
+
+      - name: Upload Artie.zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: Artie
+          path: build_files
+          include-hidden-files: true
