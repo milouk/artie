@@ -1,7 +1,9 @@
 {
   "roms": "/mnt/sdcard/ROMS",
+  "roms_alt": "/mnt/mmc/ROMS",
   "logos": "assets/logos",
   "log_level": "info",
+  "sub_dirs": false,
   "colors": {
     "primary": "#bb7200",
     "primary_dark": "#7f4f00",
@@ -18,13 +20,14 @@
     "content": {
       "synopsis": {
         "enabled": true,
+        "meta": true,
         "lang": "en"
       },
       "box": {
         "enabled": true,
-        "type": "box-3D",
-        "height": 240,
-        "width": 320
+        "type": "mixrbv1",
+        "height": 320,
+        "width": 300
       },
       "preview": {
         "enabled": true,
@@ -35,11 +38,11 @@
       "regions": [
         "us",
         "eu",
+        "wor",
         "jp",
         "br",
         "ss",
-        "ame",
-        "wor"
+        "ame"
       ]
     },
     "systems": [
@@ -49,7 +52,9 @@
         "name": "Mame",
         "box": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/ADVMAME/text/",
+        "identifiers": ["ADVMAME", "Advanced MAME", "Advanced Multiple Arcade Machine Emulator"],
+        "excludes": ["MAME2003", "MAME2010"]
       },
       {
         "dir": "AMIGA",
@@ -57,7 +62,9 @@
         "name": "Commodore Amiga",
         "box": "/mnt/mmc/MUOS/info/catalogue/AMIGA/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/AMIGA/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/AMIGA/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/AMIGA/text/",
+        "identifiers": ["Amiga", "Commodore Amiga", "A500", "A1200"],
+        "excludes": ["CD32", "CDTV"]
       },
       {
         "dir": "AMIGACD",
@@ -65,15 +72,19 @@
         "name": "Commodore Amiga CD",
         "box": "/mnt/mmc/MUOS/info/catalogue/AMIGACD/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/AMIGACD/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/AMIGACD/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/AMIGACD/text/",
+        "identifiers": ["Amiga CD", "Commodore Amiga CD", "CD32"],
+        "excludes": ["CDTV"]
       },
-      {
+            {
         "dir": "AMIGACDTV",
         "id": "129",
         "name": "Commodore Amiga CD",
         "box": "/mnt/mmc/MUOS/info/catalogue/AMIGACDTV/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/AMIGACDTV/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/AMIGACDTV/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/AMIGACDTV/text/",
+        "identifiers": ["Amiga CDTV", "Commodore Dynamic Total Vision", "CDTV"],
+        "excludes": ["CD32"]
       },
       {
         "dir": "ARCADE",
@@ -81,7 +92,9 @@
         "name": "Mame",
         "box": "/mnt/mmc/MUOS/info/catalogue/Arcade/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Arcade/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arcade/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arcade/text/",
+        "identifiers": ["Arcade", "MAME", "Multiple Arcade Machine Emulator"],
+        "excludes": ["ADVMAME", "FBA"]
       },
       {
         "dir": "ARDUBOY",
@@ -89,7 +102,9 @@
         "name": "Arduboy",
         "box": "/mnt/mmc/MUOS/info/catalogue/Arduboy/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Arduboy/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arduboy/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arduboy/text/",
+        "identifiers": ["Arduboy", "Arduino Boy"],
+        "excludes": []
       },
       {
         "dir": "ATARI2600",
@@ -97,7 +112,9 @@
         "name": "Atari 2600",
         "box": "/mnt/mmc/MUOS/info/catalogue/Atari 2600/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Atari 2600/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari 2600/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari 2600/text/",
+        "identifiers": ["Atari 2600", "Atari VCS"],
+        "excludes": ["5200", "7800"]
       },
       {
         "dir": "ATARIST",
@@ -105,7 +122,9 @@
         "name": "Atari ST",
         "box": "/mnt/mmc/MUOS/info/catalogue/Atari ST-STE-TT-Falcon/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Atari ST-STE-TT-Falcon/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari ST-STE-TT-Falcon/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari ST-STE-TT-Falcon/text/",
+        "identifiers": ["Atari ST", "ST", "STE", "Atari TT", "Atari Falcon"],
+        "excludes": []
       },
       {
         "dir": "ATOMISWAVE",
@@ -113,119 +132,9 @@
         "name": "Atari ST",
         "box": "/mnt/mmc/MUOS/info/catalogue/Sega Atomiswave Naomi/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Atomiswave Naomi/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Atomiswave Naomi/text/"
-      },
-      {
-        "dir": "COLECO",
-        "id": "183",
-        "name": "Coleco",
-        "box": "/mnt/mmc/MUOS/info/catalogue/ColecoVision/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/ColecoVision/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/ColecoVision/text/"
-      },
-      {
-        "dir": "COLSGM",
-        "id": "183",
-        "name": "Coleco",
-        "box": "/mnt/mmc/MUOS/info/catalogue/COLSGM/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/COLSGM/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/COLSGM/text/"
-      },
-      {
-        "dir": "C64",
-        "id": "66",
-        "name": "Commodore 64",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Commodore C64/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Commodore C64/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Commodore C64/text/"
-      },
-      {
-        "dir": "CPC",
-        "id": "65",
-        "name": "Amstrad CPC",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Amstrad/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Amstrad/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Amstrad/text/"
-      },
-      {
-        "dir": "CPET",
-        "id": "240",
-        "name": "Commodore PET",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Commodore PET/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Commodore PET/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Commodore PET/text/"
-      },
-      {
-        "dir": "CPLUS4",
-        "id": "99",
-        "name": "Commodore Plus 4",
-        "box": "/mnt/mmc/MUOS/info/catalogue/CPLUS4/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/CPLUS4/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/CPLUS4/text/"
-      },
-      {
-        "dir": "CPS1",
-        "id": "6",
-        "name": "Capcom Play System",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Arcade/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Arcade/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arcade/text/"
-      },
-      {
-        "dir": "CPS2",
-        "id": "7",
-        "name": "Capcom Play System 2",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Arcade/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Arcade/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arcade/text/"
-      },
-      {
-        "dir": "CPS3",
-        "id": "8",
-        "name": "Capcom Play System 3",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Arcade/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Arcade/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arcade/text/"
-      },
-      {
-        "dir": "DAPHNE",
-        "id": "49",
-        "name": "Daphne",
-        "box": "/mnt/mmc/MUOS/info/catalogue/DAPHNE/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/DAPHNE/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/DAPHNE/text/"
-      },
-      {
-        "dir": "DC",
-        "id": "23",
-        "name": "dreamcast",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Dreamcast/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Dreamcast/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Dreamcast/text/"
-      },
-      {
-        "dir": "DOS",
-        "id": "135",
-        "name": "DOS",
-        "box": "/mnt/mmc/MUOS/info/catalogue/DOS/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/DOS/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/DOS/text/"
-      },
-      {
-        "dir": "EASYRPG",
-        "id": "231",
-        "name": "EasyRPG",
-        "box": "/mnt/mmc/MUOS/info/catalogue/EASYRPG/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/EASYRPG/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/EASYRPG/text/"
-      },
-      {
-        "dir": "EBK",
-        "id": "93",
-        "name": "EBK",
-        "box": "/mnt/mmc/MUOS/info/catalogue/EBK/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/EBK/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/EBK/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Atomiswave Naomi/text/",
+        "identifiers": ["Atomiswave", "Sega Atomiswave"],
+        "excludes": ["Naomi"]
       },
       {
         "dir": "ATARI800",
@@ -233,55 +142,9 @@
         "name": "Atari 800",
         "box": "/mnt/mmc/MUOS/info/catalogue/ATARI800/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/ATARI800/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/ATARI800/text/"
-      },
-      {
-        "dir": "CHANNELF",
-        "id": "80",
-        "name": "Fairchild Channel F",
-        "box": "/mnt/mmc/MUOS/info/catalogue/CHANNELF/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/CHANNELF/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/CHANNELF/text/"
-      },
-      {
-        "dir": "FBA2012",
-        "id": "75",
-        "name": "FBA2012",
-        "box": "/mnt/mmc/MUOS/info/catalogue/FBA2012/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/FBA2012/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/FBA2012/text/"
-      },
-      {
-        "dir": "FBALPHA",
-        "id": "75",
-        "name": "FBAlpha",
-        "box": "/mnt/mmc/MUOS/info/catalogue/FBALPHA/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/FBALPHA/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/FBALPHA/text/"
-      },
-      {
-        "dir": "FBNEO",
-        "id": "",
-        "name": "FBNeo (Empty)",
-        "box": "/mnt/mmc/MUOS/info/catalogue/FBNEO/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/FBNEO/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/FBNEO/text/"
-      },
-      {
-        "dir": "NES",
-        "id": "3",
-        "name": "NES (Famicom)",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo NES-Famicom/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo NES-Famicom/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo NES-Famicom/text/"
-      },
-      {
-        "dir": "FDS",
-        "id": "106",
-        "name": "Famicom Disk System",
-        "box": "/mnt/mmc/MUOS/info/catalogue/FDS/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/FDS/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/FDS/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/ATARI800/text/",
+        "identifiers": ["Atari 800", "Atari 8-bit", "Atari 400"],
+        "excludes": ["5200"]
       },
       {
         "dir": "ATARI5200",
@@ -289,391 +152,9 @@
         "name": "Atari 5200",
         "box": "/mnt/mmc/MUOS/info/catalogue/Atari 5200/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Atari 5200/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari 5200/text/"
-      },
-      {
-        "dir": "GB",
-        "id": "9",
-        "name": "Game Boy",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy/text/"
-      },
-      {
-        "dir": "GBA",
-        "id": "12",
-        "name": "Game Boy Advance",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy Advance/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy Advance/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy Advance/text/"
-      },
-      {
-        "dir": "GBC",
-        "id": "10",
-        "name": "Game Boy Color",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy Color/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy Color/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy Color/text/"
-      },
-      {
-        "dir": "GG",
-        "id": "21",
-        "name": "Sega Game Gear",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Game Gear/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Game Gear/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Game Gear/text/"
-      },
-      {
-        "dir": "GW",
-        "id": "52",
-        "name": "Nintendo Game & Watch",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Handheld Electronic - Game and Watch/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Handheld Electronic - Game and Watch/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Handheld Electronic - Game and Watch/text/"
-      },
-      {
-        "dir": "INTELLIVISION",
-        "id": "115",
-        "name": "Intellivision",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Mattel - Intellivision/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Mattel - Intellivision/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Mattel - Intellivision/text/"
-      },
-      {
-        "dir": "JAGUAR",
-        "id": "27",
-        "name": "Atari Jaguar",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Atari Jaguar/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Atari Jaguar/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari Jaguar/text/"
-      },
-      {
-        "dir": "LOWRESNX",
-        "id": "244",
-        "name": "LowRes NX",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Lowres NX/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Lowres NX/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Lowres NX/text/"
-      },
-      {
-        "dir": "LUTRO",
-        "id": "206",
-        "name": "Lutro",
-        "box": "/mnt/mmc/MUOS/info/catalogue/LUTRO/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/LUTRO/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/LUTRO/text/"
-      },
-      {
-        "dir": "LYNX",
-        "id": "28",
-        "name": "Atari Lynx",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Atari Lynx/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Atari Lynx/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari Lynx/text/"
-      },
-      {
-        "dir": "MAME",
-        "id": "75",
-        "name": "Mame 2000",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Arcade/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Arcade/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arcade/text/"
-      },
-      {
-        "dir": "MAME2003PLUS",
-        "id": "75",
-        "name": "Mame 2003",
-        "box": "/mnt/mmc/MUOS/info/catalogue/MAME2003PLUS/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/MAME2003PLUS/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/MAME2003PLUS/text/"
-      },
-      {
-        "dir": "MAME2010",
-        "id": "75",
-        "name": "Mame 2003",
-        "box": "/mnt/mmc/MUOS/info/catalogue/MAME2010/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/MAME2010/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/MAME2010/text/"
-      },
-      {
-        "dir": "MBA",
-        "id": "75",
-        "name": "MBA",
-        "box": "/mnt/mmc/MUOS/info/catalogue/MBA/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/MBA/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/MBA/text/"
-      },
-      {
-        "dir": "MEGADRIVE",
-        "id": "1",
-        "name": "Sega Genesis (Mega Drive)",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Mega Drive - Genesis/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Mega Drive - Genesis/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Mega Drive - Genesis/text/"
-      },
-      {
-        "dir": "MDMSU",
-        "id": "1",
-        "name": "Sega Genesis (Mega Drive) Hacks",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Mega Drive - Genesis/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Mega Drive - Genesis/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Mega Drive - Genesis/text/"
-      },
-      {
-        "dir": "MEGADUCK",
-        "id": "90",
-        "name": "Megaduck",
-        "box": "/mnt/mmc/MUOS/info/catalogue/MEGADUCK/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/MEGADUCK/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/MEGADUCK/text/"
-      },
-      {
-        "dir": "MS",
-        "id": "2",
-        "name": "Sega Master System",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Master System/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Master System/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Master System/text/"
-      },
-      {
-        "dir": "MSX",
-        "id": "113",
-        "name": "MSX",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Microsoft - MSX/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Microsoft - MSX/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Microsoft - MSX/text/"
-      },
-      {
-        "dir": "MSX2",
-        "id": "116",
-        "name": "MSX",
-        "box": "/mnt/mmc/MUOS/info/catalogue/MSX2/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/MSX2/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/MSX2/text/"
-      },
-      {
-        "dir": "N64",
-        "id": "14",
-        "name": "Nintendo 64",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo N64/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo N64/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo N64/text/"
-      },
-      {
-        "dir": "N64DD",
-        "id": "122",
-        "name": "Nintendo 64DD",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo N64 -DD/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo N64 -DD/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo N64 -DD/text/"
-      },
-      {
-        "dir": "NAOMI",
-        "id": "56",
-        "name": "Sega Naomi",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Atomiswave Naomi/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Atomiswave Naomi/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Atomiswave Naomi/text/"
-      },
-      {
-        "dir": "NDS",
-        "id": "15",
-        "name": "NDS",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo DS/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo DS/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo DS/text/"
-      },
-      {
-        "dir": "NEOCD",
-        "id": "70",
-        "name": "Neo Geo CD",
-        "box": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo CD/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo CD/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo CD/text/"
-      },
-      {
-        "dir": "NEOGEO",
-        "id": "142",
-        "name": "Neo Geo AES",
-        "box": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo/text/"
-      },
-      {
-        "dir": "NGP",
-        "id": "25",
-        "name": "Neo Geo Pocket",
-        "box": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/text/"
-      },
-      {
-        "dir": "NGC",
-        "id": "82",
-        "name": "Neo-geo Pocket Color",
-        "box": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/text/"
-      },
-      {
-        "dir": "ODYSSEY",
-        "id": "104",
-        "name": "Videopac / Magnavox Odyssey 2",
-        "box": "/mnt/mmc/MUOS/info/catalogue/ODYSSEY/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/ODYSSEY/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/ODYSSEY/text/"
-      },
-      {
-        "dir": "OPENBOR",
-        "id": "214",
-        "name": "OpenBOR",
-        "box": "/mnt/mmc/MUOS/info/catalogue/OPENBOR/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/OPENBOR/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/OPENBOR/text/"
-      },
-      {
-        "dir": "PALMOS",
-        "id": "219",
-        "name": "Palm",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Palm OS/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Palm OS/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Palm OS/text/"
-      },
-      {
-        "dir": "PANASONIC",
-        "id": "29",
-        "name": "3DO",
-        "box": "/mnt/mmc/MUOS/info/catalogue/PANASONIC/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/PANASONIC/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/PANASONIC/text/"
-      },
-      {
-        "dir": "PCE",
-        "id": "31",
-        "name": "NEC TurboGrafx-16 / PC Engine",
-        "box": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine/text/"
-      },
-      {
-        "dir": "PCECD",
-        "id": "114",
-        "name": "NEC TurboGrafx-CD",
-        "box": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine CD/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine CD/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine CD/text/"
-      },
-      {
-        "dir": "PC88",
-        "id": "221",
-        "name": "NEC PC-8000 & PC-8800 series / NEC PC-8801",
-        "box": "/mnt/mmc/MUOS/info/catalogue/NEC PC-8000 - PC-8800 series/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/NEC PC-8000 - PC-8800 series/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/NEC PC-8000 - PC-8800 series/text/"
-      },
-      {
-        "dir": "PCFX",
-        "id": "72",
-        "name": "NEC PC-FX",
-        "box": "/mnt/mmc/MUOS/info/catalogue/NEC PC-FX/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/NEC PC-FX/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/NEC PC-FX/text/"
-      },
-      {
-        "dir": "PC98",
-        "id": "208",
-        "name": "NEC PC-98 / NEC PC-9801",
-        "box": "/mnt/mmc/MUOS/info/catalogue/NEC PC98/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/NEC PC98/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/NEC PC98/text/"
-      },
-      {
-        "dir": "PICO",
-        "id": "234",
-        "name": "PICO",
-        "box": "/mnt/mmc/MUOS/info/catalogue/PICO-8/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/PICO-8/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/PICO-8/text/"
-      },
-      {
-        "dir": "POKEMINI",
-        "id": "211",
-        "name": "PokeMini",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo Pokemon Mini/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo Pokemon Mini/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo Pokemon Mini/text/"
-      },
-      {
-        "dir": "PORTS",
-        "id": "138",
-        "name": "PC Windows",
-        "box": "/mnt/mmc/MUOS/info/catalogue/PORTS/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/PORTS/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/PORTS/text/"
-      },
-      {
-        "dir": "PS",
-        "id": "57",
-        "name": "Sony Playstation",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Sony PlayStation/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Sony PlayStation/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sony PlayStation/text/"
-      },
-      {
-        "dir": "PSP",
-        "id": "61",
-        "name": "Sony PSP",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Sony Playstation Portable/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Sony Playstation Portable/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sony Playstation Portable/text/"
-      },
-      {
-        "dir": "PSPMINIS",
-        "id": "172",
-        "name": "Sony PSP Minis",
-        "box": "/mnt/mmc/MUOS/info/catalogue/PSPMINIS/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/PSPMINIS/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/PSPMINIS/text/"
-      },
-      {
-        "dir": "SATURN",
-        "id": "22",
-        "name": "Sega Saturn",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Saturn/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Saturn/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Saturn/text/"
-      },
-      {
-        "dir": "SATELLAVIEW",
-        "id": "107",
-        "name": "Satellaview",
-        "box": "/mnt/mmc/MUOS/info/catalogue/SATELLAVIEW/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/SATELLAVIEW/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SATELLAVIEW/text/"
-      },
-      {
-        "dir": "SCUMMVM",
-        "id": "123",
-        "name": "ScummVM",
-        "box": "/mnt/mmc/MUOS/info/catalogue/ScummVM/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/ScummVM/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/ScummVM/text/"
-      },
-      {
-        "dir": "SEGACD",
-        "id": "20",
-        "name": "Sega CD",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Mega CD - Sega CD/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Mega CD - Sega CD/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Mega CD - Sega CD/text/"
-      },
-      {
-        "dir": "SG1000",
-        "id": "109",
-        "name": "Sega SG-1000",
-        "box": "/mnt/mmc/MUOS/info/catalogue/SG1000/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/SG1000/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SG1000/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari 5200/text/",
+        "identifiers": ["Atari 5200", "5200"],
+        "excludes": ["2600", "7800"]
       },
       {
         "dir": "ATARI7800",
@@ -681,7 +162,639 @@
         "name": "Atari 7800",
         "box": "/mnt/mmc/MUOS/info/catalogue/Atari 7800/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Atari 7800/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari 7800/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari 7800/text/",
+        "identifiers": ["Atari 7800", "7800"],
+        "excludes": ["2600", "5200"]
+      },
+      {
+        "dir": "COLECO",
+        "id": "183",
+        "name": "Coleco",
+        "box": "/mnt/mmc/MUOS/info/catalogue/ColecoVision/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/ColecoVision/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/ColecoVision/text/",
+        "identifiers": ["ColecoVision", "Coleco Vision", "Coleco"],
+        "excludes": ["Adam"]
+      },
+      {
+        "dir": "COLSGM",
+        "id": "183",
+        "name": "Coleco",
+        "box": "/mnt/mmc/MUOS/info/catalogue/COLSGM/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/COLSGM/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/COLSGM/text/",
+        "identifiers": ["CBS ColecoVision", "Coleco Adam", "COLSGM"],
+        "excludes": []
+      },
+      {
+        "dir": "C64",
+        "id": "66",
+        "name": "Commodore 64",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Commodore C64/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Commodore C64/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Commodore C64/text/",
+        "identifiers": ["Commodore 64", "C64", "CBM 64"],
+        "excludes": ["C128", "VIC-20"]
+      },
+      {
+        "dir": "CPC",
+        "id": "65",
+        "name": "Amstrad CPC",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Amstrad/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Amstrad/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Amstrad/text/",
+        "identifiers": ["Amstrad CPC", "CPC", "Colour Personal Computer"],
+        "excludes": ["PCW", "GX4000"]
+      },
+      {
+        "dir": "CPET",
+        "id": "240",
+        "name": "Commodore PET",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Commodore PET/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Commodore PET/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Commodore PET/text/",
+        "identifiers": ["Commodore PET", "PET", "Personal Electronic Transactor"],
+        "excludes": ["VIC-20", "C64"]
+      },
+      {
+        "dir": "CPLUS4",
+        "id": "99",
+        "name": "Commodore Plus 4",
+        "box": "/mnt/mmc/MUOS/info/catalogue/CPLUS4/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/CPLUS4/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/CPLUS4/text/",
+        "identifiers": ["Commodore Plus/4", "Plus 4", "C16", "C116"],
+        "excludes": ["C64", "VIC-20"]
+      },
+      {
+        "dir": "CPS1",
+        "id": "6",
+        "name": "Capcom Play System",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Arcade/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Arcade/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arcade/text/",
+        "identifiers": ["CPS1", "Capcom Play System", "CP System"],
+        "excludes": ["CPS2", "CPS3"]
+      },
+      {
+        "dir": "CPS2",
+        "id": "7",
+        "name": "Capcom Play System 2",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Arcade/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Arcade/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arcade/text/",
+        "identifiers": ["CPS2", "Capcom Play System 2", "CP System II"],
+        "excludes": ["CPS1", "CPS3"]
+      },
+      {
+        "dir": "CPS3",
+        "id": "8",
+        "name": "Capcom Play System 3",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Arcade/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Arcade/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arcade/text/",
+        "identifiers": ["CPS3", "Capcom Play System 3", "CP System III"],
+        "excludes": ["CPS1", "CPS2"]
+      },
+      {
+        "dir": "DAPHNE",
+        "id": "49",
+        "name": "Daphne",
+        "box": "/mnt/mmc/MUOS/info/catalogue/DAPHNE/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/DAPHNE/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/DAPHNE/text/",
+        "identifiers": ["Daphne", "Laserdisc", "Dragon's Lair"],
+        "excludes": []
+      },
+      {
+        "dir": "DC",
+        "id": "23",
+        "name": "dreamcast",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Dreamcast/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Dreamcast/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Dreamcast/text/",
+        "identifiers": ["Dreamcast", "Sega Dreamcast", "DC"],
+        "excludes": []
+      },
+            {
+        "dir": "DOS",
+        "id": "135",
+        "name": "DOS",
+        "box": "/mnt/mmc/MUOS/info/catalogue/DOS/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/DOS/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/DOS/text/",
+        "identifiers": ["DOS", "MS-DOS", "PC DOS"],
+        "excludes": []
+      },
+      {
+        "dir": "EASYRPG",
+        "id": "231",
+        "name": "EasyRPG",
+        "box": "/mnt/mmc/MUOS/info/catalogue/EASYRPG/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/EASYRPG/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/EASYRPG/text/",
+        "identifiers": ["EasyRPG", "RPG Maker"],
+        "excludes": []
+      },
+      {
+        "dir": "EBK",
+        "id": "93",
+        "name": "EBK",
+        "box": "/mnt/mmc/MUOS/info/catalogue/EBK/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/EBK/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/EBK/text/",
+        "identifiers": ["EBK", "eBook"],
+        "excludes": []
+      },
+      {
+        "dir": "FBA2012",
+        "id": "75",
+        "name": "FBA2012",
+        "box": "/mnt/mmc/MUOS/info/catalogue/FBA2012/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/FBA2012/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/FBA2012/text/",
+        "identifiers": ["FBA2012", "Final Burn Alpha 2012"],
+        "excludes": ["FBAlpha", "FBNeo"]
+      },
+      {
+        "dir": "FBALPHA",
+        "id": "75",
+        "name": "FBAlpha",
+        "box": "/mnt/mmc/MUOS/info/catalogue/FBALPHA/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/FBALPHA/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/FBALPHA/text/",
+        "identifiers": ["FBAlpha", "Final Burn Alpha"],
+        "excludes": ["FBA2012", "FBNeo"]
+      },
+      {
+        "dir": "FBNEO",
+        "id": "",
+        "name": "FBNeo (Empty)",
+        "box": "/mnt/mmc/MUOS/info/catalogue/FBNEO/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/FBNEO/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/FBNEO/text/",
+        "identifiers": ["FBNeo", "Final Burn Neo"],
+        "excludes": ["FBA2012", "FBAlpha"]
+      },
+      {
+        "dir": "FDS",
+        "id": "106",
+        "name": "Famicom Disk System",
+        "box": "/mnt/mmc/MUOS/info/catalogue/FDS/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/FDS/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/FDS/text/",
+        "identifiers": ["Famicom Disk System", "FDS", "Family Computer Disk System"],
+        "excludes": []
+      },
+      {
+        "dir": "GB",
+        "id": "9",
+        "name": "Game Boy",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy/text/",
+        "identifiers": ["Game Boy", "GB", "Nintendo Game Boy"],
+        "excludes": ["GBC", "GBA", "SGB", "Super", "Advance", "Color"]
+      },
+      {
+        "dir": "GBA",
+        "id": "12",
+        "name": "Game Boy Advance",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy Advance/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy Advance/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy Advance/text/",
+        "identifiers": ["Game Boy Advance", "GBA", "Nintendo Game Boy Advance"],
+        "excludes": ["GBC"]
+      },
+      {
+        "dir": "GBC",
+        "id": "10",
+        "name": "Game Boy Color",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy Color/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy Color/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo Game Boy Color/text/",
+        "identifiers": ["Game Boy Color", "GBC", "Nintendo Game Boy Color"],
+        "excludes": ["GBA"]
+      },
+      {
+        "dir": "GG",
+        "id": "21",
+        "name": "Sega Game Gear",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Game Gear/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Game Gear/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Game Gear/text/",
+        "identifiers": ["Game Gear", "GG", "Sega Game Gear"],
+        "excludes": []
+      },
+      {
+        "dir": "GW",
+        "id": "52",
+        "name": "Nintendo Game & Watch",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Handheld Electronic - Game and Watch/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Handheld Electronic - Game and Watch/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Handheld Electronic - Game and Watch/text/",
+        "identifiers": ["Game & Watch", "Nintendo Game & Watch", "G&W"],
+        "excludes": []
+      },
+      {
+        "dir": "INTELLIVISION",
+        "id": "115",
+        "name": "Intellivision",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Mattel - Intellivision/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Mattel - Intellivision/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Mattel - Intellivision/text/",
+        "identifiers": ["Intellivision", "Mattel Intellivision"],
+        "excludes": []
+      },
+      {
+        "dir": "JAGUAR",
+        "id": "27",
+        "name": "Atari Jaguar",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Atari Jaguar/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Atari Jaguar/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari Jaguar/text/",
+        "identifiers": ["Atari Jaguar", "Jaguar"],
+        "excludes": ["Jaguar CD"]
+      },
+      {
+        "dir": "LOWRESNX",
+        "id": "244",
+        "name": "LowRes NX",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Lowres NX/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Lowres NX/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Lowres NX/text/",
+        "identifiers": ["LowRes NX", "Low-Res NX"],
+        "excludes": []
+      },
+      {
+        "dir": "LUTRO",
+        "id": "206",
+        "name": "Lutro",
+        "box": "/mnt/mmc/MUOS/info/catalogue/LUTRO/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/LUTRO/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/LUTRO/text/",
+        "identifiers": ["Lutro"],
+        "excludes": []
+      },
+      {
+        "dir": "LYNX",
+        "id": "28",
+        "name": "Atari Lynx",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Atari Lynx/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Atari Lynx/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari Lynx/text/",
+        "identifiers": ["Atari Lynx", "Lynx"],
+        "excludes": []
+      },
+      {
+        "dir": "MAME",
+        "id": "75",
+        "name": "Mame 2000",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Arcade/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Arcade/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Arcade/text/",
+        "identifiers": ["MAME", "MAME 2000", "Multiple Arcade Machine Emulator"],
+        "excludes": ["MAME2003", "MAME2010"]
+      },
+      {
+        "dir": "MAME2003PLUS",
+        "id": "75",
+        "name": "Mame 2003",
+        "box": "/mnt/mmc/MUOS/info/catalogue/MAME2003PLUS/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/MAME2003PLUS/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/MAME2003PLUS/text/",
+        "identifiers": ["MAME 2003 Plus", "MAME2003+"],
+        "excludes": ["MAME2000", "MAME2010"]
+      },
+      {
+        "dir": "MAME2010",
+        "id": "75",
+        "name": "Mame 2003",
+        "box": "/mnt/mmc/MUOS/info/catalogue/MAME2010/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/MAME2010/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/MAME2010/text/",
+        "identifiers": ["MAME 2010"],
+        "excludes": ["MAME2000", "MAME2003"]
+      },
+      {
+        "dir": "MBA",
+        "id": "75",
+        "name": "MBA",
+        "box": "/mnt/mmc/MUOS/info/catalogue/MBA/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/MBA/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/MBA/text/",
+        "identifiers": ["MBA", "MAME Arcade"],
+        "excludes": []
+      },
+      {
+        "dir": "MEGADRIVE",
+        "id": "1",
+        "name": "Sega Genesis (Mega Drive)",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Mega Drive - Genesis/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Mega Drive - Genesis/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Mega Drive - Genesis/text/",
+        "identifiers": ["Mega Drive", "MegaDrive", "Genesis", "Sega Genesis", "Sega Mega Drive"],
+        "excludes": ["Mega Drive Hacks", "Genesis Hacks"]
+      },
+      {
+        "dir": "MDMSU",
+        "id": "1",
+        "name": "Sega Genesis (Mega Drive) Hacks",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Mega Drive - Genesis/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Mega Drive - Genesis/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Mega Drive - Genesis/text/",
+        "identifiers": ["Mega Drive Hacks", "Genesis Hacks", "MDMSU"],
+        "excludes": []
+      },
+      {
+        "dir": "MEGADUCK",
+        "id": "90",
+        "name": "Megaduck",
+        "box": "/mnt/mmc/MUOS/info/catalogue/MEGADUCK/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/MEGADUCK/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/MEGADUCK/text/",
+        "identifiers": ["Megaduck", "Cougar Boy"],
+        "excludes": []
+      },
+      {
+        "dir": "MS",
+        "id": "2",
+        "name": "Sega Master System",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Master System/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Master System/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Master System/text/",
+        "identifiers": ["Master System", "SMS", "Sega Master System"],
+        "excludes": ["Game Gear"]
+      },
+      {
+        "dir": "MSX",
+        "id": "113",
+        "name": "MSX",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Microsoft - MSX/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Microsoft - MSX/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Microsoft - MSX/text/",
+        "identifiers": ["MSX", "Microsoft MSX"],
+        "excludes": ["MSX2"]
+      },
+      {
+        "dir": "MSX2",
+        "id": "116",
+        "name": "MSX",
+        "box": "/mnt/mmc/MUOS/info/catalogue/MSX2/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/MSX2/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/MSX2/text/",
+        "identifiers": ["MSX2", "Microsoft MSX2"],
+        "excludes": []
+      },
+      {
+        "dir": "N64",
+        "id": "14",
+        "name": "Nintendo 64",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo N64/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo N64/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo N64/text/",
+        "identifiers": ["Nintendo 64", "N64"],
+        "excludes": ["64DD"]
+      },
+      {
+        "dir": "N64DD",
+        "id": "122",
+        "name": "Nintendo 64DD",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo N64 -DD/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo N64 -DD/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo N64 -DD/text/",
+        "identifiers": ["Nintendo 64DD", "64DD", "N64 Disk Drive"],
+        "excludes": []
+      },
+      {
+        "dir": "NAOMI",
+        "id": "56",
+        "name": "Sega Naomi",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Atomiswave Naomi/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Atomiswave Naomi/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Atomiswave Naomi/text/",
+        "identifiers": ["Sega Naomi", "Naomi"],
+        "excludes": ["Atomiswave"]
+      },
+      {
+        "dir": "NDS",
+        "id": "15",
+        "name": "NDS",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo DS/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo DS/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo DS/text/",
+        "identifiers": ["Nintendo DS", "NDS", "DS"],
+        "excludes": ["3DS"]
+      },
+      {
+        "dir": "NEOCD",
+        "id": "70",
+        "name": "Neo Geo CD",
+        "box": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo CD/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo CD/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo CD/text/",
+        "identifiers": ["Neo Geo CD", "NGCD"],
+        "excludes": ["AES", "MVS"]
+      },
+      {
+        "dir": "NEOGEO",
+        "id": "142",
+        "name": "Neo Geo AES",
+        "box": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo/text/",
+        "identifiers": ["Neo Geo AES", "AES", "Neo Geo"],
+        "excludes": ["CD", "MVS"]
+      },
+      {
+        "dir": "NES",
+        "id": "3",
+        "name": "NES (Famicom)",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo NES-Famicom/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo NES-Famicom/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo NES-Famicom/text/",
+        "identifiers": ["NES", "Nintendo Entertainment System", "Famicom"],
+        "excludes": ["SNES", "FDS","Super"]
+      },
+      {
+        "dir": "NGP",
+        "id": "25",
+        "name": "Neo Geo Pocket",
+        "box": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/text/",
+        "identifiers": ["Neo Geo Pocket", "NGP"],
+        "excludes": ["Color"]
+      },
+      {
+        "dir": "NGC",
+        "id": "82",
+        "name": "Neo-geo Pocket Color",
+        "box": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SNK Neo Geo Pocket - Color/text/",
+        "identifiers": ["Neo Geo Pocket Color", "NGPC"],
+        "excludes": []
+      },
+      {
+        "dir": "ODYSSEY",
+        "id": "104",
+        "name": "Videopac / Magnavox Odyssey 2",
+        "box": "/mnt/mmc/MUOS/info/catalogue/ODYSSEY/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/ODYSSEY/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/ODYSSEY/text/",
+        "identifiers": ["Magnavox Odyssey 2", "Videopac", "Odyssey²"],
+        "excludes": []
+      },
+      {
+        "dir": "OPENBOR",
+        "id": "214",
+        "name": "OpenBOR",
+        "box": "/mnt/mmc/MUOS/info/catalogue/OPENBOR/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/OPENBOR/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/OPENBOR/text/",
+        "identifiers": ["OpenBOR", "Open Beats of Rage"],
+        "excludes": []
+      },
+      {
+        "dir": "PALMOS",
+        "id": "219",
+        "name": "Palm",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Palm OS/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Palm OS/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Palm OS/text/",
+        "identifiers": ["Palm OS", "PalmOS", "Palm"],
+        "excludes": []
+      },
+      {
+        "dir": "PANASONIC",
+        "id": "29",
+        "name": "3DO",
+        "box": "/mnt/mmc/MUOS/info/catalogue/PANASONIC/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/PANASONIC/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/PANASONIC/text/",
+        "identifiers": ["3DO", "Panasonic 3DO"],
+        "excludes": []
+      },
+      {
+        "dir": "PCE",
+        "id": "31",
+        "name": "NEC TurboGrafx-16 / PC Engine",
+        "box": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine/text/",
+        "identifiers": ["TurboGrafx-16", "PC Engine", "PCE"],
+        "excludes": ["SuperGrafx"]
+      },
+      {
+        "dir": "PCECD",
+        "id": "114",
+        "name": "NEC TurboGrafx-CD",
+        "box": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine CD/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine CD/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/NEC PC Engine CD/text/",
+        "identifiers": ["TurboGrafx-CD", "PC Engine CD", "PCE-CD"],
+        "excludes": []
+      },
+      {
+        "dir": "PCFX",
+        "id": "72",
+        "name": "NEC PC-FX",
+        "box": "/mnt/mmc/MUOS/info/catalogue/NEC PC-FX/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/NEC PC-FX/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/NEC PC-FX/text/",
+        "identifiers": ["PC-FX", "PCFX"],
+        "excludes": []
+      },
+      {
+        "dir": "PICO",
+        "id": "234",
+        "name": "PICO",
+        "box": "/mnt/mmc/MUOS/info/catalogue/PICO-8/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/PICO-8/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/PICO-8/text/",
+        "identifiers": ["PICO-8", "PICO"],
+        "excludes": []
+      },
+      {
+        "dir": "POKEMINI",
+        "id": "211",
+        "name": "PokeMini",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo Pokemon Mini/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo Pokemon Mini/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo Pokemon Mini/text/",
+        "identifiers": ["Pokémon Mini", "Pokemon Mini"],
+        "excludes": []
+      },
+      {
+        "dir": "PS",
+        "id": "57",
+        "name": "Sony Playstation",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Sony PlayStation/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Sony PlayStation/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sony PlayStation/text/",
+        "identifiers": ["PlayStation", "PS1", "PSX"],
+        "excludes": ["PS2", "PS3", "PS4", "PSP"]
+      },
+      {
+        "dir": "PSP",
+        "id": "61",
+        "name": "Sony PSP",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Sony Playstation Portable/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Sony Playstation Portable/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sony Playstation Portable/text/",
+        "identifiers": ["PSP", "PlayStation Portable"],
+        "excludes": ["Vita"]
+      },
+      {
+        "dir": "SATURN",
+        "id": "22",
+        "name": "Sega Saturn",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Saturn/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Saturn/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Saturn/text/",
+        "identifiers": ["Sega Saturn", "Saturn"],
+        "excludes": []
+      },
+      {
+        "dir": "SATELLAVIEW",
+        "id": "107",
+        "name": "Satellaview",
+        "box": "/mnt/mmc/MUOS/info/catalogue/SATELLAVIEW/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/SATELLAVIEW/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SATELLAVIEW/text/",
+        "identifiers": ["Satellaview", "BS-X"],
+        "excludes": []
+      },
+      {
+        "dir": "SCUMMVM",
+        "id": "123",
+        "name": "ScummVM",
+        "box": "/mnt/mmc/MUOS/info/catalogue/ScummVM/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/ScummVM/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/ScummVM/text/",
+        "identifiers": ["ScummVM"],
+        "excludes": []
+      },
+      {
+        "dir": "SEGACD",
+        "id": "20",
+        "name": "Sega CD",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Sega Mega CD - Sega CD/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega Mega CD - Sega CD/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega Mega CD - Sega CD/text/",
+        "identifiers": ["Sega CD", "Mega-CD"],
+        "excludes": ["32X"]
+      },
+      {
+        "dir": "SG1000",
+        "id": "109",
+        "name": "Sega SG-1000",
+        "box": "/mnt/mmc/MUOS/info/catalogue/SG1000/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/SG1000/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SG1000/text/",
+        "identifiers": ["SG-1000", "Sega Game 1000"],
+        "excludes": ["Master System"]
       },
       {
         "dir": "SNES",
@@ -689,7 +802,9 @@
         "name": "Super Nintendo (SNES)",
         "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/text/",
+        "identifiers": ["SNES", "Super Nintendo", "Super Famicom"],
+        "excludes": []
       },
       {
         "dir": "SFCMSU",
@@ -697,7 +812,9 @@
         "name": "Super Nintendo (SNES) hacks",
         "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/text/",
+        "identifiers": ["SNES hacks", "Super Nintendo hacks", "SFC MSU"],
+        "excludes": []
       },
       {
         "dir": "SGB",
@@ -705,7 +822,9 @@
         "name": "Super Game Boy",
         "box": "/mnt/mmc/MUOS/info/catalogue/SGB/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/SGB/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SGB/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SGB/text/",
+        "identifiers": ["Super Game Boy", "SGB"],
+        "excludes": []
       },
       {
         "dir": "SFX",
@@ -713,7 +832,9 @@
         "name": "NEC PC Engine SuperGrafx",
         "box": "/mnt/mmc/MUOS/info/catalogue/SFX/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/SFX/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SFX/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SFX/text/",
+        "identifiers": ["SuperGrafx", "PC Engine SuperGrafx"],
+        "excludes": []
       },
       {
         "dir": "SUFAMI",
@@ -721,31 +842,9 @@
         "name": "Sufami Turbo",
         "box": "/mnt/mmc/MUOS/info/catalogue/SUFAMI/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/SUFAMI/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SUFAMI/text/"
-      },
-      {
-        "dir": "WS",
-        "id": "207",
-        "name": "Watara Supervision",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/text/"
-      },
-      {
-        "dir": "WSC",
-        "id": "207",
-        "name": "Watara Supervision",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/text/"
-      },
-      {
-        "dir": "SEGA32X",
-        "id": "19",
-        "name": "Sega 32X",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Sega 32X/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Sega 32X/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sega 32X/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/SUFAMI/text/",
+        "identifiers": ["Sufami Turbo"],
+        "excludes": []
       },
       {
         "dir": "THOMSON",
@@ -753,7 +852,9 @@
         "name": "Thomson",
         "box": "/mnt/mmc/MUOS/info/catalogue/THOMSON/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/THOMSON/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/THOMSON/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/THOMSON/text/",
+        "identifiers": ["Thomson TO7", "Thomson MO5"],
+        "excludes": []
       },
       {
         "dir": "TIC",
@@ -761,7 +862,9 @@
         "name": "TIC-80",
         "box": "/mnt/mmc/MUOS/info/catalogue/TIC-80/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/TIC-80/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/TIC-80/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/TIC-80/text/",
+        "identifiers": ["TIC-80", "TIC80"],
+        "excludes": []
       },
       {
         "dir": "UZEBOX",
@@ -769,7 +872,9 @@
         "name": "Uzebox",
         "box": "/mnt/mmc/MUOS/info/catalogue/Uzebox/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Uzebox/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Uzebox/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Uzebox/text/",
+        "identifiers": ["Uzebox"],
+        "excludes": []
       },
       {
         "dir": "VB",
@@ -777,7 +882,9 @@
         "name": "Virtual Boy",
         "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo Virtual Boy/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo Virtual Boy/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo Virtual Boy/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo Virtual Boy/text/",
+        "identifiers": ["Virtual Boy", "VB"],
+        "excludes": []
       },
       {
         "dir": "VECTREX",
@@ -785,7 +892,9 @@
         "name": "Vectrex",
         "box": "/mnt/mmc/MUOS/info/catalogue/GCE-Vectrex/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/GCE-Vectrex/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/GCE-Vectrex/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/GCE-Vectrex/text/",
+        "identifiers": ["Vectrex", "GCE Vectrex"],
+        "excludes": []
       },
       {
         "dir": "VIC20",
@@ -793,7 +902,9 @@
         "name": "Commodore VIC-20",
         "box": "/mnt/mmc/MUOS/info/catalogue/Commodore VIC-20/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Commodore VIC-20/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Commodore VIC-20/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Commodore VIC-20/text/",
+        "identifiers": ["VIC-20", "VC-20", "VIC20"],
+        "excludes": ["C64"]
       },
       {
         "dir": "VIDEOPAC",
@@ -801,7 +912,9 @@
         "name": "Videopac",
         "box": "/mnt/mmc/MUOS/info/catalogue/VIDEOPAC/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/VIDEOPAC/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/VIDEOPAC/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/VIDEOPAC/text/",
+        "identifiers": ["Videopac", "Magnavox Odyssey²", "Philips Videopac"],
+        "excludes": []
       },
       {
         "dir": "VIRCON32",
@@ -809,7 +922,9 @@
         "name": "Vircon32",
         "box": "/mnt/mmc/MUOS/info/catalogue/Vircon32/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Vircon32/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Vircon32/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Vircon32/text/",
+        "identifiers": ["Vircon32"],
+        "excludes": []
       },
       {
         "dir": "VMU",
@@ -817,7 +932,9 @@
         "name": "Dreamcast VMU (useless)",
         "box": "/mnt/mmc/MUOS/info/catalogue/VMU/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/VMU/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/VMU/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/VMU/text/",
+        "identifiers": ["VMU", "Visual Memory Unit"],
+        "excludes": []
       },
       {
         "dir": "WASM4",
@@ -825,7 +942,9 @@
         "name": "WASM4",
         "box": "/mnt/mmc/MUOS/info/catalogue/WASM-4/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/WASM-4/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/WASM-4/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/WASM-4/text/",
+        "identifiers": ["WASM-4", "WASM4"],
+        "excludes": []
       },
       {
         "dir": "WONDERSWAN",
@@ -833,7 +952,9 @@
         "name": "Bandai WonderSwan",
         "box": "/mnt/mmc/MUOS/info/catalogue/Bandai WonderSwan-Color/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Bandai WonderSwan-Color/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Bandai WonderSwan-Color/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Bandai WonderSwan-Color/text/",
+        "identifiers": ["WonderSwan", "Wonder Swan"],
+        "excludes": ["Color"]
       },
       {
         "dir": "WONDERSWANCOLOR",
@@ -841,7 +962,9 @@
         "name": "Bandai WonderSwan Color",
         "box": "/mnt/mmc/MUOS/info/catalogue/Bandai WonderSwan-Color/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Bandai WonderSwan-Color/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Bandai WonderSwan-Color/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Bandai WonderSwan-Color/text/",
+        "identifiers": ["WonderSwan Color", "Wonder Swan Color"],
+        "excludes": []
       },
       {
         "dir": "X68000",
@@ -849,7 +972,9 @@
         "name": "Sharp X68000",
         "box": "/mnt/mmc/MUOS/info/catalogue/Sharp X68000/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Sharp X68000/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sharp X68000/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sharp X68000/text/",
+        "identifiers": ["X68000", "Sharp X68000"],
+        "excludes": []
       },
       {
         "dir": "X1",
@@ -857,7 +982,9 @@
         "name": "Sharp X1",
         "box": "/mnt/mmc/MUOS/info/catalogue/Sharp X1/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Sharp X1/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sharp X1/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sharp X1/text/",
+        "identifiers": ["X1", "Sharp X1"],
+        "excludes": ["X68000"]
       },
       {
         "dir": "ZXEIGHTYONE",
@@ -865,7 +992,9 @@
         "name": "Sinclair ZX-81",
         "box": "/mnt/mmc/MUOS/info/catalogue/Sinclair ZX 81/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Sinclair ZX 81/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sinclair ZX 81/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sinclair ZX 81/text/",
+        "identifiers": ["ZX81", "Sinclair ZX81", "ZX-81"],
+        "excludes": ["ZX Spectrum"]
       },
       {
         "dir": "ZXS",
@@ -873,7 +1002,89 @@
         "name": "Sinclair ZX Spectrum",
         "box": "/mnt/mmc/MUOS/info/catalogue/Sinclair ZX Spectrum/box/",
         "preview": "/mnt/mmc/MUOS/info/catalogue/Sinclair ZX Spectrum/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sinclair ZX Spectrum/text/"
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Sinclair ZX Spectrum/text/",
+        "identifiers": ["ZX Spectrum", "Sinclair ZX Spectrum", "ZXS"],
+        "excludes": ["ZX81"]
+      },
+      {
+        "dir": "ATARI7800",
+        "id": "41",
+        "name": "Atari 7800",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Atari 7800/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Atari 7800/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Atari 7800/text/",
+        "identifiers": ["Atari 7800", "7800"],
+        "excludes": ["2600", "5200"]
+      },
+      {
+        "dir": "CHANNELF",
+        "id": "80",
+        "name": "Fairchild Channel F",
+        "box": "/mnt/mmc/MUOS/info/catalogue/CHANNELF/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/CHANNELF/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/CHANNELF/text/",
+        "identifiers": ["Channel F", "Fairchild Channel F"],
+        "excludes": []
+      },
+      {
+        "dir": "PC88",
+        "id": "221",
+        "name": "NEC PC-8000 & PC-8800 series / NEC PC-8801",
+        "box": "/mnt/mmc/MUOS/info/catalogue/NEC PC-8000 - PC-8800 series/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/NEC PC-8000 - PC-8800 series/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/NEC PC-8000 - PC-8800 series/text/",
+        "identifiers": ["PC-88", "PC-8801", "NEC PC-8800"],
+        "excludes": ["PC-98"]
+      },
+      {
+        "dir": "PC98",
+        "id": "208",
+        "name": "NEC PC-98 / NEC PC-9801",
+        "box": "/mnt/mmc/MUOS/info/catalogue/NEC PC98/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/NEC PC98/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/NEC PC98/text/",
+        "identifiers": ["PC-98", "PC-9801", "NEC PC-98"],
+        "excludes": ["PC-88"]
+      },
+      {
+        "dir": "PORTS",
+        "id": "138",
+        "name": "PC Windows",
+        "box": "/mnt/mmc/MUOS/info/catalogue/PORTS/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/PORTS/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/PORTS/text/",
+        "identifiers": ["Ports", "PC Ports"],
+        "excludes": []
+      },
+      {
+        "dir": "PSPMINIS",
+        "id": "172",
+        "name": "Sony PSP Minis",
+        "box": "/mnt/mmc/MUOS/info/catalogue/PSPMINIS/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/PSPMINIS/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/PSPMINIS/text/",
+        "identifiers": ["PSP Minis", "PlayStation Portable Minis"],
+        "excludes": []
+      },
+      {
+        "dir": "WS",
+        "id": "207",
+        "name": "Watara Supervision",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/text/",
+        "identifiers": ["Watara Supervision", "Supervision"],
+        "excludes": []
+      },
+      {
+        "dir": "WSC",
+        "id": "207",
+        "name": "Watara Supervision",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Watara Supervision/text/",
+        "identifiers": ["Watara Supervision Color", "Supervision Color"],
+        "excludes": ["WonderSwan Color"]
       }
     ]
   }

@@ -15,6 +15,8 @@ MAX_FILE_SIZE_BYTES = 104857600  # 100MB
 IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png"]
 VALID_MEDIA_TYPES = {"box-2D", "box-3D", "mixrbv1", "mixrbv2", "ss"}
 
+DEBUG = True
+
 
 def get_image_files_without_extension(folder):
     return [
@@ -62,6 +64,8 @@ def file_size(file_path):
 
 
 def parse_find_game_url(system_id, rom_path, dev_id, dev_password, username, password):
+    if rom_path.suffix[1:] == "m3u":
+        return parse_find_game_url_by_name(system_id, rom_path, dev_id, dev_password, username, password)
     params = {
         "devid": base64.b64decode(dev_id).decode(),
         "devpassword": base64.b64decode(dev_password).decode(),
@@ -74,6 +78,25 @@ def parse_find_game_url(system_id, rom_path, dev_id, dev_password, username, pas
         "romtype": "rom",
         "romnom": f"{clean_rom_name(rom_path)}.zip",
         "romtaille": str(file_size(rom_path)),
+    }
+    try:
+        return urlunparse(urlparse(GAME_INFO_URL)._replace(query=urlencode(params)))
+    except UnicodeDecodeError as e:
+        # fallback to search by name if the rom is not found.
+        return parse_find_game_url_by_name(system_id, rom_path, dev_id, dev_password, username, password)
+
+
+def parse_find_game_url_by_name(system_id, rom_path, dev_id, dev_password, username, password):
+    params = {
+        "devid": base64.b64decode(dev_id).decode(),
+        "devpassword": base64.b64decode(dev_password).decode(),
+        "softname": "crossmix",
+        "output": "json",
+        "ssid": username,
+        "sspassword": password,
+        "systemeid": system_id,
+        # "romtype": "rom",
+        "romnom": f"{clean_rom_name(rom_path)}.zip",
     }
     try:
         return urlunparse(urlparse(GAME_INFO_URL)._replace(query=urlencode(params)))
@@ -180,7 +203,8 @@ def get_game_data(system_id, rom_path, dev_id, dev_password, username, password)
 
 def get_user_data(dev_id, dev_password, username, password):
     user_info_url = parse_user_info_url(dev_id, dev_password, username, password)
-    return fetch_data(user_info_url)
+    return None
+    # fetch_data(user_info_url)
 
 
 def _fetch_media(medias, properties, regions):
@@ -220,15 +244,44 @@ def fetch_preview(game, config):
     return preview
 
 
-def fetch_synopsis(game, config):
-    synopsis = game["response"]["jeu"].get("synopsis")
+def fetch_synopsis(game, config, meta):
+    synopsis = game["response"]["jeu"].get("synopsis", [])
+
     if not synopsis:
         return None
 
     synopsis_lang = config["synopsis"]["lang"]
     synopsis_text = next(
-        (item["text"] for item in synopsis if item["langue"] == synopsis_lang), None
-    )
-    if synopsis_text:
-        return synopsis_text
-    return None
+        (item["text"] for item in synopsis if item["langue"] == synopsis_lang), None)
+
+    if meta:
+        players = game["response"]["jeu"].get("joueurs", {"text": "unknown"})
+        rating = game["response"]["jeu"].get("note", {"text": "no rating"})
+        developer = game["response"]["jeu"].get("developpeur", {"text": "unknown developer"})
+        classification = game["response"]["jeu"].get("classifications", [])
+        pegi_text = next(
+            (item["text"] for item in classification if item["type"] == "PEGI"), None)
+        esrb_text = next(
+            (item["text"] for item in classification if item["type"] == "ESRB"), None)
+        if pegi_text is not None:
+            classification_text = f", PEGI {pegi_text}"
+        elif esrb_text is not None:
+            classification_text = f", ESRB {esrb_text}"
+        else:
+            classification_text = f""
+        players_text = players.get("text", "unknown")
+        rating_text = rating.get("text", "no rating")
+        developer_text = developer.get("text", "unknown developer")
+
+        try:
+            float_rating = float(rating_text)
+            rating_text = str(round(float_rating / 2, 1))
+        except ValueError:
+            pass  # Keep the original rating string if conversion fails
+
+        full_content = f"{developer_text}, {rating_text}, {players_text}p{classification_text} - {synopsis_text}"
+
+    else:
+        full_content = synopsis_text
+
+    return full_content
