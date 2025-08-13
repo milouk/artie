@@ -855,24 +855,40 @@ def fetch_preview(game: dict, config: dict) -> Optional[bytes]:
 
 def fetch_synopsis(game: dict, config: dict) -> Optional[str]:
     """
-    Fetch synopsis text for a game.
+    Fetch synopsis text for a game with HTML decoding and error handling.
 
     Args:
         game: Game data from API
         config: Configuration for synopsis
 
     Returns:
-        Synopsis text or None
+        Synopsis text with HTML entities decoded, or None if not available
     """
     synopsis = game["response"]["jeu"].get("synopsis")
     if not synopsis:
+        logger.log_debug("No synopsis data available in game response")
         return None
 
     synopsis_lang = config["synopsis"]["lang"]
     synopsis_text = next(
         (item["text"] for item in synopsis if item.get("langue") == synopsis_lang), None
     )
-    return html.unescape(synopsis_text) if synopsis_text else None
+
+    if not synopsis_text:
+        logger.log_debug(f"No synopsis text found for language '{synopsis_lang}'")
+        return None
+
+    # Apply HTML decoding with error handling and fallback
+    try:
+        decoded_text = html.unescape(synopsis_text)
+        logger.log_debug(
+            f"Successfully decoded HTML entities in synopsis text (length: {len(decoded_text)})"
+        )
+        return decoded_text
+    except Exception as e:
+        logger.log_warning(f"Failed to decode HTML entities in synopsis text: {e}")
+        logger.log_warning("Falling back to original text without HTML decoding")
+        return synopsis_text
 
 
 def clear_rate_limit_cache(username: str) -> bool:
