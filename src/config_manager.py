@@ -538,3 +538,44 @@ class ConfigManager:
         log_level_str = self._raw_config.get("log_level", "INFO").upper()
         log_level = getattr(logging, log_level_str, logging.INFO)
         logger.setup_logger(log_level)
+
+    def validate_mask_settings(self) -> None:
+        """Validate mask settings in configuration."""
+        if not self.config:
+            return
+
+        try:
+            # Import here to avoid circular imports
+            from image_processor import get_image_processor
+
+            image_processor = get_image_processor()
+            content = self.config.content
+
+            # Validate box mask settings
+            if content.get("box", {}).get("apply_mask", False):
+                mask_path = content["box"].get("mask_path")
+                if mask_path:
+                    if not image_processor.validate_mask_file(mask_path):
+                        logger.log_warning(
+                            f"Box mask file validation failed: {mask_path}"
+                        )
+                        logger.log_warning("Box mask processing will be disabled")
+                else:
+                    logger.log_warning("Box mask enabled but no mask_path specified")
+
+            # Validate preview mask settings
+            if content.get("preview", {}).get("apply_mask", False):
+                mask_path = content["preview"].get("mask_path")
+                if mask_path:
+                    if not image_processor.validate_mask_file(mask_path):
+                        logger.log_warning(
+                            f"Preview mask file validation failed: {mask_path}"
+                        )
+                        logger.log_warning("Preview mask processing will be disabled")
+                else:
+                    logger.log_warning(
+                        "Preview mask enabled but no mask_path specified"
+                    )
+
+        except Exception as e:
+            logger.log_warning(f"Error validating mask settings: {e}")

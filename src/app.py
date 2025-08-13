@@ -17,6 +17,7 @@ import input
 from cache_manager import api_cached, get_cache_manager
 from config_manager import ConfigManager, ScraperConfig
 from graphic import GUI
+from image_processor import get_image_processor
 from logger import LoggerSingleton as logger
 from rom_manager import Rom, RomManager
 from scraper import (
@@ -136,6 +137,9 @@ class App:
 
             # Validate configuration
             self.config_manager.validate_paths()
+
+            # Validate mask settings
+            self.config_manager.validate_mask_settings()
 
             # Initialize GUI
             self._initialize_gui()
@@ -945,14 +949,25 @@ class App:
         except (exceptions.ForbiddenError, exceptions.RateLimitError) as e:
             raise e
 
-        # Save scraped media
+        # Apply mask processing to images before saving
+        image_processor = get_image_processor()
+
+        # Save scraped media with optional mask processing
         if scraped_box:
+            # Apply mask if configured
+            processed_box = image_processor.process_image_with_mask(
+                scraped_box, self.config.content.get("box", {})
+            )
             destination = roms_data.box_dir / f"{rom.name}.png"
-            self._save_file_to_disk(scraped_box, destination)
+            self._save_file_to_disk(processed_box, destination)
 
         if scraped_preview:
+            # Apply mask if configured
+            processed_preview = image_processor.process_image_with_mask(
+                scraped_preview, self.config.content.get("preview", {})
+            )
             destination = roms_data.preview_dir / f"{rom.name}.png"
-            self._save_file_to_disk(scraped_preview, destination)
+            self._save_file_to_disk(processed_preview, destination)
 
         if scraped_synopsis:
             destination = roms_data.synopsis_dir / f"{rom.name}.txt"

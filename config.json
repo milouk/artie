@@ -25,13 +25,19 @@
         "enabled": true,
         "type": "mixrbv2",
         "height": 240,
-        "width": 320
+        "width": 320,
+        "apply_mask": false,
+        "mask_path": "assets/masks/box_mask.png",
+        "resize_mask": true
       },
       "preview": {
         "enabled": true,
         "type": "ss",
         "height": 275,
-        "width": 515
+        "width": 515,
+        "apply_mask": false,
+        "mask_path": "assets/masks/preview_mask.png",
+        "resize_mask": true
       },
       "regions": [
         "us",
