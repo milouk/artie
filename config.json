@@ -14,7 +14,7 @@
     "password": "",
     "devid": "bWlsb3Vr",
     "devpassword": "dVdDNVVsWHhaaFo=",
-    "threads": 1,
+    "threads": 10,
     "show_scraped_roms": true,
     "content": {
       "synopsis": {
@@ -23,7 +23,7 @@
       },
       "box": {
         "enabled": true,
-        "type": "box-3D",
+        "type": "mixrbv2",
         "height": 240,
         "width": 320
       },

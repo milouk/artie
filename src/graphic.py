@@ -1,8 +1,11 @@
 import mmap
 import os
 from fcntl import ioctl
+from typing import Optional
 
 from PIL import Image, ImageDraw, ImageFont
+
+from logger import LoggerSingleton as logger
 
 
 class GUI:
@@ -15,39 +18,82 @@ class GUI:
     COLOR_BLACK = "#000000"
 
     def __init__(self):
-        self.fb = None
-        self.mm = None
+        self.fb: Optional[int] = None
+        self.mm: Optional[mmap.mmap] = None
         self.screen_width = 640
         self.screen_height = 480
         self.bytes_per_pixel = 4
         self.screen_size = self.screen_width * self.screen_height * self.bytes_per_pixel
 
-        self.fontFile = {
-            15: ImageFont.truetype("assets/Roboto-Condensed.ttf", 15),
-            13: ImageFont.truetype("assets/Roboto-Condensed.ttf", 13),
-            11: ImageFont.truetype("assets/Roboto-Condensed.ttf", 11),
-        }
+        # Framebuffer error suppression (keep UI working, suppress error messages only)
+        self.suppress_framebuffer_errors = False
+        self.framebuffer_write_failures = 0
+        self.max_write_failures = (
+            3  # Start suppressing errors after 3 consecutive failures
+        )
+
+        try:
+            self.fontFile = {
+                15: ImageFont.truetype("assets/Roboto-Condensed.ttf", 15),
+                13: ImageFont.truetype("assets/Roboto-Condensed.ttf", 13),
+                11: ImageFont.truetype("assets/Roboto-Condensed.ttf", 11),
+            }
+        except (OSError, IOError) as e:
+            logger.log_warning(f"Error loading fonts: {e}. Using default font.")
+            # Fallback to default font
+            self.fontFile = {
+                15: ImageFont.load_default(),
+                13: ImageFont.load_default(),
+                11: ImageFont.load_default(),
+            }
 
         self.activeImage = None
         self.activeDraw = None
 
     def screen_reset(self):
+        """Reset screen configuration with error handling."""
         if self.fb:
-            ioctl(
-                self.fb,
-                0x4601,
-                b"\x80\x02\x00\x00\xe0\x01\x00\x00\x80\x02\x00\x00\xc0\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00 \x00\x00\x00\x00\x00\x00\x00\x10\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x08\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x18\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00\x00^\x00\x00\x00\x96\x00\x00\x00\x00\x00\x00\x00\xc2\xa2\x00\x00\x1a\x00\x00\x00T\x00\x00\x00\x0c\x00\x00\x00\x1e\x00\x00\x00\x14\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-            )
-            ioctl(self.fb, 0x4611, 0)
+            try:
+                ioctl(
+                    self.fb,
+                    0x4601,
+                    b"\x80\x02\x00\x00\xe0\x01\x00\x00\x80\x02\x00\x00\xc0\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00 \x00\x00\x00\x00\x00\x00\x00\x10\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x08\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x18\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00\x00^\x00\x00\x00\x96\x00\x00\x00\x00\x00\x00\x00\xc2\xa2\x00\x00\x1a\x00\x00\x00T\x00\x00\x00\x0c\x00\x00\x00\x1e\x00\x00\x00\x14\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+                )
+                ioctl(self.fb, 0x4611, 0)
+            except (OSError, IOError) as e:
+                logger.log_warning(f"Error resetting screen: {e}")
 
     def draw_start(self):
-        self.fb = os.open("/dev/fb0", os.O_RDWR)
-        self.mm = mmap.mmap(self.fb, self.screen_size)
+        """Initialize framebuffer with proper error handling."""
+        try:
+            logger.log_info("Attempting to initialize framebuffer...")
+            self.fb = os.open("/dev/fb0", os.O_RDWR)
+            self.mm = mmap.mmap(self.fb, self.screen_size)
+            logger.log_info("✅ Framebuffer device opened successfully - UI enabled")
+
+        except (OSError, IOError) as e:
+            logger.log_warning(f"Framebuffer initialization failed: {e}")
+            logger.log_info("Falling back to text-only mode")
+            self._cleanup_framebuffer_resources()
+
+    def _cleanup_framebuffer_resources(self):
+        """Clean up framebuffer resources."""
+        if self.mm:
+            try:
+                self.mm.close()
+            except:
+                pass
+            self.mm = None
+        if self.fb is not None:
+            try:
+                os.close(self.fb)
+            except:
+                pass
+            self.fb = None
 
     def draw_end(self):
-        if self.mm and self.fb:
-            self.mm.close()
-            os.close(self.fb)
+        """Clean up framebuffer resources."""
+        self._cleanup_framebuffer_resources()
 
     def create_image(self):
         image = Image.new(
@@ -66,9 +112,42 @@ class GUI:
         self.activeDraw = ImageDraw.Draw(self.activeImage)
 
     def draw_paint(self):
+        """Paint the active image to framebuffer with error suppression (keep UI working)."""
         if self.mm and self.activeImage:
-            self.mm.seek(0)
-            self.mm.write(self.activeImage.tobytes())
+            try:
+                self.mm.seek(0)
+                self.mm.write(self.activeImage.tobytes())
+                self.mm.flush()  # Ensure data is written to framebuffer
+
+                # Reset failure counter on successful write
+                if self.framebuffer_write_failures > 0:
+                    self.framebuffer_write_failures = 0
+                    if not self.suppress_framebuffer_errors:
+                        logger.log_info(
+                            "Framebuffer write recovered - continuing normal operation"
+                        )
+
+            except (OSError, IOError) as e:
+                self.framebuffer_write_failures += 1
+
+                # Only log the first few failures to avoid spam, then suppress errors
+                if self.framebuffer_write_failures <= self.max_write_failures:
+                    logger.log_warning(
+                        f"Framebuffer write failed (attempt {self.framebuffer_write_failures}/{self.max_write_failures}): {e}"
+                    )
+
+                # Start suppressing error messages after max failures (but keep UI working)
+                if self.framebuffer_write_failures >= self.max_write_failures:
+                    if not self.suppress_framebuffer_errors:
+                        logger.log_info(
+                            "🔇 Suppressing further framebuffer error messages - UI remains functional"
+                        )
+                        self.suppress_framebuffer_errors = True
+
+        elif not self.mm:
+            # In text-only mode, just log what would be displayed
+            if hasattr(self, "_last_log_message"):
+                print(f"[ARTIE] {self._last_log_message}")
 
     def draw_clear(self):
         if self.activeDraw:
@@ -110,6 +189,9 @@ class GUI:
             )
 
     def draw_log(self, text, fill=COLOR_PRIMARY, outline=COLOR_PRIMARY_DARK, width=500):
+        # Store message for potential text-only fallback
+        self._last_log_message = text
+
         # Center the rectangle horizontally
         x = (self.screen_width - width) / 2
         # Center the rectangle vertically
