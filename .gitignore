@@ -6,3 +6,36 @@ app.spec
 .DS_Store
 build.sh
 todo.txt
+
+# Testing and Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+.tox/
+.cache/
+
+# Claude Code Settings
+.claude/*
+
+# Virtual Environments
+venv/
+.venv/
+env/
+.env/
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS Files
+Thumbs.db
+*.DS_Store
+
+# Build Artifacts
+*.egg-info/
+*.whl
+*.tar.gz
