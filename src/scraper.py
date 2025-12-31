@@ -115,6 +115,18 @@ def get_txt_files_without_extension(folder: Path) -> List[str]:
     return [f.stem for f in folder_path.glob("*.txt") if f.is_file()]
 
 
+def _sanitize_url(url: str) -> str:
+    """Mask sensitive parameters in URL for logging."""
+    if not url:
+        return str(url)
+    try:
+        # Mask sspassword and devpassword
+        masked = re.sub(r'(sspassword|devpassword)=[^&]+', r'\1=***', str(url))
+        return masked
+    except Exception:
+        return "url_hidden"
+
+
 # Hash calculation functions removed - no longer using hash-based ROM identification
 
 
@@ -287,9 +299,8 @@ def parse_user_info_url(
         }
         return urlunparse(urlparse(USER_INFO_URL)._replace(query=urlencode(params)))
     except UnicodeDecodeError as e:
-        raise exceptions.ScraperError(
-            f"Error encoding URL: {e}. User info params: {params}"
-        )
+        # Params removed from log as they contain sensitive info
+        raise exceptions.ScraperError(f"Error encoding URL: {e}")
 
 
 def find_media_url_by_region(
@@ -396,7 +407,7 @@ def get(url: str, max_retries: int = 3, timeout: int = 30) -> bytes:
             )
 
         except requests.HTTPError as e:
-            status = e.response.status_code if e.response else 0
+            status = e.response.status_code if e.response is not None else 0
             response_text = ""
 
             # Try to get response text for better error messages
@@ -436,7 +447,7 @@ def get(url: str, max_retries: int = 3, timeout: int = 30) -> bytes:
                 raise exceptions.ForbiddenError(error_msg)
 
             elif status == 404:
-                raise exceptions.ScraperError(f"Resource not found: {url}")
+                raise exceptions.ScraperError(f"Resource not found: {_sanitize_url(url)}")
 
             elif status == 423:
                 error_msg = "API fully closed due to server problems"
@@ -508,7 +519,7 @@ def get(url: str, max_retries: int = 3, timeout: int = 30) -> bytes:
         except Exception as e:
             # Catch any unexpected errors
             last_exception = exceptions.ScraperError(
-                f"Unexpected error fetching {url}: {e}"
+                f"Unexpected error fetching {_sanitize_url(url)}: {e}"
             )
 
         # If we get here, we had a retryable error
@@ -528,7 +539,7 @@ def get(url: str, max_retries: int = 3, timeout: int = 30) -> bytes:
         raise last_exception
     else:
         raise exceptions.NetworkError(
-            f"Failed to fetch {url} after {max_retries + 1} attempts"
+            f"Failed to fetch {_sanitize_url(url)} after {max_retries + 1} attempts"
         )
 
 
@@ -556,10 +567,10 @@ def fetch_data(url: str) -> Any:
             # Try with different encodings
             try:
                 body_str = body.decode("latin-1")
-                logger.log_warning(f"Used latin-1 encoding for response from {url}")
+                logger.log_warning(f"Used latin-1 encoding for response from {_sanitize_url(url)}")
             except UnicodeDecodeError:
                 raise exceptions.ScraperError(
-                    f"Unable to decode response from {url}: {e}"
+                    f"Unable to decode response from {_sanitize_url(url)}: {e}"
                 )
 
         if not body_str.strip():
@@ -662,20 +673,20 @@ def fetch_data(url: str) -> Any:
                     and "response" not in data
                 ):
                     logger.log_warning(
-                        f"Unexpected response structure from {url}: {list(data.keys())}"
+                        f"Unexpected response structure from {_sanitize_url(url)}: {list(data.keys())}"
                     )
 
             return data
 
         except json.JSONDecodeError as e:
-            raise exceptions.ScraperError(f"Invalid JSON response from {url}: {e}")
+            raise exceptions.ScraperError(f"Invalid JSON response from {_sanitize_url(url)}: {e}")
 
     except exceptions.ScraperError:
         # Re-raise scraper errors
         raise
     except Exception as e:
         # Catch any unexpected errors
-        raise exceptions.ScraperError(f"Unexpected error fetching data from {url}: {e}")
+        raise exceptions.ScraperError(f"Unexpected error fetching data from {_sanitize_url(url)}: {e}")
 
 
 @api_cached(ttl=3600)  # Cache game data for 1 hour
