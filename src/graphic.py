@@ -65,6 +65,16 @@ class GUI:
         # Logo cache to avoid reloading on every frame
         self._logo_cache = {}
 
+        # General image cache for media thumbnails (ROM detail view etc.)
+        self._image_cache = {}
+
+        # Pre-allocated frame buffer — reused every frame to avoid allocation
+        self._frame_buffer = Image.new(
+            "RGBA",
+            (self.screen_width, self.screen_height),
+            color=self.COLOR_BLACK,
+        )
+
         self.activeImage = None
         self.activeDraw = None
 
@@ -114,10 +124,12 @@ class GUI:
         self._cleanup_framebuffer_resources()
 
     def create_image(self):
-        image = Image.new(
-            "RGBA", (self.screen_width, self.screen_height), color=self.COLOR_BLACK
+        """Return the pre-allocated frame buffer, cleared to black."""
+        # Reuse the existing buffer instead of allocating ~1.2MB per frame
+        self._frame_buffer.paste(
+            self.COLOR_BLACK, (0, 0, self.screen_width, self.screen_height)
         )
-        return image
+        return self._frame_buffer
 
     def draw_image(self, position, image, max_width, max_height):
         if self.activeImage:
@@ -133,6 +145,33 @@ class GUI:
                 self.activeImage.paste(image, position, image)
             else:
                 self.activeImage.paste(image, position)
+
+    def load_image_cached(
+        self, image_path: str, max_width: int, max_height: int
+    ) -> Optional[Image.Image]:
+        """Load, resize, and cache an image. Returns cached copy on subsequent calls."""
+        cache_key = f"{image_path}_{max_width}_{max_height}"
+        if cache_key in self._image_cache:
+            return self._image_cache[cache_key]
+
+        try:
+            path = Path(image_path)
+            if not path.exists():
+                self._image_cache[cache_key] = None
+                return None
+
+            img = Image.open(path).convert("RGBA")
+            img.thumbnail((max_width, max_height), Image.LANCZOS)
+            self._image_cache[cache_key] = img
+            return img
+        except Exception as e:
+            logger.log_warning(f"Failed to load image {image_path}: {e}")
+            self._image_cache[cache_key] = None
+            return None
+
+    def clear_image_cache(self) -> None:
+        """Clear the image cache (call after scraping changes media files)."""
+        self._image_cache.clear()
 
     def load_logo(self, logo_path: str, max_height: int = 24) -> Optional[Image.Image]:
         """Load and cache a system logo, scaled to fit max_height."""

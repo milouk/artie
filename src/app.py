@@ -13,8 +13,6 @@ current_dir = Path(__file__).parent
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
-from PIL import Image
-
 import exceptions
 import input
 from cache_manager import get_cache_manager
@@ -607,9 +605,11 @@ class App:
             self.roms_selected_position = max(0, self.roms_selected_position + step)
 
     def _clear_rom_cache(self) -> None:
-        """Clear the ROM data cache."""
+        """Clear the ROM data cache and image cache."""
         self.cached_roms_data = None
         self.cached_system = None
+        if self.gui:
+            self.gui.clear_image_cache()
 
     def _select_system(self, available_systems: List[str]) -> None:
         """Select a system and prepare for atomic transition to ROM view with data prepared BEFORE any visual changes."""
@@ -1601,17 +1601,19 @@ class App:
 
         if has_media:
             media_path = media_dir / f"{rom_name}.png"
-            try:
-                img = Image.open(media_path).convert("RGBA")
-                # Scale to fit within panel with padding
-                pad = 4
-                img.thumbnail((max_w - pad * 2, max_h - pad * 2), Image.LANCZOS)
+            pad = 4
+            img = self.gui.load_image_cached(
+                str(media_path), max_w - pad * 2, max_h - pad * 2
+            )
+            if img:
                 # Center within panel
                 cx = x + (max_w - img.width) // 2
                 cy = y + (max_h - img.height) // 2
-                self.gui.draw_image_at((cx, cy), img, max_w, max_h)
-            except Exception as e:
-                logger.log_warning(f"Failed to load media {media_path}: {e}")
+                if img.mode == "RGBA":
+                    self.gui.activeImage.paste(img, (cx, cy), img)
+                else:
+                    self.gui.activeImage.paste(img, (cx, cy))
+            else:
                 self.gui.draw_text(
                     (x + max_w // 2, y + max_h // 2),
                     "Load error",
