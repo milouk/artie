@@ -3,53 +3,57 @@
 Artie is a powerful art scraper designed for Anbernic devices running MuOS. It helps you download and manage artwork for your ROMs, enhancing your gaming experience with beautiful visuals and a highly optimized, responsive interface.
 
 <div style="display: flex; justify-content: space-between;">
-  <img src="screenshots/artie1.png" alt="Artie Screenshot 1" style="width: 48%;"/>
-  <img src="screenshots/artie2.png" alt="Artie Screenshot 2" style="width: 48%;"/>
+  <img src="screenshots/artie1.png" alt="Artie Systems View" style="width: 32%;"/>
+  <img src="screenshots/artie2.png" alt="Artie ROMs View" style="width: 32%;"/>
+  <img src="screenshots/artie_new_progress.png" alt="Artie Progress View" style="width: 32%;"/>
 </div>
 
 ## Features
 
-- **Easy-to-use and minimal UI** inspired from [tiny-scraper](https://github.com/Julioevm/tiny-scraper)
-- **Enhanced UI performance** with atomic transitions and smooth animations
+- **Modern dark UI** with amber accent theme, system logos, status badges, and progress bars
+- **System logos** displayed inline in the emulator list (configurable via `show_logos`)
+- **Scraping interruption** - press B to cancel batch scraping at any time
+- **Visual progress bar** with ETA during batch scraping
+- **Enhanced UI performance** with atomic transitions and double-buffered rendering
 - **Advanced caching system** for improved performance and reduced API calls
-- **Comprehensive error handling and logging** with detailed error tracking
 - **Enhanced navigation** with page jumping capabilities (R1/R2, L1/L2)
-- **Improved input responsiveness** with optimized button handling
-- **Clean, production-ready codebase** with maintainable architecture
+- **Fully configurable color theme** via `config.json`
 - Scrape per system or individual ROM
 - Integrates seamlessly with MuOS
-- Highly customizable through `config.json`
 - Support for Box Art, Preview and Text (Synopsis)
-- **Image mask processing capabilities** for custom box art and preview image enhancement
-- **Optional and configurable mask system** that applies custom overlays to downloaded artwork
+- **Image mask processing** for custom box art and preview image enhancement
 - Option to delete all media for a selected system
 - Works on other OSs with minimal adaptation
 - Supported media includes `["box-2D", "box-3D", "mixrbv1", "mixrbv2", "ss", "marquee"]`
 
-## What's New - Recent Improvements
+## What's New in v2.0
 
-This enhanced version of Artie includes significant improvements over the original:
+### Modern UI
+
+- Dark theme with amber/gold accent and configurable color palette
+- System logos rendered inline in the emulator list
+- Color-coded status badges (B/P/T) showing which media each ROM has
+- Progress bar overlay with percentage and ETA during batch scraping
+- Pill-shaped control buttons, page indicators, and visual separators
+
+### Scraping
+
+- **Cancel batch scraping** by pressing B at any time
+- Non-blocking input polling so the UI stays responsive during scraping
+- Thread-safe cancellation with `threading.Event`
 
 ### Performance & Stability
 
-- **Fixed view transition flash issues** - Smooth, seamless transitions between screens
-- **Advanced caching system** - Intelligent ROM data and media caching for faster loading
-- **Enhanced error recovery** - Robust error handling with automatic recovery mechanisms
-- **Improved memory management** - Optimized resource usage and cleanup
+- Double-buffered rendering eliminates screen flash on transitions
+- Logo cache prevents repeated disk reads
+- Sentinel-based caching correctly stores `None` API results
+- MD5 hashing uses 1MB chunks instead of 8KB
+- Connection pooling for HTTP requests
 
-### User Experience
+### Navigation
 
-- **Enhanced B button responsiveness** - Immediate feedback and consistent behavior
-- **Page navigation in ROM view** - Quick navigation through large ROM collections
-- **Atomic state transitions** - Prevents UI inconsistencies and improves reliability
-- **Improved input handling** - More responsive and accurate control input
-
-### Technical Improvements
-
-- **Comprehensive logging system** - Detailed logs for troubleshooting and debugging
-- **Code cleanup and refactoring** - Maintainable, well-structured codebase
-- **Enhanced architecture** - Modular design with clear separation of concerns
-- **Production-ready stability** - Extensive testing and error handling
+- Page jumping with L1/R1 (by page) and L2/R2 (by 100)
+- Separate position tracking for emulator and ROM lists
 
 ## Image Mask Processing
 
@@ -168,13 +172,14 @@ Follow these steps to install Artie:
 {
   "roms": "/mnt/sdcard/ROMS",
   "logos": "assets/logos",
+  "show_logos": true,
   "log_level": "info",
   "colors": {
-    "primary": "#bb7200",
-    "primary_dark": "#7f4f00",
-    "secondary": "#292929",
-    "secondary_light": "#383838",
-    "secondary_dark": "#141414"
+    "primary": "#d4881c",
+    "primary_dark": "#a06210",
+    "secondary": "#1e1e2e",
+    "secondary_light": "#2a2a3c",
+    "secondary_dark": "#14141e"
   },
   "screenscraper": {
     "username": "your_username",
@@ -240,6 +245,7 @@ Follow these steps to install Artie:
 
 - **`roms`**: Path to your ROMs directory on the device
 - **`logos`**: Path to system logo assets
+- **`show_logos`**: Show system logos in the emulator list (`true`/`false`, default `true`)
 - **`log_level`**: Logging verbosity (`"info"`, `"debug"`, etc.)
 - **`colors`**: UI color theme customization
 - **`screenscraper.username`** / **`password`**: Your Screenscraper account credentials

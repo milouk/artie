@@ -167,21 +167,25 @@ class App:
 
             # Apply color configuration
             if self.config and self.config.colors:
-                self.gui.COLOR_PRIMARY = self.config.colors.get(
-                    "primary", self.gui.COLOR_PRIMARY
-                )
-                self.gui.COLOR_PRIMARY_DARK = self.config.colors.get(
-                    "primary_dark", self.gui.COLOR_PRIMARY_DARK
-                )
-                self.gui.COLOR_SECONDARY = self.config.colors.get(
-                    "secondary", self.gui.COLOR_SECONDARY
-                )
-                self.gui.COLOR_SECONDARY_LIGHT = self.config.colors.get(
-                    "secondary_light", self.gui.COLOR_SECONDARY_LIGHT
-                )
-                self.gui.COLOR_SECONDARY_DARK = self.config.colors.get(
-                    "secondary_dark", self.gui.COLOR_SECONDARY_DARK
-                )
+                color_map = {
+                    "primary": "COLOR_PRIMARY",
+                    "primary_dark": "COLOR_PRIMARY_DARK",
+                    "secondary": "COLOR_SECONDARY",
+                    "secondary_light": "COLOR_SECONDARY_LIGHT",
+                    "secondary_dark": "COLOR_SECONDARY_DARK",
+                    "accent_bar": "COLOR_ACCENT_BAR",
+                    "muted": "COLOR_MUTED",
+                    "header_bg": "COLOR_HEADER_BG",
+                    "row_hover": "COLOR_ROW_HOVER",
+                    "success": "COLOR_SUCCESS",
+                }
+                for key, attr in color_map.items():
+                    if key in self.config.colors:
+                        setattr(
+                            self.gui,
+                            attr,
+                            self.config.colors[key],
+                        )
 
         except Exception as e:
             logger.log_error(f"Failed to initialize GUI: {e}")
@@ -419,14 +423,47 @@ class App:
         screen_image = self.gui.create_image()
         self.gui.draw_active(screen_image)
 
-        # Draw all interface elements to buffer
-        self.gui.draw_rectangle_r([10, 40, 630, 440], 15)
-        self.gui.draw_text((320, 20), f"Artie Scraper v{VERSION}", anchor="mm")
+        # Header bar
+        self.gui.draw_rectangle_r([0, 0, 640, 36], 0, fill=self.gui.COLOR_HEADER_BG)
+        self.gui.draw_text(
+            (20, 18),
+            "ARTIE SCRAPER",
+            font=18,
+            color=self.gui.COLOR_PRIMARY,
+            anchor="lm",
+        )
+        # Version badge
+        self.gui.draw_rectangle_r(
+            [160, 8, 220, 28], 10, fill=self.gui.COLOR_SECONDARY_LIGHT
+        )
+        self.gui.draw_text(
+            (190, 18), f"v{VERSION}", font=11, color=self.gui.COLOR_MUTED, anchor="mm"
+        )
+
+        # Content area
+        self.gui.draw_rectangle_r(
+            [10, 42, 630, 438], 10, fill=self.gui.COLOR_SECONDARY_DARK
+        )
 
         if available_systems:
             self._draw_available_systems(available_systems)
+            # Page indicator
+            total_pages = (len(available_systems) + self.max_elem - 1) // self.max_elem
+            current_page = (self.selected_position // self.max_elem) + 1
+            self.gui.draw_text(
+                (620, 18),
+                f"{current_page}/{total_pages}",
+                font=11,
+                color=self.gui.COLOR_MUTED,
+                anchor="rm",
+            )
         else:
             self._draw_no_emulators_message()
+
+        # Separator line above controls
+        self.gui.draw_line(
+            (10, 443), (630, 443), fill=self.gui.COLOR_SECONDARY_LIGHT, width=1
+        )
 
         self._draw_emulator_controls()
 
@@ -443,26 +480,79 @@ class App:
             self._draw_system_row(system, i, is_selected)
 
     def _draw_system_row(self, system: str, index: int, selected: bool) -> None:
-        """Draw a single system row."""
+        """Draw a single system row with accent bar and optional logo."""
         y_pos = 50 + (index * 35)
+
+        # Row background
+        row_fill = (
+            self.gui.COLOR_ROW_HOVER if selected else self.gui.COLOR_SECONDARY_DARK
+        )
         self.gui.draw_rectangle_r(
             [20, y_pos, 620, y_pos + 32],
-            5,
-            fill=self.gui.COLOR_PRIMARY if selected else self.gui.COLOR_SECONDARY_LIGHT,
+            6,
+            fill=row_fill,
         )
-        self.gui.draw_text((25, y_pos + 5), system)
+
+        # Left accent bar for selected row
+        if selected:
+            self.gui.draw_rectangle_r(
+                [20, y_pos, 24, y_pos + 32],
+                2,
+                fill=self.gui.COLOR_ACCENT_BAR,
+            )
+
+        # Try to show system logo if enabled
+        LOGO_AREA_W = 170  # Fixed width reserved for logos
+        show_logos = (
+            self.config and self.config.show_logos and self.config.systems_logo_path
+        )
+        if show_logos:
+            logo_path = f"{self.config.systems_logo_path}/" f"{system.upper()}.png"
+            logo = self.gui.load_logo(logo_path, max_height=20)
+            if logo:
+                max_logo_w = LOGO_AREA_W - 10
+                logo_y = y_pos + (32 - logo.height) // 2
+                self.gui.draw_image_at(
+                    (30, logo_y),
+                    logo,
+                    max_logo_w,
+                    20,
+                )
+
+        # Text always starts at a fixed column
+        text_x = 30 + LOGO_AREA_W if show_logos else 30
+
+        self.gui.draw_text(
+            (text_x, y_pos + 16),
+            system,
+            font=14 if selected else 13,
+            color=(self.gui.COLOR_WHITE if selected else self.gui.COLOR_MUTED),
+            anchor="lm",
+        )
 
     def _draw_no_emulators_message(self) -> None:
         """Draw message when no emulators are found."""
         self.gui.draw_text(
-            (320, 240), f"No Emulators found in {self.config.roms_path}", anchor="mm"
+            (320, 220),
+            "No Emulators Found",
+            font=18,
+            color=self.gui.COLOR_MUTED,
+            anchor="mm",
+        )
+        self.gui.draw_text(
+            (320, 250),
+            f"Check path: {self.config.roms_path}",
+            font=11,
+            color=self.gui.COLOR_MUTED,
+            anchor="mm",
         )
 
     def _draw_emulator_controls(self) -> None:
         """Draw control buttons for emulator screen."""
-        self._draw_button_circle((30, 450), "A", "Select")
-        self._draw_button_circle((170, 450), "X", "Delete")
-        self._draw_button_circle((300, 450), "M", "Exit")
+        y = 453
+        self._draw_button_pill((25, y), "A", "Select")
+        self._draw_button_pill((165, y), "X", "Delete")
+        self._draw_button_pill((310, y), "M", "Exit")
 
     def _handle_emulator_input(self, available_systems: List[str]) -> None:
         """Handle input for emulator selection screen."""
@@ -530,8 +620,6 @@ class App:
                 # ROM loading failed - show error and stay in emulator view
                 loading_image = self.gui.create_image()
                 self.gui.draw_active(loading_image)
-                self.gui.draw_rectangle_r([10, 40, 630, 440], 15)
-                self.gui.draw_text((320, 20), f"Artie Scraper v{VERSION}", anchor="mm")
                 self.gui.draw_log(f"Failed to load ROMs for {self.selected_system}")
                 self.gui.draw_paint()
                 time.sleep(self.LOG_WAIT)
@@ -550,8 +638,6 @@ class App:
             # On error, show error message and stay in emulator view
             loading_image = self.gui.create_image()
             self.gui.draw_active(loading_image)
-            self.gui.draw_rectangle_r([10, 40, 630, 440], 15)
-            self.gui.draw_text((320, 20), f"Artie Scraper v{VERSION}", anchor="mm")
             self.gui.draw_log(f"Error loading ROMs: {str(e)[:50]}...")
             self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
@@ -872,14 +958,17 @@ class App:
 
                         progress_msg = (
                             f"{completed}/{total_roms} ROMs "
-                            f"({(completed/total_roms)*100:.1f}%) - "
-                            f"ETA: {estimated_remaining/60:.1f}min "
+                            f"- ETA: {estimated_remaining/60:.1f}min "
                             f"[B] Cancel"
                         )
 
                         logger.log_info(progress_msg)
 
-                        self.gui.draw_log(progress_msg)
+                        progress = completed / total_roms
+                        self.gui.draw_log_with_progress(
+                            progress_msg,
+                            progress,
+                        )
                         self.gui.draw_paint()
 
                     except exceptions.RateLimitError as e:
@@ -1040,57 +1129,101 @@ class App:
 
     def _render_roms_interface(self, roms_data: RomsData) -> None:
         """Render the ROM selection interface with optimized double-buffering."""
-        logger.log_debug(
-            "=== ROM NAVIGATION DEBUG: Starting optimized ROM interface render ==="
-        )
-
-        # Create a new image buffer and prepare complete interface before painting
-        logger.log_debug(
-            "ROM NAVIGATION DEBUG: Creating new image buffer for complete interface"
-        )
         interface_image = self.gui.create_image()
         self.gui.draw_active(interface_image)
 
-        # Draw all interface elements to the buffer first
-        logger.log_debug(
-            "ROM NAVIGATION DEBUG: Drawing all interface elements to buffer"
+        # Header bar
+        self.gui.draw_rectangle_r(
+            [0, 0, 640, 36],
+            0,
+            fill=self.gui.COLOR_HEADER_BG,
         )
-        self.gui.draw_rectangle_r([10, 40, 630, 440], 15)
 
         # Draw header information
         self._draw_roms_header(roms_data)
 
+        # Content area
+        self.gui.draw_rectangle_r(
+            [10, 42, 630, 438],
+            10,
+            fill=self.gui.COLOR_SECONDARY_DARK,
+        )
+
         # Draw ROM list
         self._draw_roms_list(roms_data)
+
+        # Separator line above controls
+        self.gui.draw_line(
+            (10, 443),
+            (630, 443),
+            fill=self.gui.COLOR_SECONDARY_LIGHT,
+            width=1,
+        )
 
         # Draw controls
         self._draw_roms_controls()
 
-        # Paint the complete interface in one operation (no black flash)
-        logger.log_debug(
-            "ROM NAVIGATION DEBUG: Painting complete interface in single operation"
-        )
+        # Paint complete interface in single operation
         self.gui.draw_paint()
-        logger.log_debug(
-            "=== ROM NAVIGATION DEBUG: Optimized ROM interface render complete ==="
-        )
 
     def _draw_roms_header(self, roms_data: RomsData) -> None:
         """Draw header with ROM statistics."""
-        rom_text = f"{self.selected_system} - Total Roms: {len(roms_data.roms_list)}"
+        # System name
+        self.gui.draw_text(
+            (20, 18),
+            self.selected_system.upper(),
+            font=18,
+            color=self.gui.COLOR_PRIMARY,
+            anchor="lm",
+        )
 
-        missing_parts = []
-        if self.config.box_enabled:
-            missing_parts.append(f"No box: {len(roms_data.roms_without_box)}")
-        if self.config.preview_enabled:
-            missing_parts.append(f"No preview: {len(roms_data.roms_without_preview)}")
-        if self.config.synopsis_enabled:
-            missing_parts.append(f"No text: {len(roms_data.roms_without_synopsis)}")
+        # Total ROMs badge
+        total = len(roms_data.roms_list)
+        self.gui.draw_rectangle_r(
+            [160, 8, 230, 28],
+            10,
+            fill=self.gui.COLOR_SECONDARY_LIGHT,
+        )
+        self.gui.draw_text(
+            (195, 18),
+            f"{total} ROMs",
+            font=11,
+            color=self.gui.COLOR_MUTED,
+            anchor="mm",
+        )
 
-        missing_text = " / ".join(missing_parts)
+        # Missing media stats on the right
+        stats = []
+        if self.config.box_enabled and roms_data.roms_without_box:
+            stats.append(f"B:{len(roms_data.roms_without_box)}")
+        if self.config.preview_enabled and roms_data.roms_without_preview:
+            stats.append(f"P:{len(roms_data.roms_without_preview)}")
+        if self.config.synopsis_enabled and roms_data.roms_without_synopsis:
+            stats.append(f"T:{len(roms_data.roms_without_synopsis)}")
 
-        self.gui.draw_text((90, 10), rom_text, anchor="mm")
-        self.gui.draw_text((500, 10), missing_text, anchor="mm")
+        if stats:
+            missing_text = "  ".join(stats)
+            self.gui.draw_text(
+                (620, 18),
+                missing_text,
+                font=11,
+                color=self.gui.COLOR_MUTED,
+                anchor="rm",
+            )
+
+        # Page indicator
+        total_pages = max(
+            1,
+            (len(roms_data.roms_to_scrape) + self.max_elem - 1) // self.max_elem,
+        )
+        current_page = (self.roms_selected_position // self.max_elem) + 1
+        self.gui.draw_text(
+            (400, 18),
+            f"{current_page}/{total_pages}",
+            font=11,
+            color=self.gui.COLOR_MUTED,
+            anchor="mm",
+        )
 
     def _draw_roms_list(self, roms_data: RomsData) -> None:
         """Draw the list of ROMs with pagination."""
@@ -1104,71 +1237,109 @@ class App:
     def _draw_rom_row(
         self, rom: Rom, index: int, selected: bool, roms_data: RomsData
     ) -> None:
-        """Draw a single ROM row with status information."""
+        """Draw a single ROM row with status badges."""
         y_pos = 50 + (index * 35)
 
         # Determine what media already exists
-        already_scraped = []
-        if self.config.box_enabled and rom not in roms_data.roms_without_box:
-            already_scraped.append("Box")
-        if self.config.preview_enabled and rom not in roms_data.roms_without_preview:
-            already_scraped.append("Preview")
-        if self.config.synopsis_enabled and rom not in roms_data.roms_without_synopsis:
-            already_scraped.append("Text")
+        has_box = self.config.box_enabled and rom not in roms_data.roms_without_box
+        has_preview = (
+            self.config.preview_enabled and rom not in roms_data.roms_without_preview
+        )
+        has_text = (
+            self.config.synopsis_enabled and rom not in roms_data.roms_without_synopsis
+        )
 
         # Truncate ROM name if too long
-        max_length = 48
+        max_length = 45
         display_name = (
             rom.name[:max_length] + "..." if len(rom.name) > max_length else rom.name
         )
 
-        # Draw main row
+        # Row background
+        row_fill = (
+            self.gui.COLOR_ROW_HOVER if selected else self.gui.COLOR_SECONDARY_DARK
+        )
         self.gui.draw_rectangle_r(
             [20, y_pos, 620, y_pos + 32],
-            5,
-            fill=self.gui.COLOR_PRIMARY if selected else self.gui.COLOR_SECONDARY_LIGHT,
+            6,
+            fill=row_fill,
         )
-        self.gui.draw_text((25, y_pos + 5), display_name)
 
-        # Draw status information
-        if already_scraped:
-            status_text = "/".join(already_scraped)
+        # Left accent bar for selected
+        if selected:
             self.gui.draw_rectangle_r(
-                [500, y_pos, 550, y_pos + 32],
-                5,
-                fill=(
-                    self.gui.COLOR_PRIMARY
-                    if selected
-                    else self.gui.COLOR_SECONDARY_LIGHT
-                ),
+                [20, y_pos, 24, y_pos + 32],
+                2,
+                fill=self.gui.COLOR_ACCENT_BAR,
             )
-            self.gui.draw_text((505, y_pos + 5), status_text)
+
+        # ROM name
+        self.gui.draw_text(
+            (30, y_pos + 16),
+            display_name,
+            font=14 if selected else 13,
+            color=(self.gui.COLOR_WHITE if selected else self.gui.COLOR_MUTED),
+            anchor="lm",
+        )
+
+        # Status badges (small colored dots/pills)
+        badge_x = 615
+        badges = []
+        if self.config.box_enabled:
+            badges.append(("B", has_box))
+        if self.config.preview_enabled:
+            badges.append(("P", has_preview))
+        if self.config.synopsis_enabled:
+            badges.append(("T", has_text))
+
+        for label, has_it in reversed(badges):
+            color = self.gui.COLOR_SUCCESS if has_it else self.gui.COLOR_SECONDARY_LIGHT
+            self.gui.draw_rectangle_r(
+                [badge_x - 18, y_pos + 8, badge_x, y_pos + 24],
+                4,
+                fill=color,
+            )
+            self.gui.draw_text(
+                (badge_x - 9, y_pos + 16),
+                label,
+                font=10,
+                color=self.gui.COLOR_WHITE if has_it else "#555555",
+                anchor="mm",
+            )
+            badge_x -= 22
 
     def _draw_roms_controls(self) -> None:
         """Draw control buttons for ROM screen."""
-        self._draw_button_rectangle((30, 450), "Start", "All")
-        self._draw_button_circle((140, 450), "A", "Download")
-        self._draw_button_circle((250, 450), "X", "Delete")
-        self._draw_button_circle((370, 450), "B", "Back")
-        self._draw_button_circle((500, 450), "M", "Exit")
+        y = 453
+        self._draw_button_pill((15, y), "ST", "All")
+        self._draw_button_pill((110, y), "A", "Get")
+        self._draw_button_pill((205, y), "X", "Del")
+        self._draw_button_pill((310, y), "B", "Back")
+        self._draw_button_pill((420, y), "M", "Exit")
 
-    def _draw_button_circle(self, pos: Tuple[int, int], button: str, text: str) -> None:
-        """Draw a circular button with label."""
-        self.gui.draw_circle(pos, 25)
-        self.gui.draw_text((pos[0] + 12, pos[1] + 12), button, anchor="mm")
-        self.gui.draw_text((pos[0] + 30, pos[1] + 12), text, font=13, anchor="lm")
-
-    def _draw_button_rectangle(
-        self, pos: Tuple[int, int], button: str, text: str
-    ) -> None:
-        """Draw a rectangular button with label."""
+    def _draw_button_pill(self, pos: Tuple[int, int], button: str, text: str) -> None:
+        """Draw a modern pill-shaped button with label."""
+        # Button key circle/pill
+        btn_w = max(22, len(button) * 11 + 8)
         self.gui.draw_rectangle_r(
-            (pos[0], pos[1], pos[0] + 60, pos[1] + 25),
-            5,
-            fill=self.gui.COLOR_SECONDARY_LIGHT,
+            (pos[0], pos[1], pos[0] + btn_w, pos[1] + 22),
+            11,
+            fill=self.gui.COLOR_PRIMARY_DARK,
         )
-        self.gui.draw_text((pos[0] + 30, pos[1] + 12), button, anchor="mm")
-        self.gui.draw_text((pos[0] + 65, pos[1] + 12), text, font=13, anchor="lm")
+        self.gui.draw_text(
+            (pos[0] + btn_w // 2, pos[1] + 11),
+            button,
+            font=12,
+            anchor="mm",
+        )
+        # Label text
+        self.gui.draw_text(
+            (pos[0] + btn_w + 5, pos[1] + 11),
+            text,
+            font=13,
+            color=self.gui.COLOR_MUTED,
+            anchor="lm",
+        )
 
     def _exit_roms_menu(self) -> None:
         """Exit ROM menu and return to emulator selection with atomic transition."""
