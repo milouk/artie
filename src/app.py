@@ -39,6 +39,7 @@ VERSION = "3.0.0"
 
 class _ScrapeCancelledError(Exception):
     """Raised inside worker threads when scraping is cancelled."""
+
     pass
 
 
@@ -916,6 +917,10 @@ class App:
         total_roms = len(roms_data.roms_to_scrape)
         self._scrape_cancelled.clear()
 
+        # Keep a persistent input fd open so B presses are queued by the
+        # kernel between polls (evdev queues events per open fd).
+        input.start_nonblocking()
+
         cache_stats = self.cache_manager.get_stats()
 
         self.gui.draw_log(f"Starting batch scraping of {total_roms} ROMs...")
@@ -1042,6 +1047,7 @@ class App:
             logger.log_error(f"Error in batch scraping: {e}")
             self.gui.draw_log(f"Batch scraping error: {str(e)[:50]}...")
 
+        input.stop_nonblocking()
         self.gui.draw_paint()
         time.sleep(self.LOG_WAIT * 3)
         self.skip_input_check = True
