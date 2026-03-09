@@ -2,6 +2,7 @@
 
 import concurrent.futures
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
@@ -22,7 +23,6 @@ from logger import LoggerSingleton as logger
 from rom_manager import Rom, RomManager
 from scraper import (
     check_destination,
-    check_rate_limit_cache_status,
     fetch_box,
     fetch_preview,
     fetch_synopsis,
@@ -103,6 +103,9 @@ class App:
         # ROM data caching
         self.cached_roms_data: Optional[RomsData] = None
         self.cached_system: Optional[str] = None
+
+        # Scraping cancellation
+        self._scrape_cancelled = threading.Event()
 
         # GUI
         self.gui: Optional[GUI] = None
@@ -802,19 +805,24 @@ class App:
         time.sleep(self.LOG_WAIT)
         self.skip_input_check = True
 
+    def _check_scrape_cancelled(self) -> bool:
+        """Poll for B button press to cancel scraping (non-blocking)."""
+        if input.check_input_nonblocking() and input.key_pressed("B"):
+            self._scrape_cancelled.set()
+            return True
+        return self._scrape_cancelled.is_set()
+
     def _scrape_all_roms(self, roms_data: RomsData) -> None:
         """Scrape all ROMs using thread pool with performance monitoring and progress indicators."""
         if not roms_data.roms_to_scrape:
             return
 
         total_roms = len(roms_data.roms_to_scrape)
+        self._scrape_cancelled.clear()
 
-        # PERFORMANCE: Show initial performance info (hash stats removed)
         cache_stats = self.cache_manager.get_stats()
 
         self.gui.draw_log(f"Starting batch scraping of {total_roms} ROMs...")
-        # API Cache popup: Shows current cache statistics to help users understand
-        # performance optimizations - displays number of cached API responses and hit rate
         self.gui.draw_log(
             f"API cache: {cache_stats.get('api_cache_size', 0)} entries, "
             f"{cache_stats.get('hit_rate_percent', 0):.1f}% hit rate"
@@ -822,6 +830,7 @@ class App:
         self.gui.draw_paint()
 
         completed = 0
+        cancelled = False
         quota_exceeded = False
         start_time = time.time()
 
@@ -839,12 +848,20 @@ class App:
 
                 # Process completed tasks with performance monitoring
                 for future in concurrent.futures.as_completed(future_to_rom):
+                    # Check for user cancellation
+                    if self._check_scrape_cancelled():
+                        cancelled = True
+                        logger.log_info("Batch scraping cancelled by user")
+                        for remaining_future in future_to_rom:
+                            remaining_future.cancel()
+                        break
+
                     rom = future_to_rom[future]
                     try:
                         future.result()
                         completed += 1
 
-                        # Show progress with performance info
+                        # Show progress with cancel hint
                         elapsed_time = time.time() - start_time
                         avg_time_per_rom = (
                             elapsed_time / completed if completed > 0 else 0
@@ -854,29 +871,20 @@ class App:
                         )
 
                         progress_msg = (
-                            f"PROGRESS: {completed}/{total_roms} ROMs "
+                            f"{completed}/{total_roms} ROMs "
                             f"({(completed/total_roms)*100:.1f}%) - "
-                            f"ETA: {estimated_remaining/60:.1f}min"
+                            f"ETA: {estimated_remaining/60:.1f}min "
+                            f"[B] Cancel"
                         )
 
                         logger.log_info(progress_msg)
 
-                        # Update GUI for live progress
                         self.gui.draw_log(progress_msg)
                         self.gui.draw_paint()
 
                     except exceptions.RateLimitError as e:
-                        logger.log_error(
-                            f"RATE_LIMIT_DEBUG: Rate limit error during batch scraping: {e}"
-                        )
-                        cache_status = check_rate_limit_cache_status(
-                            self.config.username
-                        )
-                        logger.log_error(
-                            f"RATE_LIMIT_DEBUG: Current cache status: {cache_status}"
-                        )
+                        logger.log_error(f"Rate limit error during batch scraping: {e}")
                         quota_exceeded = True
-                        # Cancel remaining tasks when quota is exceeded
                         for remaining_future in future_to_rom:
                             remaining_future.cancel()
                         break
@@ -887,7 +895,6 @@ class App:
                     except Exception as e:
                         logger.log_error(f"Error scraping ROM {rom.name}: {e}")
 
-            # PERFORMANCE: Show final performance statistics
             total_time = time.time() - start_time
             performance_summary = [
                 "PERFORMANCE SUMMARY:",
@@ -897,23 +904,20 @@ class App:
                     if completed > 0
                     else "• No ROMs completed"
                 ),
-                "• API requests optimized with caching",
-                "• Network requests optimized with connection pooling",
             ]
 
             for msg in performance_summary:
-                if msg:  # Skip empty messages
-                    logger.log_info(msg)
-                    self.gui.draw_log(msg)
+                logger.log_info(msg)
 
             # Clear cache after batch scraping to ensure fresh data on next load
             if completed > 0:
-                logger.log_debug(
-                    "CACHE INVALIDATION: Clearing cache after batch ROM scraping"
-                )
                 self._clear_rom_cache()
 
-            if quota_exceeded:
+            if cancelled:
+                self.gui.draw_log(
+                    f"Scraping cancelled. Completed {completed}/{total_roms} ROMs."
+                )
+            elif quota_exceeded:
                 self.gui.draw_log(
                     f"Batch stopped: API quota exceeded. Completed {completed} ROMs."
                 )
@@ -927,7 +931,7 @@ class App:
             self.gui.draw_log(f"Batch scraping error: {str(e)[:50]}...")
 
         self.gui.draw_paint()
-        time.sleep(self.LOG_WAIT * 3)  # Longer wait to read performance summary
+        time.sleep(self.LOG_WAIT * 3)
         self.skip_input_check = True
 
     def _process_rom(self, rom: Rom, roms_data: RomsData) -> Tuple[Any, Any, Any, str]:
@@ -964,6 +968,9 @@ class App:
 
     def _process_rom_with_monitoring(self, rom: Rom, roms_data: RomsData) -> dict:
         """Process a single ROM with performance monitoring."""
+        if self._scrape_cancelled.is_set():
+            return {"success": False, "rom_name": rom.name, "skipped": True}
+
         start_time = time.time()
 
         try:

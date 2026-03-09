@@ -1,5 +1,6 @@
 """Input handling module with proper resource management and state encapsulation."""
 
+import select
 import struct
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -132,6 +133,27 @@ class InputManager:
 
         return False
 
+    def check_input_nonblocking(self) -> bool:
+        """
+        Non-blocking input check. Returns True if a key event was read.
+
+        Uses select() to check if data is available before reading,
+        so this never blocks the caller.
+        """
+        if not self.device_path.exists():
+            return False
+
+        try:
+            with self._open_device() as device:
+                ready, _, _ = select.select([device], [], [], 0)
+                if ready:
+                    event_data = device.read(24)
+                    if event_data:
+                        return self._process_event(event_data)
+        except Exception:
+            pass
+        return False
+
     def key_pressed(self, key_code_name: str, key_value: Optional[int] = None) -> bool:
         """
         Check if a specific key was pressed.
@@ -201,6 +223,15 @@ def key_pressed(key_code_name: str, key_value: Optional[int] = None) -> bool:
     if key_value == 99:
         key_value = None
     return manager.key_pressed(key_code_name, key_value)
+
+
+def check_input_nonblocking() -> bool:
+    """Non-blocking input check (backward compatibility function)."""
+    manager = _get_input_manager()
+    result = manager.check_input_nonblocking()
+    if result:
+        _update_legacy_variables()
+    return result
 
 
 def reset_input() -> None:
