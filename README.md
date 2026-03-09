@@ -12,63 +12,101 @@ Artie is a powerful art scraper designed for Anbernic devices running MuOS. It h
 
 - **Modern dark UI** with amber accent theme, system logos, status badges, and progress bars
 - **System logos** displayed inline in the emulator list (configurable via `show_logos`)
-- **Scraping interruption** - press B to cancel batch scraping at any time
+- **ROM detail view** - press Y to preview scraped box art, preview images, and synopsis text
+- **Scraping interruption** - press B to cancel batch scraping at any time with instant response
 - **Visual progress bar** with ETA during batch scraping
-- **Enhanced UI performance** with atomic transitions and double-buffered rendering
-- **Advanced caching system** for improved performance and reduced API calls
+- **Optimized rendering** with pre-allocated frame buffers, image caching, and double-buffered output
+- **Advanced caching system** for ROM data, media thumbnails, logos, and API responses
 - **Enhanced navigation** with page jumping capabilities (R1/R2, L1/L2)
 - **Fully configurable color theme** via `config.json`
 - Scrape per system or individual ROM
 - Integrates seamlessly with MuOS
 - Support for Box Art, Preview and Text (Synopsis)
 - **Image mask processing** for custom box art and preview image enhancement
-- Option to delete all media for a selected system
+- Option to delete all media for a selected system or individual ROM
 - Works on other OSs with minimal adaptation
 - Supported media includes `["box-2D", "box-3D", "mixrbv1", "mixrbv2", "ss", "marquee"]`
 
-## What's New in v2.0
+## What's New in v3.0
+
+### ROM Detail View
+
+- Press **Y** on any ROM to see a full detail screen with box art, preview, and synopsis
+- Cached media thumbnails for instant re-rendering
+- Scrape directly from the detail view with **A**, view updates automatically
+- Status badges (BOX/PRV/TXT) show what has been scraped at a glance
+
+### Reliable Scraping Cancellation
+
+- Press **B** during batch scraping to cancel immediately
+- Persistent input file descriptor ensures no button presses are lost
+- Worker threads check cancellation between each API call for fast response
+- "Cancelling..." feedback shown while active threads finish
+
+### Performance Optimizations
+
+- **Pre-allocated frame buffer** — reuses a single image buffer instead of allocating ~1.2MB per frame
+- **Image cache** for ROM detail media — disk I/O and decoding only happens once per image
+- **Logo cache** prevents repeated disk reads for system logos
+- **Unbuffered, non-blocking input** using raw `os.read` with `O_NONBLOCK` for reliable event handling
+- **Persistent evdev file descriptor** during scraping so kernel-queued events are never lost
+- Double-buffered rendering eliminates screen flash on transitions
+- Connection pooling for HTTP requests
 
 ### Modern UI
 
 - Dark theme with amber/gold accent and configurable color palette
-- System logos rendered inline in the emulator list
+- System logos rendered inline in the emulator list with aligned columns
 - Color-coded status badges (B/P/T) showing which media each ROM has
 - Progress bar overlay with percentage and ETA during batch scraping
 - Pill-shaped control buttons, page indicators, and visual separators
-
-### Scraping
-
-- **Cancel batch scraping** by pressing B at any time
-- Non-blocking input polling so the UI stays responsive during scraping
-- Thread-safe cancellation with `threading.Event`
-
-### Performance & Stability
-
-- Double-buffered rendering eliminates screen flash on transitions
-- Logo cache prevents repeated disk reads
-- Sentinel-based caching correctly stores `None` API results
-- MD5 hashing uses 1MB chunks instead of 8KB
-- Connection pooling for HTTP requests
 
 ### Navigation
 
 - Page jumping with L1/R1 (by page) and L2/R2 (by 100)
 - Separate position tracking for emulator and ROM lists
 
+## Navigation Controls
+
+Artie supports intuitive navigation controls optimized for handheld gaming devices:
+
+### Systems Screen
+
+| Button | Action                      |
+| ------ | --------------------------- |
+| D-pad  | Navigate through systems    |
+| A      | Select system               |
+| X      | Delete all media for system |
+| L1/R1  | Jump by page                |
+| L2/R2  | Jump by 100                 |
+| MENU   | Exit application            |
+
+### ROMs Screen
+
+| Button | Action                                        |
+| ------ | --------------------------------------------- |
+| D-pad  | Navigate through ROMs                         |
+| A      | Scrape selected ROM                           |
+| X      | Delete media for selected ROM                 |
+| Y      | View ROM detail (box art, preview, synopsis)  |
+| B      | Back to systems                               |
+| START  | Scrape all ROMs                               |
+| L1/R1  | Jump by page                                  |
+| L2/R2  | Jump by 100                                   |
+| MENU   | Exit application                              |
+
+### ROM Detail Screen
+
+| Button | Action            |
+| ------ | ----------------- |
+| A      | Scrape this ROM   |
+| B      | Back to ROM list  |
+
 ## Image Mask Processing
 
-Artie includes powerful image mask processing capabilities that allow you to apply custom overlays and enhancements to your downloaded artwork. This feature is perfect for creating consistent visual themes or adding custom borders and effects to your box art and preview images.
+Artie includes image mask processing that applies custom PNG overlays to your downloaded artwork. This is useful for adding consistent borders, frames, or visual effects across all your box art and preview images.
 
-### What Mask Processing Does
-
-The mask functionality applies custom PNG overlay images to your downloaded artwork, allowing you to:
-
-- Add consistent borders or frames to all artwork
-- Apply visual effects like shadows, glows, or textures
-- Create themed collections with matching visual styles
-- Enhance artwork with custom overlays or watermarks
-
-### Configuration Examples
+### Configuration
 
 To enable mask processing, configure the mask settings within each content type in your `config.json`:
 
@@ -99,48 +137,13 @@ To enable mask processing, configure the mask settings within each content type 
 }
 ```
 
-### Using Custom Mask Files
+### Mask Requirements
 
-1. **Create your mask files**: Design PNG images with transparency that will serve as overlays
-2. **Place mask files**: Put your mask files in the specified `mask_path` directory (default: `assets/masks/`)
-3. **Configure mask settings**: Update your `config.json` to reference your mask files
-4. **Enable mask processing**: Set `apply_mask` to `true` in your configuration
-
-### Supported Mask Formats
-
-- **PNG format**: Required for proper transparency support
-- **Same dimensions**: Masks should match or exceed the dimensions of target artwork
-- **Alpha channel**: Use transparency to control which parts of the mask are applied
-- **Multiple masks**: Different masks can be applied to different media types (box art, previews, etc.)
-
-### Performance Considerations
-
-- Mask processing adds minimal overhead to the scraping process
-- Masks are cached after first use for improved performance
-- Large mask files may slightly increase processing time
-- Disable mask processing if not needed to maximize scraping speed
-
-## Navigation Controls
-
-Artie supports intuitive navigation controls optimized for handheld gaming devices:
-
-### Standard Navigation
-
-- **D-pad**: Navigate through menus and options
-- **A button**: Select/confirm actions
-- **B button**: Go back/cancel (enhanced responsiveness)
-
-### Advanced Navigation
-
-- **L1/R1 buttons**: Jump by pages in ROM lists for quick navigation
-- **L2/R2 buttons**: Large jumps through ROM collections
-- **Page navigation**: Consistent across both systems and ROM views
-
-### Quick Actions
-
-- Navigate large ROM collections efficiently with page jumping
-- Instant feedback on all button presses
-- Consistent behavior across all interface screens
+- **PNG format** with alpha channel for transparency
+- Masks should match or exceed the dimensions of target artwork
+- Different masks can be applied to different media types
+- Set `resize_mask` to `true` to auto-fit mask dimensions
+- Disable with `apply_mask: false` if not needed for faster scraping
 
 ## Installation / Usage
 
@@ -286,12 +289,6 @@ This file contains detailed information about any errors, performance issues, or
 - Check available storage space on your device
 - Review the log file for any caching issues
 
-#### Navigation Issues
-
-- Ensure your device's controls are properly calibrated
-- Try restarting the application if navigation becomes unresponsive
-- Check for any error messages in the log file
-
 #### Scraping Problems
 
 - Verify your Screenscraper credentials in `config.json`
@@ -307,25 +304,10 @@ This file contains detailed information about any errors, performance issues, or
 
 #### Mask Processing Issues
 
-- **Masks not applying**: Verify that `apply_mask` is set to `true` for the relevant content type (`box` or `preview`) in `config.json`
+- **Masks not applying**: Verify that `apply_mask` is set to `true` for the relevant content type in `config.json`
 - **Mask files not found**: Check that mask files exist at the specified `mask_path`
 - **Poor mask quality**: Ensure mask files are PNG format with proper alpha channels
-- **Performance issues**: Large mask files can slow processing - consider optimizing mask file sizes
 - **Incorrect positioning**: Enable `resize_mask` or ensure mask dimensions match target artwork dimensions
-
-#### Verifying Mask Files Are Working
-
-1. Check the log file for mask processing messages
-2. Verify processed images have the expected overlay effects
-3. Ensure mask files are properly formatted PNG images with transparency
-4. Test with a simple mask first before using complex designs
-
-#### Mask Performance Considerations
-
-- Disable mask processing (set `apply_mask` to `false` per content type) if not needed for faster scraping
-- Use optimized PNG files to reduce processing time
-- Consider mask file sizes - larger files require more processing power
-- Monitor available storage space as processed images may be larger
 
 ### Getting Help
 
@@ -341,23 +323,19 @@ If you continue to experience issues after checking the log file and trying the 
 ### Architecture
 
 - **Atomic state transitions**: Ensures UI consistency and prevents race conditions
-- **Advanced caching**: Intelligent ROM data and media caching with automatic cleanup
+- **Pre-allocated frame buffer**: Reuses a single image buffer across frames to avoid per-frame allocation
+- **Multi-level caching**: Logos, media thumbnails, ROM data, and API responses are all cached
+- **Persistent evdev file descriptor**: Keeps input device open during scraping for reliable event capture
 - **Modular design**: Clean separation between UI, data management, and API layers
 - **Error recovery**: Comprehensive error handling with graceful degradation
 
 ### Performance Features
 
-- **Optimized rendering**: Smooth transitions and responsive UI updates
-- **Memory management**: Efficient resource usage and automatic cleanup
-- **Caching strategy**: Smart caching of ROM metadata and artwork
-- **Input optimization**: Low-latency input handling for responsive controls
-
-### Logging and Debugging
-
-- **Comprehensive logging**: Detailed logs for all operations and errors
-- **Performance monitoring**: Tracking of load times and resource usage
-- **Error tracking**: Detailed error information for troubleshooting
-- **Debug information**: Helpful debugging data for development and support
+- **Zero-allocation rendering**: Frame buffer reused each cycle, cleared in-place
+- **Image cache**: ROM detail media loaded and resized once, served from memory on subsequent views
+- **Non-blocking input**: Raw `os.read` with `O_NONBLOCK` for reliable, low-latency polling
+- **Thread-safe cancellation**: `threading.Event` checked between API calls in worker threads
+- **Connection pooling**: Reused HTTP sessions for scraping requests
 
 ## Contributing
 
