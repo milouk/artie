@@ -418,7 +418,7 @@ class ConfigManager:
             user_level = ssuser.get("niveau", "Unknown")
             max_threads = ssuser.get("maxthreads", "Unknown")
 
-            logger.log_info(f"API credentials validated successfully")
+            logger.log_info("API credentials validated successfully")
             logger.log_info(
                 f"User: {username}, Level: {user_level}, Max threads: {max_threads}"
             )

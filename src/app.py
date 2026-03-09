@@ -377,7 +377,8 @@ class App:
                 f"PERFORMANCE STATS: API cache hit rate: {stats.get('hit_rate_percent', 0):.1f}%"
             )
             logger.log_info(
-                f"PERFORMANCE STATS: Total cache entries: {stats.get('memory_cache_size', 0) + stats.get('api_cache_size', 0)}"
+                "PERFORMANCE STATS: Total cache entries: "
+                f"{stats.get('memory_cache_size', 0) + stats.get('api_cache_size', 0)}"
             )
 
             logger.log_info("Application cleanup complete")
@@ -612,7 +613,7 @@ class App:
             self.gui.clear_image_cache()
 
     def _select_system(self, available_systems: List[str]) -> None:
-        """Select a system and prepare for atomic transition to ROM view with data prepared BEFORE any visual changes."""
+        """Select a system and prepare for atomic transition to ROM view."""
         new_system = available_systems[self.selected_position]
 
         # Clear cache if system is changing
@@ -1668,7 +1669,8 @@ class App:
     def _exit_roms_menu(self) -> None:
         """Exit ROM menu and return to emulator selection with atomic transition."""
         logger.log_debug(
-            f"DEBUG_TRANSITION: _exit_roms_menu() called - preparing atomic transition from '{self.current_window}' to 'emulators'"
+            "DEBUG_TRANSITION: _exit_roms_menu() called - "
+            f"preparing atomic transition from '{self.current_window}' to 'emulators'"
         )
 
         # ATOMIC TRANSITION: Change state immediately and ensure proper input reset
@@ -1684,7 +1686,8 @@ class App:
         self.skip_input_check = True
 
         logger.log_debug(
-            f"DEBUG_TRANSITION: _exit_roms_menu() complete - current_window is now '{self.current_window}', input will be reset"
+            "DEBUG_TRANSITION: _exit_roms_menu() complete - "
+            f"current_window is now '{self.current_window}', input will be reset"
         )
 
 

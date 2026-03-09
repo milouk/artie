@@ -1229,8 +1229,6 @@ def _get_optimized_session():
     with _session_lock:
         if _global_session is None:
             import requests.adapters
-            from urllib3.util.retry import Retry
-
             _global_session = requests.Session()
 
             # Configure connection pooling for better performance

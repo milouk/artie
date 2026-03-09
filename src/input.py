@@ -2,7 +2,6 @@
 
 import errno
 import os
-import select
 import struct
 from contextlib import contextmanager
 from dataclasses import dataclass
