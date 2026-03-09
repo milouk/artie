@@ -36,6 +36,12 @@ from scraper import (
 
 VERSION = "3.0.0"
 
+
+class _ScrapeCancelledError(Exception):
+    """Raised inside worker threads when scraping is cancelled."""
+    pass
+
+
 # Constants
 DEFAULT_MAX_ELEMENTS = 11
 DEFAULT_LOG_WAIT_TIME = 2
@@ -943,6 +949,8 @@ class App:
                     if self._check_scrape_cancelled():
                         cancelled = True
                         logger.log_info("Batch scraping cancelled by user")
+                        self.gui.draw_log("Cancelling... waiting for active threads")
+                        self.gui.draw_paint()
                         for f in pending:
                             f.cancel()
                         break
@@ -1093,6 +1101,8 @@ class App:
                 "scraped_synopsis": scraped_synopsis is not None,
             }
 
+        except _ScrapeCancelledError:
+            return {"success": False, "rom_name": rom.name, "skipped": True}
         except (exceptions.ForbiddenError, exceptions.RateLimitError) as e:
             raise e
         except Exception as e:
@@ -1107,8 +1117,11 @@ class App:
             }
 
     def _scrape_rom_media(self, rom: Rom, system_id: str) -> Tuple[Any, Any, Any]:
-        """Scrape media for a ROM."""
+        """Scrape media for a ROM. Raises _ScrapeCancelledError if cancelled."""
         scraped_box = scraped_preview = scraped_synopsis = None
+
+        if self._scrape_cancelled.is_set():
+            raise _ScrapeCancelledError()
 
         game = get_game_data(
             system_id,
@@ -1121,10 +1134,16 @@ class App:
 
         if game:
             content = self.config.content
+            if self._scrape_cancelled.is_set():
+                raise _ScrapeCancelledError()
             if self.config.box_enabled:
                 scraped_box = fetch_box(game, content)
+            if self._scrape_cancelled.is_set():
+                raise _ScrapeCancelledError()
             if self.config.preview_enabled:
                 scraped_preview = fetch_preview(game, content)
+            if self._scrape_cancelled.is_set():
+                raise _ScrapeCancelledError()
             if self.config.synopsis_enabled:
                 scraped_synopsis = fetch_synopsis(game, content)
 
@@ -1609,7 +1628,7 @@ class App:
             label,
             font=10,
             color=self.gui.COLOR_MUTED,
-            anchor="tm",
+            anchor="mt",
         )
 
     def _draw_wrapped_text(
