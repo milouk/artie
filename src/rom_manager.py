@@ -39,7 +39,6 @@ class RomManager:
     # Invalid ROM extensions that should be skipped
     INVALID_EXTENSIONS: Set[str] = {
         ".cue",
-        ".m3u",
         ".jpg",
         ".png",
         ".img",

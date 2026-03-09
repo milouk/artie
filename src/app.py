@@ -558,9 +558,10 @@ class App:
     def _draw_emulator_controls(self) -> None:
         """Draw control buttons for emulator screen."""
         y = 453
-        self._draw_button_pill((25, y), "A", "Select")
-        self._draw_button_pill((165, y), "X", "Delete")
-        self._draw_button_pill((310, y), "M", "Exit")
+        self._draw_button_pill((25, y), "ST", "All")
+        self._draw_button_pill((130, y), "A", "Select")
+        self._draw_button_pill((260, y), "X", "Delete")
+        self._draw_button_pill((390, y), "M", "Exit")
 
     def _handle_emulator_input(self, available_systems: List[str]) -> None:
         """Handle input for emulator selection screen."""
@@ -581,6 +582,8 @@ class App:
             self._handle_page_navigation(len(available_systems), -LARGE_NAVIGATION_STEP)
         elif input.key_pressed("R2"):
             self._handle_page_navigation(len(available_systems), LARGE_NAVIGATION_STEP)
+        elif input.key_pressed("START"):
+            self._scrape_all_systems(available_systems)
 
     def _handle_vertical_navigation(self, max_items: int) -> None:
         """Handle up/down navigation."""
@@ -672,6 +675,77 @@ class App:
         self.gui.draw_paint()
         self.skip_input_check = True
         time.sleep(self.LOG_WAIT)
+
+    def _scrape_all_systems(self, available_systems: List[str]) -> None:
+        """Scrape all ROMs across all available systems sequentially."""
+        if not available_systems:
+            return
+
+        total_systems = len(available_systems)
+        self.gui.draw_log(
+            f"Scraping all {total_systems} systems..."
+        )
+        self.gui.draw_paint()
+
+        systems_completed = 0
+        systems_skipped = 0
+
+        for i, system_name in enumerate(available_systems):
+            # Check for cancellation between systems
+            if input.check_input_nonblocking() and input.key_pressed("B"):
+                self.gui.draw_log(
+                    f"Cancelled after {systems_completed}/{total_systems} systems."
+                )
+                self.gui.draw_paint()
+                time.sleep(self.LOG_WAIT * 2)
+                break
+
+            self.selected_system = system_name
+            self._clear_rom_cache()
+
+            self.gui.draw_log(
+                f"[{i + 1}/{total_systems}] Loading {system_name}..."
+            )
+            self.gui.draw_paint()
+
+            roms_data = self._prepare_roms_data()
+            if roms_data is None or not roms_data.roms_to_scrape:
+                logger.log_info(
+                    f"Skipping {system_name}: no ROMs to scrape"
+                )
+                systems_skipped += 1
+                continue
+
+            self.gui.draw_log(
+                f"[{i + 1}/{total_systems}] Scraping {system_name} "
+                f"({len(roms_data.roms_to_scrape)} ROMs)..."
+            )
+            self.gui.draw_paint()
+
+            self._scrape_all_roms(roms_data)
+
+            if self._scrape_cancelled.is_set():
+                systems_completed += 1
+                self.gui.draw_log(
+                    f"Cancelled during {system_name}. "
+                    f"Completed {systems_completed}/{total_systems} systems."
+                )
+                self.gui.draw_paint()
+                time.sleep(self.LOG_WAIT * 2)
+                break
+
+            systems_completed += 1
+
+        else:
+            self.gui.draw_log(
+                f"All systems done! {systems_completed} scraped, "
+                f"{systems_skipped} skipped."
+            )
+            self.gui.draw_paint()
+            time.sleep(self.LOG_WAIT * 3)
+
+        self._clear_rom_cache()
+        self.skip_input_check = True
 
     def load_roms(self) -> None:
         """Load and display ROM selection screen with optimized structure and caching."""
