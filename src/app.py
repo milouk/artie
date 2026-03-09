@@ -13,6 +13,8 @@ current_dir = Path(__file__).parent
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
+from PIL import Image
+
 import exceptions
 import input
 from cache_manager import get_cache_manager
@@ -32,7 +34,7 @@ from scraper import (
     get_user_data,
 )
 
-VERSION = "2.0.0"
+VERSION = "3.0.0"
 
 # Constants
 DEFAULT_MAX_ELEMENTS = 11
@@ -820,6 +822,8 @@ class App:
             self._scrape_single_rom(roms_data)
         elif input.key_pressed("X"):
             self._delete_single_rom_media(roms_data)
+        elif input.key_pressed("Y"):
+            self._show_rom_detail(roms_data)
         elif input.key_pressed("B"):
             return True  # Exit to emulator menu
         elif input.key_pressed("START"):
@@ -1323,10 +1327,11 @@ class App:
         """Draw control buttons for ROM screen."""
         y = 453
         self._draw_button_pill((15, y), "ST", "All")
-        self._draw_button_pill((110, y), "A", "Get")
-        self._draw_button_pill((205, y), "X", "Del")
-        self._draw_button_pill((310, y), "B", "Back")
-        self._draw_button_pill((420, y), "M", "Exit")
+        self._draw_button_pill((95, y), "A", "Get")
+        self._draw_button_pill((170, y), "X", "Del")
+        self._draw_button_pill((245, y), "Y", "View")
+        self._draw_button_pill((340, y), "B", "Back")
+        self._draw_button_pill((440, y), "M", "Exit")
 
     def _draw_button_pill(self, pos: Tuple[int, int], button: str, text: str) -> None:
         """Draw a modern pill-shaped button with label."""
@@ -1351,6 +1356,287 @@ class App:
             color=self.gui.COLOR_MUTED,
             anchor="lm",
         )
+
+    def _show_rom_detail(self, roms_data: RomsData) -> None:
+        """Show detailed view of selected ROM with scraped media previews."""
+        if not roms_data.roms_to_scrape:
+            return
+
+        rom = roms_data.roms_to_scrape[self.roms_selected_position]
+
+        has_box = self.config.box_enabled and rom not in roms_data.roms_without_box
+        has_preview = (
+            self.config.preview_enabled and rom not in roms_data.roms_without_preview
+        )
+        has_text = (
+            self.config.synopsis_enabled and rom not in roms_data.roms_without_synopsis
+        )
+
+        self._render_rom_detail(rom, roms_data, has_box, has_preview, has_text)
+
+        # Blocking input loop — wait for user action
+        while True:
+            input.check_input()
+            if input.key_pressed("B"):
+                break
+            elif input.key_pressed("A"):
+                self._scrape_single_rom(roms_data)
+                # Refresh detail view after scraping
+                self._clear_rom_cache()
+                roms_data = self._prepare_roms_data()
+                if roms_data is None:
+                    break
+                self.cached_roms_data = roms_data
+                self.cached_system = self.selected_system
+                has_box = (
+                    self.config.box_enabled and rom not in roms_data.roms_without_box
+                )
+                has_preview = (
+                    self.config.preview_enabled
+                    and rom not in roms_data.roms_without_preview
+                )
+                has_text = (
+                    self.config.synopsis_enabled
+                    and rom not in roms_data.roms_without_synopsis
+                )
+                self._render_rom_detail(rom, roms_data, has_box, has_preview, has_text)
+
+        self.skip_input_check = True
+
+    def _render_rom_detail(
+        self,
+        rom: Rom,
+        roms_data: RomsData,
+        has_box: bool,
+        has_preview: bool,
+        has_text: bool,
+    ) -> None:
+        """Render the ROM detail screen."""
+        interface_image = self.gui.create_image()
+        self.gui.draw_active(interface_image)
+
+        # Header bar
+        self.gui.draw_rectangle_r([0, 0, 640, 36], 0, fill=self.gui.COLOR_HEADER_BG)
+        display_name = rom.name[:50] + "..." if len(rom.name) > 50 else rom.name
+        self.gui.draw_text(
+            (20, 18),
+            display_name,
+            font=18,
+            color=self.gui.COLOR_PRIMARY,
+            anchor="lm",
+        )
+
+        # Status badges in header
+        badge_x = 620
+        badges = []
+        if self.config.box_enabled:
+            badges.append(("BOX", has_box))
+        if self.config.preview_enabled:
+            badges.append(("PRV", has_preview))
+        if self.config.synopsis_enabled:
+            badges.append(("TXT", has_text))
+        for label, has_it in reversed(badges):
+            color = self.gui.COLOR_SUCCESS if has_it else self.gui.COLOR_SECONDARY_LIGHT
+            w = len(label) * 8 + 10
+            self.gui.draw_rectangle_r([badge_x - w, 8, badge_x, 28], 10, fill=color)
+            self.gui.draw_text(
+                (badge_x - w // 2, 18),
+                label,
+                font=10,
+                color=self.gui.COLOR_WHITE if has_it else "#555555",
+                anchor="mm",
+            )
+            badge_x -= w + 6
+
+        # Content area
+        self.gui.draw_rectangle_r(
+            [10, 42, 630, 438], 10, fill=self.gui.COLOR_SECONDARY_DARK
+        )
+
+        # Determine layout based on what's enabled
+        show_box = self.config.box_enabled
+        show_preview = self.config.preview_enabled
+        img_y = 52
+        img_max_h = 180
+        synopsis_y = img_y + img_max_h + 25
+
+        if show_box and show_preview:
+            # Side by side: box left, preview right
+            self._draw_detail_media(
+                roms_data.box_dir,
+                rom.name,
+                has_box,
+                "Box Art",
+                20,
+                img_y,
+                285,
+                img_max_h,
+            )
+            self._draw_detail_media(
+                roms_data.preview_dir,
+                rom.name,
+                has_preview,
+                "Preview",
+                325,
+                img_y,
+                295,
+                img_max_h,
+            )
+        elif show_box:
+            # Box only, centered larger
+            self._draw_detail_media(
+                roms_data.box_dir,
+                rom.name,
+                has_box,
+                "Box Art",
+                120,
+                img_y,
+                400,
+                img_max_h,
+            )
+        elif show_preview:
+            # Preview only, centered larger
+            self._draw_detail_media(
+                roms_data.preview_dir,
+                rom.name,
+                has_preview,
+                "Preview",
+                80,
+                img_y,
+                480,
+                img_max_h,
+            )
+        else:
+            synopsis_y = img_y
+
+        # Synopsis section
+        if self.config.synopsis_enabled:
+            self.gui.draw_text(
+                (25, synopsis_y),
+                "Synopsis",
+                font=14,
+                color=self.gui.COLOR_PRIMARY,
+            )
+            self.gui.draw_line(
+                (25, synopsis_y + 18),
+                (120, synopsis_y + 18),
+                fill=self.gui.COLOR_PRIMARY_DARK,
+                width=1,
+            )
+            if has_text:
+                synopsis_path = roms_data.synopsis_dir / f"{rom.name}.txt"
+                try:
+                    text = synopsis_path.read_text(encoding="utf-8").strip()
+                    self._draw_wrapped_text(text, 25, synopsis_y + 25, 590, max_lines=7)
+                except Exception:
+                    self.gui.draw_text(
+                        (25, synopsis_y + 25),
+                        "Error reading synopsis",
+                        font=11,
+                        color=self.gui.COLOR_MUTED,
+                    )
+            else:
+                self.gui.draw_text(
+                    (25, synopsis_y + 25),
+                    "Not yet scraped",
+                    font=11,
+                    color=self.gui.COLOR_MUTED,
+                )
+
+        # Separator line above controls
+        self.gui.draw_line(
+            (10, 443), (630, 443), fill=self.gui.COLOR_SECONDARY_LIGHT, width=1
+        )
+
+        # Controls
+        y = 453
+        self._draw_button_pill((15, y), "A", "Get")
+        self._draw_button_pill((110, y), "B", "Back")
+
+        self.gui.draw_paint()
+
+    def _draw_detail_media(
+        self,
+        media_dir: Path,
+        rom_name: str,
+        has_media: bool,
+        label: str,
+        x: int,
+        y: int,
+        max_w: int,
+        max_h: int,
+    ) -> None:
+        """Draw a media thumbnail or placeholder in the detail view."""
+        # Background panel
+        self.gui.draw_rectangle_r(
+            [x, y, x + max_w, y + max_h],
+            6,
+            fill=self.gui.COLOR_SECONDARY_LIGHT,
+        )
+
+        if has_media:
+            media_path = media_dir / f"{rom_name}.png"
+            try:
+                img = Image.open(media_path).convert("RGBA")
+                # Scale to fit within panel with padding
+                pad = 4
+                img.thumbnail((max_w - pad * 2, max_h - pad * 2), Image.LANCZOS)
+                # Center within panel
+                cx = x + (max_w - img.width) // 2
+                cy = y + (max_h - img.height) // 2
+                self.gui.draw_image_at((cx, cy), img, max_w, max_h)
+            except Exception as e:
+                logger.log_warning(f"Failed to load media {media_path}: {e}")
+                self.gui.draw_text(
+                    (x + max_w // 2, y + max_h // 2),
+                    "Load error",
+                    font=11,
+                    color=self.gui.COLOR_MUTED,
+                    anchor="mm",
+                )
+        else:
+            self.gui.draw_text(
+                (x + max_w // 2, y + max_h // 2),
+                f"No {label}",
+                font=13,
+                color=self.gui.COLOR_MUTED,
+                anchor="mm",
+            )
+
+        # Label below panel
+        self.gui.draw_text(
+            (x + max_w // 2, y + max_h + 4),
+            label,
+            font=10,
+            color=self.gui.COLOR_MUTED,
+            anchor="tm",
+        )
+
+    def _draw_wrapped_text(
+        self, text: str, x: int, y: int, max_x: int, max_lines: int = 5
+    ) -> None:
+        """Draw word-wrapped text within bounds."""
+        chars_per_line = (max_x - x) // 6  # ~6px per char at font 11
+        words = text.split()
+        lines = []
+        current_line = ""
+        for word in words:
+            test = f"{current_line} {word}".strip()
+            if len(test) > chars_per_line:
+                if current_line:
+                    lines.append(current_line)
+                current_line = word
+            else:
+                current_line = test
+        if current_line:
+            lines.append(current_line)
+
+        for i, line in enumerate(lines[:max_lines]):
+            if i == max_lines - 1 and len(lines) > max_lines:
+                line = line[: chars_per_line - 3] + "..."
+            self.gui.draw_text(
+                (x, y + i * 16), line, font=11, color=self.gui.COLOR_WHITE
+            )
 
     def _exit_roms_menu(self) -> None:
         """Exit ROM menu and return to emulator selection with atomic transition."""
