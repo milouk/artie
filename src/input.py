@@ -137,22 +137,25 @@ class InputManager:
         """
         Non-blocking input check. Returns True if a key event was read.
 
-        Uses select() to check if data is available before reading,
-        so this never blocks the caller.
+        Drains all pending events from the buffer so that key presses
+        are not missed behind sync or other non-key events.
         """
         if not self.device_path.exists():
             return False
 
+        found_key = False
         try:
             with self._open_device() as device:
-                ready, _, _ = select.select([device], [], [], 0)
-                if ready:
+                while True:
+                    ready, _, _ = select.select([device], [], [], 0)
+                    if not ready:
+                        break
                     event_data = device.read(24)
-                    if event_data:
-                        return self._process_event(event_data)
+                    if event_data and self._process_event(event_data):
+                        found_key = True
         except Exception:
             pass
-        return False
+        return found_key
 
     def key_pressed(self, key_code_name: str, key_value: Optional[int] = None) -> bool:
         """

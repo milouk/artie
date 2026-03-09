@@ -932,57 +932,68 @@ class App:
                     for rom in roms_data.roms_to_scrape
                 }
 
-                # Process completed tasks with performance monitoring
-                for future in concurrent.futures.as_completed(future_to_rom):
+                # Process completed tasks with cancellation polling
+                pending = set(future_to_rom.keys())
+                while pending:
                     # Check for user cancellation
                     if self._check_scrape_cancelled():
                         cancelled = True
                         logger.log_info("Batch scraping cancelled by user")
-                        for remaining_future in future_to_rom:
-                            remaining_future.cancel()
+                        for f in pending:
+                            f.cancel()
                         break
 
-                    rom = future_to_rom[future]
-                    try:
-                        future.result()
-                        completed += 1
+                    # Wait for next completion with short timeout
+                    # so we can poll for cancellation regularly
+                    done, pending = concurrent.futures.wait(
+                        pending,
+                        timeout=0.3,
+                        return_when=concurrent.futures.FIRST_COMPLETED,
+                    )
 
-                        # Show progress with cancel hint
+                    for future in done:
+                        rom = future_to_rom[future]
+                        try:
+                            future.result()
+                            completed += 1
+                        except exceptions.RateLimitError as e:
+                            logger.log_error(
+                                f"Rate limit error during batch scraping: {e}"
+                            )
+                            quota_exceeded = True
+                            for rf in pending:
+                                rf.cancel()
+                            pending = set()
+                            break
+                        except exceptions.ForbiddenError as e:
+                            logger.log_error(
+                                f"API access forbidden for ROM {rom.name}: {e}"
+                            )
+                        except Exception as e:
+                            logger.log_error(f"Error scraping ROM {rom.name}: {e}")
+
+                    if quota_exceeded:
+                        break
+
+                    # Show progress after processing completed batch
+                    if completed > 0:
                         elapsed_time = time.time() - start_time
-                        avg_time_per_rom = (
-                            elapsed_time / completed if completed > 0 else 0
-                        )
+                        avg_time_per_rom = elapsed_time / completed
                         estimated_remaining = avg_time_per_rom * (
                             total_roms - completed
                         )
-
                         progress_msg = (
                             f"{completed}/{total_roms} ROMs "
                             f"- ETA: {estimated_remaining/60:.1f}min "
                             f"[B] Cancel"
                         )
-
                         logger.log_info(progress_msg)
-
                         progress = completed / total_roms
                         self.gui.draw_log_with_progress(
                             progress_msg,
                             progress,
                         )
                         self.gui.draw_paint()
-
-                    except exceptions.RateLimitError as e:
-                        logger.log_error(f"Rate limit error during batch scraping: {e}")
-                        quota_exceeded = True
-                        for remaining_future in future_to_rom:
-                            remaining_future.cancel()
-                        break
-                    except exceptions.ForbiddenError as e:
-                        logger.log_error(
-                            f"API access forbidden for ROM {rom.name}: {e}"
-                        )
-                    except Exception as e:
-                        logger.log_error(f"Error scraping ROM {rom.name}: {e}")
 
             total_time = time.time() - start_time
             performance_summary = [
