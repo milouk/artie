@@ -66,17 +66,31 @@ The mask functionality applies custom PNG overlay images to your downloaded artw
 
 ### Configuration Examples
 
-To enable mask processing, add the following settings to your `config.json`:
+To enable mask processing, configure the mask settings within each content type in your `config.json`:
 
 ```json
 {
-  "apply_mask": true,
-  "mask_path": "assets/masks/",
-  "mask_settings": {
-    "box_art_mask": "box_mask.png",
-    "preview_mask": "preview_mask.png",
-    "opacity": 1.0,
-    "blend_mode": "overlay"
+  "screenscraper": {
+    "content": {
+      "box": {
+        "enabled": true,
+        "type": "mixrbv2",
+        "height": 240,
+        "width": 320,
+        "apply_mask": true,
+        "mask_path": "assets/masks/box_mask.png",
+        "resize_mask": true
+      },
+      "preview": {
+        "enabled": true,
+        "type": "ss",
+        "height": 275,
+        "width": 515,
+        "apply_mask": true,
+        "mask_path": "assets/masks/preview_mask.png",
+        "resize_mask": true
+      }
+    }
   }
 }
 ```
@@ -148,48 +162,67 @@ Follow these steps to install Artie:
 
    d) **Optional**: Configure mask processing settings if you want to apply custom overlays to artwork.
 
-### Configuration Examples
-
-#### Basic Configuration
+### Configuration Example
 
 ```json
 {
-  "roms": "/path/to/your/roms",
-  "screenscraper": {
-    "username": "your_username",
-    "password": "your_password"
-  }
-}
-```
-
-#### Configuration with Mask Processing
-
-```json
-{
-  "roms": "/path/to/your/roms",
-  "screenscraper": {
-    "username": "your_username",
-    "password": "your_password"
+  "roms": "/mnt/sdcard/ROMS",
+  "logos": "assets/logos",
+  "log_level": "info",
+  "colors": {
+    "primary": "#bb7200",
+    "primary_dark": "#7f4f00",
+    "secondary": "#292929",
+    "secondary_light": "#383838",
+    "secondary_dark": "#141414"
   },
-  "apply_mask": true,
-  "mask_path": "assets/masks/",
-  "mask_settings": {
-    "box_art_mask": "box_mask.png",
-    "preview_mask": "preview_mask.png",
-    "opacity": 1.0,
-    "blend_mode": "overlay"
+  "screenscraper": {
+    "username": "your_username",
+    "password": "your_password",
+    "devid": "base64_encoded_dev_id",
+    "devpassword": "base64_encoded_dev_password",
+    "threads": 10,
+    "show_scraped_roms": true,
+    "content": {
+      "synopsis": {
+        "enabled": true,
+        "lang": "en"
+      },
+      "box": {
+        "enabled": true,
+        "type": "mixrbv2",
+        "height": 240,
+        "width": 320,
+        "apply_mask": false,
+        "mask_path": "assets/masks/box_mask.png",
+        "resize_mask": true
+      },
+      "preview": {
+        "enabled": true,
+        "type": "ss",
+        "height": 275,
+        "width": 515,
+        "apply_mask": false,
+        "mask_path": "assets/masks/preview_mask.png",
+        "resize_mask": true
+      },
+      "regions": ["us", "eu", "jp", "wor"]
+    },
+    "systems": [
+      {
+        "dir": "SNES",
+        "id": "4",
+        "name": "Super Nintendo (SNES)",
+        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/box/",
+        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/preview/",
+        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/text/"
+      }
+    ]
   }
 }
 ```
 
-#### Mask Configuration Options
-
-- **`apply_mask`**: Set to `true` to enable mask processing, `false` to disable
-- **`mask_path`**: Directory path where mask files are stored (relative to Artie directory)
-- **`mask_settings.box_art_mask`**: Filename of the mask to apply to box art images
-- **`mask_settings.preview_mask`**: Filename of the mask to apply to preview images
-- **`mask_settings.opacity`**: Mask opacity (0.0 to 1.0, where 1.0 is fully opaque)
-- **`mask_settings.blend_mode`**: How the mask blends with the artwork ("overlay", "multiply", "screen")
+   See [Configuration Options](#configuration-options) below for details on all settings.
 
 4. **Copy Files to MuOS**:
 
@@ -203,6 +236,24 @@ Follow these steps to install Artie:
 
    - Open MuOS and launch Artie Scraper from your applications menu.
 
+### Configuration Options
+
+- **`roms`**: Path to your ROMs directory on the device
+- **`logos`**: Path to system logo assets
+- **`log_level`**: Logging verbosity (`"info"`, `"debug"`, etc.)
+- **`colors`**: UI color theme customization
+- **`screenscraper.username`** / **`password`**: Your Screenscraper account credentials
+- **`screenscraper.devid`** / **`devpassword`**: Base64-encoded developer API credentials
+- **`screenscraper.threads`**: Number of concurrent scraping threads
+- **`screenscraper.show_scraped_roms`**: Whether to display already-scraped ROMs in the list
+- **`content.box.type`**: Box art media type (e.g. `"mixrbv2"`, `"box-2D"`, `"box-3D"`)
+- **`content.preview.type`**: Preview media type (e.g. `"ss"`, `"marquee"`)
+- **`content.*.apply_mask`**: Enable mask overlay for that media type
+- **`content.*.mask_path`**: Path to the mask PNG file
+- **`content.*.resize_mask`**: Whether to resize the mask to match the image dimensions
+- **`content.regions`**: Preferred region priority for artwork lookup
+- **`systems`**: Array of system entries with ROM `dir`, Screenscraper `id`, and output paths for `box`, `preview`, and `synopsis`
+
 ## Troubleshooting
 
 ### Before Reporting Issues
@@ -210,7 +261,7 @@ Follow these steps to install Artie:
 **Always check the log file first**: Before reporting any errors or issues, please check the log file located at:
 
 ```
-/mnt/mmc/MUOS/application/.artie/log.txt
+/mnt/mmc/MUOS/application/Artie/.artie/log.txt
 ```
 
 This file contains detailed information about any errors, performance issues, or unexpected behavior that can help diagnose problems quickly.
@@ -250,12 +301,11 @@ This file contains detailed information about any errors, performance issues, or
 
 #### Mask Processing Issues
 
-- **Masks not applying**: Verify that `apply_mask` is set to `true` in `config.json`
-- **Mask files not found**: Check that mask files exist in the specified `mask_path` directory
+- **Masks not applying**: Verify that `apply_mask` is set to `true` for the relevant content type (`box` or `preview`) in `config.json`
+- **Mask files not found**: Check that mask files exist at the specified `mask_path`
 - **Poor mask quality**: Ensure mask files are PNG format with proper alpha channels
 - **Performance issues**: Large mask files can slow processing - consider optimizing mask file sizes
-- **Incorrect positioning**: Verify mask dimensions match or exceed target artwork dimensions
-- **Blend mode problems**: Try different `blend_mode` settings ("overlay", "multiply", "screen") for better results
+- **Incorrect positioning**: Enable `resize_mask` or ensure mask dimensions match target artwork dimensions
 
 #### Verifying Mask Files Are Working
 
@@ -266,7 +316,7 @@ This file contains detailed information about any errors, performance issues, or
 
 #### Mask Performance Considerations
 
-- Disable mask processing (`apply_mask: false`) if not needed for faster scraping
+- Disable mask processing (set `apply_mask` to `false` per content type) if not needed for faster scraping
 - Use optimized PNG files to reduce processing time
 - Consider mask file sizes - larger files require more processing power
 - Monitor available storage space as processed images may be larger
@@ -333,7 +383,7 @@ We welcome contributions! Feel free to open issues or submit pull requests (PRs)
 
 If you encounter any bugs, please:
 
-1. **Check the log file first** at `/mnt/mmc/MUOS/application/.artie/log.txt`
+1. **Check the log file first** at `/mnt/mmc/MUOS/application/Artie/.artie/log.txt`
 2. Open an issue on the [GitHub issues page](https://github.com/milouk/artie/issues) with:
    - Detailed information about the problem
    - Relevant log file excerpts
