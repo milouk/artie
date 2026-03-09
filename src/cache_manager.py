@@ -400,9 +400,7 @@ def cached(
                 )
 
             # Try to get from cache (sentinel-aware to cache None results)
-            cached_result = cache_manager.get_or_miss(
-                cache_key, cache_type
-            )
+            cached_result = cache_manager.get_or_miss(cache_key, cache_type)
             if cached_result is not _CACHE_MISS:
                 return cached_result
 
