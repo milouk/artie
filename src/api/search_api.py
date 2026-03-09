@@ -1,6 +1,5 @@
 """Search API module for ScreenScraper fallback search functionality."""
 
-import base64
 from typing import Any, Dict, Optional
 from urllib.parse import urlencode, urlparse, urlunparse
 
@@ -41,8 +40,8 @@ def parse_search_url(
     """
     try:
         params = {
-            "devid": base64.b64decode(dev_id).decode(),
-            "devpassword": base64.b64decode(dev_password).decode(),
+            "devid": dev_id,
+            "devpassword": dev_password,
             "softname": "artie",
             "output": "json",
             "ssid": username,
@@ -197,10 +196,6 @@ def find_best_search_match(
 
         if not games:
             return None
-
-        # If only one result, return it
-        if len(games) == 1:
-            return games[0]
 
         # Find best match based on name similarity
         best_match = None

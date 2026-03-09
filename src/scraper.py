@@ -1,6 +1,5 @@
 """Scraper module with caching and optimized network operations."""
 
-import base64
 import hashlib
 import html
 import json
@@ -130,7 +129,7 @@ def calculate_md5(file_path: str) -> str:
     """Calculate MD5 hash of a file."""
     md5 = hashlib.md5()
     with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
+        for chunk in iter(lambda: f.read(1048576), b""):  # 1MB chunks for large ROMs
             md5.update(chunk)
     return md5.hexdigest()
 
@@ -281,8 +280,8 @@ def parse_find_game_url(
         rom_params = validate_rom_parameters(rom_path, system_id)
 
         params = {
-            "devid": base64.b64decode(dev_id).decode(),
-            "devpassword": base64.b64decode(dev_password).decode(),
+            "devid": dev_id,
+            "devpassword": dev_password,
             "softname": "artie",
             "output": "json",
             "ssid": username,
@@ -294,7 +293,9 @@ def parse_find_game_url(
             "md5": rom_params["md5"],
         }
         return urlunparse(urlparse(GAME_INFO_URL)._replace(query=urlencode(params)))
-    except (UnicodeDecodeError, exceptions.ScraperError) as e:
+    except exceptions.ScraperError:
+        raise
+    except Exception as e:
         raise exceptions.ScraperError(f"Error encoding URL: {e}")
 
 
@@ -303,16 +304,15 @@ def parse_user_info_url(
 ) -> str:
     try:
         params = {
-            "devid": base64.b64decode(dev_id).decode(),
-            "devpassword": base64.b64decode(dev_password).decode(),
+            "devid": dev_id,
+            "devpassword": dev_password,
             "softname": "artie",
             "output": "json",
             "ssid": username,
             "sspassword": password,
         }
         return urlunparse(urlparse(USER_INFO_URL)._replace(query=urlencode(params)))
-    except UnicodeDecodeError as e:
-        # Params removed from log as they contain sensitive info
+    except Exception as e:
         raise exceptions.ScraperError(f"Error encoding URL: {e}")
 
 
@@ -937,7 +937,7 @@ def clear_rate_limit_cache(username: str) -> bool:
 
     cached_state = cache_manager.get(quota_key, "memory")
     if cached_state:
-        cache_manager.delete(quota_key, "memory")
+        cache_manager.invalidate(quota_key, "memory")
         logger.log_info(f"Cleared cached quota exceeded state for user '{username}'")
         return True
     else:
@@ -1002,8 +1002,8 @@ def parse_media_download_url(
     """
     try:
         params = {
-            "devid": base64.b64decode(dev_id).decode(),
-            "devpassword": base64.b64decode(dev_password).decode(),
+            "devid": dev_id,
+            "devpassword": dev_password,
             "softname": "artie",
             "output": "json",
             "ssid": username,
@@ -1118,8 +1118,8 @@ def download_video_direct(
     """
     try:
         params = {
-            "devid": base64.b64decode(dev_id).decode(),
-            "devpassword": base64.b64decode(dev_password).decode(),
+            "devid": dev_id,
+            "devpassword": dev_password,
             "softname": "artie",
             "output": "json",
             "ssid": username,
@@ -1173,8 +1173,8 @@ def download_manual_direct(
     """
     try:
         params = {
-            "devid": base64.b64decode(dev_id).decode(),
-            "devpassword": base64.b64decode(dev_password).decode(),
+            "devid": dev_id,
+            "devpassword": dev_password,
             "softname": "artie",
             "output": "json",
             "ssid": username,

@@ -14,7 +14,7 @@ if str(current_dir) not in sys.path:
 
 import exceptions
 import input
-from cache_manager import api_cached, get_cache_manager
+from cache_manager import get_cache_manager
 from config_manager import ConfigManager, ScraperConfig
 from graphic import GUI
 from image_processor import get_image_processor
@@ -196,7 +196,6 @@ class App:
             logger.log_error(f"Failed to start main interface: {e}")
             raise
 
-    @api_cached(ttl=300)  # Cache for 5 minutes
     def _configure_user_threads(self) -> None:
         """Configure thread count based on user's API limits and server capacity with proper error handling."""
         try:
@@ -933,12 +932,9 @@ class App:
 
     def _process_rom(self, rom: Rom, roms_data: RomsData) -> Tuple[Any, Any, Any, str]:
         """Process a single ROM (scrape and save media)."""
-        try:
-            scraped_box, scraped_preview, scraped_synopsis = self._scrape_rom_media(
-                rom, roms_data.system_id
-            )
-        except (exceptions.ForbiddenError, exceptions.RateLimitError) as e:
-            raise e
+        scraped_box, scraped_preview, scraped_synopsis = self._scrape_rom_media(
+            rom, roms_data.system_id
+        )
 
         # Apply mask processing to images before saving
         image_processor = get_image_processor()

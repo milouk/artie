@@ -1,5 +1,6 @@
 """Configuration management module for Artie Scraper."""
 
+import base64
 import json
 import logging
 from dataclasses import dataclass
@@ -208,9 +209,18 @@ class ConfigManager:
         if not all([dev_id, dev_password, username, password]):
             raise exceptions.ConfigurationError("Missing screenscraper credentials")
 
+        # Decode base64 credentials once at load time
+        try:
+            decoded_dev_id = base64.b64decode(dev_id).decode()
+            decoded_dev_password = base64.b64decode(dev_password).decode()
+        except Exception as e:
+            raise exceptions.ConfigurationError(
+                f"Invalid base64-encoded credentials: {e}"
+            )
+
         return {
-            "dev_id": dev_id,
-            "dev_password": dev_password,
+            "dev_id": decoded_dev_id,
+            "dev_password": decoded_dev_password,
             "username": username,
             "password": password,
         }

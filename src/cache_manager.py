@@ -10,6 +10,9 @@ from typing import Any, Callable, Dict, Optional
 
 from logger import LoggerSingleton as logger
 
+# Sentinel for distinguishing "not in cache" from cached None
+_CACHE_MISS = object()
+
 
 @dataclass
 class CacheEntry:
@@ -156,6 +159,36 @@ class CacheManager:
             logger.log_error(f"Error getting cache entry {key}: {e}")
             self._stats["errors"] += 1
             return None
+
+    def get_or_miss(self, key: str, cache_type: str = "memory") -> Any:
+        """
+        Get value from cache, returning _CACHE_MISS sentinel if not found.
+
+        Unlike get(), this correctly distinguishes cached None values
+        from cache misses.
+        """
+        try:
+            cache_dict = self._get_cache_dict(cache_type)
+
+            if key not in cache_dict:
+                self._stats["misses"] += 1
+                return _CACHE_MISS
+
+            entry = cache_dict[key]
+
+            if entry.is_expired():
+                del cache_dict[key]
+                self._stats["misses"] += 1
+                self._stats["evictions"] += 1
+                return _CACHE_MISS
+
+            self._stats["hits"] += 1
+            return entry.data
+
+        except Exception as e:
+            logger.log_error(f"Error getting cache entry {key}: {e}")
+            self._stats["errors"] += 1
+            return _CACHE_MISS
 
     def set(
         self,
@@ -366,9 +399,11 @@ def cached(
                     func.__name__, *args, **kwargs
                 )
 
-            # Try to get from cache
-            cached_result = cache_manager.get(cache_key, cache_type)
-            if cached_result is not None:
+            # Try to get from cache (sentinel-aware to cache None results)
+            cached_result = cache_manager.get_or_miss(
+                cache_key, cache_type
+            )
+            if cached_result is not _CACHE_MISS:
                 return cached_result
 
             # Execute function and cache result
