@@ -58,7 +58,7 @@ def parse_search_url(
 
         return urlunparse(urlparse(SEARCH_URL)._replace(query=urlencode(params)))
 
-    except (UnicodeDecodeError, Exception) as e:
+    except Exception as e:
         raise exceptions.ScraperError(f"Error encoding search URL: {e}")
 
 
@@ -222,18 +222,15 @@ def find_best_search_match(
         if best_score > 0.5:  # 50% similarity threshold
             return best_match
 
-        # If no good match, return the first result as fallback
-        return games[0] if games else None
+        # No good match found — return None to avoid scraping wrong game
+        logger.log_warning(
+            f"No search result above similarity threshold for '{search_term}' "
+            f"(best score: {best_score:.2f})"
+        )
+        return None
 
     except Exception as e:
         logger.log_warning(f"Error finding best search match: {e}")
-        # Return first result as fallback
-        try:
-            if isinstance(search_results, dict) and "response" in search_results:
-                games = search_results["response"].get("jeux", [])
-                return games[0] if games else None
-        except Exception:
-            pass
         return None
 
 

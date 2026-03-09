@@ -1,6 +1,5 @@
 """Caching system for Artie Scraper to improve performance."""
 
-# hashlib import removed - using simpler cache key generation
 import json
 import pickle
 import time
@@ -30,9 +29,6 @@ class CacheEntry:
         return time.time() - self.timestamp
 
 
-# HashCacheEntry class removed - no longer using hash caching
-
-
 class CacheManager:
     """Manages caching for API responses, file operations, and computed data."""
 
@@ -40,7 +36,6 @@ class CacheManager:
     DEFAULT_API_TTL = 3600  # 1 hour for API responses
     DEFAULT_FILE_TTL = 300  # 5 minutes for file operations
     DEFAULT_GAME_DATA_TTL = 86400  # 24 hours for game data
-    # Hash TTL removed - no longer using hash caching
 
     def __init__(self, cache_dir: str = ".cache"):
         """
@@ -57,22 +52,18 @@ class CacheManager:
         self._api_cache: Dict[str, CacheEntry] = {}
         self._file_cache: Dict[str, CacheEntry] = {}
 
-        # Hash cache removed - no longer using hash functionality
-
         # Cache statistics
         self._stats = {
             "hits": 0,
             "misses": 0,
             "evictions": 0,
             "errors": 0,
-            # Hash statistics removed
         }
 
         # Maximum cache sizes
         self.max_memory_entries = 1000
         self.max_api_entries = 500
         self.max_file_entries = 200
-        # Hash cache size limit removed
 
         logger.log_info(
             f"Cache manager initialized with cache directory: {self.cache_dir}"
@@ -337,8 +328,6 @@ class CacheManager:
         except Exception as e:
             logger.log_error(f"Error loading {cache_type} cache from disk: {e}")
             self._stats["errors"] += 1
-
-    # Hash cache methods removed - no longer using hash functionality
 
     def save_all_caches(self) -> None:
         """Save all persistent caches to disk."""

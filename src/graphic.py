@@ -81,13 +81,13 @@ class GUI:
         if self.mm:
             try:
                 self.mm.close()
-            except:
+            except (OSError, IOError):
                 pass
             self.mm = None
         if self.fb is not None:
             try:
                 os.close(self.fb)
-            except:
+            except (OSError, IOError):
                 pass
             self.fb = None
 

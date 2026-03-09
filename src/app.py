@@ -764,8 +764,6 @@ class App:
         self.gui.draw_log(f"Scraping {rom.name}...")
         self.gui.draw_paint()
 
-        # Hash preloading removed - no longer calculating hashes
-
         try:
             self._process_rom(rom, roms_data)
             self.gui.draw_log(f"Completed scraping {rom.name}")
@@ -827,7 +825,6 @@ class App:
         completed = 0
         quota_exceeded = False
         start_time = time.time()
-        # Hash functionality removed
 
         try:
             with concurrent.futures.ThreadPoolExecutor(
@@ -845,10 +842,8 @@ class App:
                 for future in concurrent.futures.as_completed(future_to_rom):
                     rom = future_to_rom[future]
                     try:
-                        result = future.result()
+                        future.result()
                         completed += 1
-
-                        # Hash tracking removed
 
                         # Show progress with performance info
                         elapsed_time = time.time() - start_time
@@ -867,11 +862,9 @@ class App:
 
                         logger.log_info(progress_msg)
 
-                        # Update GUI after every ROM for live progress updates
-                        if True:  # Update after every ROM
-                            self.gui.draw_log(progress_msg)
-                            # Hash efficiency tracking removed
-                            self.gui.draw_paint()
+                        # Update GUI for live progress
+                        self.gui.draw_log(progress_msg)
+                        self.gui.draw_paint()
 
                     except exceptions.RateLimitError as e:
                         logger.log_error(
@@ -897,18 +890,16 @@ class App:
 
             # PERFORMANCE: Show final performance statistics
             total_time = time.time() - start_time
-            final_cache_stats = self.cache_manager.get_stats()
-
             performance_summary = [
-                f"PERFORMANCE SUMMARY:",
+                "PERFORMANCE SUMMARY:",
                 f"• Total time: {total_time/60:.1f} minutes",
                 (
                     f"• Average time per ROM: {total_time/completed:.1f}s"
                     if completed > 0
                     else "• No ROMs completed"
                 ),
-                f"• API requests optimized with caching",
-                f"• Network requests optimized with connection pooling",
+                "• API requests optimized with caching",
+                "• Network requests optimized with connection pooling",
             ]
 
             for msg in performance_summary:
@@ -979,8 +970,6 @@ class App:
         """Process a single ROM with performance monitoring."""
         start_time = time.time()
 
-        # Hash functionality removed
-
         try:
             scraped_box, scraped_preview, scraped_synopsis, rom_name = (
                 self._process_rom(rom, roms_data)
@@ -992,7 +981,6 @@ class App:
                 "success": True,
                 "rom_name": rom_name,
                 "processing_time": processing_time,
-                # Hash tracking removed
                 "scraped_box": scraped_box is not None,
                 "scraped_preview": scraped_preview is not None,
                 "scraped_synopsis": scraped_synopsis is not None,
@@ -1008,7 +996,6 @@ class App:
                 "success": False,
                 "rom_name": rom.name,
                 "processing_time": processing_time,
-                # Hash tracking removed
                 "error": str(e),
             }
 

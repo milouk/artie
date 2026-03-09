@@ -167,7 +167,6 @@ class LoggerSingleton:
         if cls._logger_instance is None:
             cls._initialize_logger()
 
-        assert cls._logger_instance is not None, "Logger instance is not initialized"
         return cls._logger_instance
 
     @classmethod
@@ -176,9 +175,6 @@ class LoggerSingleton:
         if cls._performance_logger is None:
             cls.get_logger()  # This will initialize both loggers
 
-        assert (
-            cls._performance_logger is not None
-        ), "Performance logger is not initialized"
         return cls._performance_logger
 
     @classmethod
