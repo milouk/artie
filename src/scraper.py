@@ -1,8 +1,6 @@
 """Scraper module with caching and optimized network operations."""
 
-import base64
-
-# hashlib import removed - no longer calculating hashes
+import hashlib
 import html
 import json
 import os
@@ -115,7 +113,25 @@ def get_txt_files_without_extension(folder: Path) -> List[str]:
     return [f.stem for f in folder_path.glob("*.txt") if f.is_file()]
 
 
-# Hash calculation functions removed - no longer using hash-based ROM identification
+def _sanitize_url(url: str) -> str:
+    """Mask sensitive parameters in URL for logging."""
+    if not url:
+        return str(url)
+    try:
+        # Mask sspassword and devpassword
+        masked = re.sub(r"(sspassword|devpassword)=[^&]+", r"\1=***", str(url))
+        return masked
+    except Exception:
+        return "url_hidden"
+
+
+def calculate_md5(file_path: str) -> str:
+    """Calculate MD5 hash of a file."""
+    md5 = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(1048576), b""):  # 1MB chunks for large ROMs
+            md5.update(chunk)
+    return md5.hexdigest()
 
 
 def detect_rom_type(file_path: str) -> str:
@@ -205,7 +221,15 @@ def validate_rom_parameters(rom_path: str, system_id: str) -> Dict[str, str]:
         # Get file size
         rom_size = str(file_size(rom_path))
 
-        return {"romtype": rom_type, "romnom": rom_filename, "romtaille": rom_size}
+        # Calculate MD5 hash for accurate game identification
+        rom_md5 = calculate_md5(rom_path)
+
+        return {
+            "romtype": rom_type,
+            "romnom": rom_filename,
+            "romtaille": rom_size,
+            "md5": rom_md5,
+        }
 
     except exceptions.ScraperError:
         raise
@@ -255,10 +279,9 @@ def parse_find_game_url(
         # Validate ROM parameters first
         rom_params = validate_rom_parameters(rom_path, system_id)
 
-        # Hash parameters removed - using filename-based identification only
         params = {
-            "devid": base64.b64decode(dev_id).decode(),
-            "devpassword": base64.b64decode(dev_password).decode(),
+            "devid": dev_id,
+            "devpassword": dev_password,
             "softname": "artie",
             "output": "json",
             "ssid": username,
@@ -267,9 +290,12 @@ def parse_find_game_url(
             "romtype": rom_params["romtype"],
             "romnom": rom_params["romnom"],
             "romtaille": rom_params["romtaille"],
+            "md5": rom_params["md5"],
         }
         return urlunparse(urlparse(GAME_INFO_URL)._replace(query=urlencode(params)))
-    except (UnicodeDecodeError, exceptions.ScraperError) as e:
+    except exceptions.ScraperError:
+        raise
+    except Exception as e:
         raise exceptions.ScraperError(f"Error encoding URL: {e}")
 
 
@@ -278,18 +304,16 @@ def parse_user_info_url(
 ) -> str:
     try:
         params = {
-            "devid": base64.b64decode(dev_id).decode(),
-            "devpassword": base64.b64decode(dev_password).decode(),
+            "devid": dev_id,
+            "devpassword": dev_password,
             "softname": "artie",
             "output": "json",
             "ssid": username,
             "sspassword": password,
         }
         return urlunparse(urlparse(USER_INFO_URL)._replace(query=urlencode(params)))
-    except UnicodeDecodeError as e:
-        raise exceptions.ScraperError(
-            f"Error encoding URL: {e}. User info params: {params}"
-        )
+    except Exception as e:
+        raise exceptions.ScraperError(f"Error encoding URL: {e}")
 
 
 def find_media_url_by_region(
@@ -396,7 +420,7 @@ def get(url: str, max_retries: int = 3, timeout: int = 30) -> bytes:
             )
 
         except requests.HTTPError as e:
-            status = e.response.status_code if e.response else 0
+            status = e.response.status_code if e.response is not None else 0
             response_text = ""
 
             # Try to get response text for better error messages
@@ -436,7 +460,9 @@ def get(url: str, max_retries: int = 3, timeout: int = 30) -> bytes:
                 raise exceptions.ForbiddenError(error_msg)
 
             elif status == 404:
-                raise exceptions.ScraperError(f"Resource not found: {url}")
+                raise exceptions.ScraperError(
+                    f"Resource not found: {_sanitize_url(url)}"
+                )
 
             elif status == 423:
                 error_msg = "API fully closed due to server problems"
@@ -508,7 +534,7 @@ def get(url: str, max_retries: int = 3, timeout: int = 30) -> bytes:
         except Exception as e:
             # Catch any unexpected errors
             last_exception = exceptions.ScraperError(
-                f"Unexpected error fetching {url}: {e}"
+                f"Unexpected error fetching {_sanitize_url(url)}: {e}"
             )
 
         # If we get here, we had a retryable error
@@ -528,7 +554,7 @@ def get(url: str, max_retries: int = 3, timeout: int = 30) -> bytes:
         raise last_exception
     else:
         raise exceptions.NetworkError(
-            f"Failed to fetch {url} after {max_retries + 1} attempts"
+            f"Failed to fetch {_sanitize_url(url)} after {max_retries + 1} attempts"
         )
 
 
@@ -556,10 +582,12 @@ def fetch_data(url: str) -> Any:
             # Try with different encodings
             try:
                 body_str = body.decode("latin-1")
-                logger.log_warning(f"Used latin-1 encoding for response from {url}")
+                logger.log_warning(
+                    f"Used latin-1 encoding for response from {_sanitize_url(url)}"
+                )
             except UnicodeDecodeError:
                 raise exceptions.ScraperError(
-                    f"Unable to decode response from {url}: {e}"
+                    f"Unable to decode response from {_sanitize_url(url)}: {e}"
                 )
 
         if not body_str.strip():
@@ -662,20 +690,24 @@ def fetch_data(url: str) -> Any:
                     and "response" not in data
                 ):
                     logger.log_warning(
-                        f"Unexpected response structure from {url}: {list(data.keys())}"
+                        f"Unexpected response structure from {_sanitize_url(url)}: {list(data.keys())}"
                     )
 
             return data
 
         except json.JSONDecodeError as e:
-            raise exceptions.ScraperError(f"Invalid JSON response from {url}: {e}")
+            raise exceptions.ScraperError(
+                f"Invalid JSON response from {_sanitize_url(url)}: {e}"
+            )
 
     except exceptions.ScraperError:
         # Re-raise scraper errors
         raise
     except Exception as e:
         # Catch any unexpected errors
-        raise exceptions.ScraperError(f"Unexpected error fetching data from {url}: {e}")
+        raise exceptions.ScraperError(
+            f"Unexpected error fetching data from {_sanitize_url(url)}: {e}"
+        )
 
 
 @api_cached(ttl=3600)  # Cache game data for 1 hour
@@ -720,7 +752,6 @@ def get_game_data(
         )
 
     try:
-        # Primary filename-based lookup (hash functionality removed)
         game_url = parse_find_game_url(
             system_id, rom_path, dev_id, dev_password, username, password
         )
@@ -906,7 +937,7 @@ def clear_rate_limit_cache(username: str) -> bool:
 
     cached_state = cache_manager.get(quota_key, "memory")
     if cached_state:
-        cache_manager.delete(quota_key, "memory")
+        cache_manager.invalidate(quota_key, "memory")
         logger.log_info(f"Cleared cached quota exceeded state for user '{username}'")
         return True
     else:
@@ -971,8 +1002,8 @@ def parse_media_download_url(
     """
     try:
         params = {
-            "devid": base64.b64decode(dev_id).decode(),
-            "devpassword": base64.b64decode(dev_password).decode(),
+            "devid": dev_id,
+            "devpassword": dev_password,
             "softname": "artie",
             "output": "json",
             "ssid": username,
@@ -990,7 +1021,7 @@ def parse_media_download_url(
             urlparse(MEDIA_DOWNLOAD_URL)._replace(query=urlencode(params))
         )
 
-    except (UnicodeDecodeError, Exception) as e:
+    except Exception as e:
         raise exceptions.ScraperError(f"Error encoding media download URL: {e}")
 
 
@@ -1087,8 +1118,8 @@ def download_video_direct(
     """
     try:
         params = {
-            "devid": base64.b64decode(dev_id).decode(),
-            "devpassword": base64.b64decode(dev_password).decode(),
+            "devid": dev_id,
+            "devpassword": dev_password,
             "softname": "artie",
             "output": "json",
             "ssid": username,
@@ -1142,8 +1173,8 @@ def download_manual_direct(
     """
     try:
         params = {
-            "devid": base64.b64decode(dev_id).decode(),
-            "devpassword": base64.b64decode(dev_password).decode(),
+            "devid": dev_id,
+            "devpassword": dev_password,
             "softname": "artie",
             "output": "json",
             "ssid": username,
@@ -1198,8 +1229,6 @@ def _get_optimized_session():
     with _session_lock:
         if _global_session is None:
             import requests.adapters
-            from urllib3.util.retry import Retry
-
             _global_session = requests.Session()
 
             # Configure connection pooling for better performance
@@ -1235,5 +1264,4 @@ def cleanup_network_resources():
     if _global_session:
         _global_session.close()
         _global_session = None
-        logger.log_info("PERFORMANCE: Cleaned up HTTP session resources")
         logger.log_info("PERFORMANCE: Cleaned up HTTP session resources")

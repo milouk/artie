@@ -2,8 +2,9 @@
 name: Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -14,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: arm64
 
@@ -34,15 +35,14 @@ jobs:
 
       - name: Bundle App
         run: |
-          mkdir -p .artie Artie && \
-          cp -r ./dist/app ./assets ./config.json .artie && \
-          cp -r ./.artie ./mux_launch.sh ./Artie
-          zip -r Artie.zip ./Artie
+          mkdir -p Artie/.artie && \
+          cp -r ./dist/app ./assets ./config.json Artie/.artie/ && \
+          cp ./mux_launch.sh Artie/ && \
+          zip -r Artie.zip Artie && \
+          mv Artie.zip Artie.muxapp
 
-      - name: Upload assets
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        if: ${{startsWith(github.ref, 'refs/tags/') }}
+      - name: Create release and upload assets
+        uses: softprops/action-gh-release@v2
         with:
-          files: Artie.zip
+          generate_release_notes: true
+          files: Artie.muxapp

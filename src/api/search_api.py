@@ -1,6 +1,5 @@
 """Search API module for ScreenScraper fallback search functionality."""
 
-import base64
 from typing import Any, Dict, Optional
 from urllib.parse import urlencode, urlparse, urlunparse
 
@@ -41,8 +40,8 @@ def parse_search_url(
     """
     try:
         params = {
-            "devid": base64.b64decode(dev_id).decode(),
-            "devpassword": base64.b64decode(dev_password).decode(),
+            "devid": dev_id,
+            "devpassword": dev_password,
             "softname": "artie",
             "output": "json",
             "ssid": username,
@@ -58,7 +57,7 @@ def parse_search_url(
 
         return urlunparse(urlparse(SEARCH_URL)._replace(query=urlencode(params)))
 
-    except (UnicodeDecodeError, Exception) as e:
+    except Exception as e:
         raise exceptions.ScraperError(f"Error encoding search URL: {e}")
 
 
@@ -198,10 +197,6 @@ def find_best_search_match(
         if not games:
             return None
 
-        # If only one result, return it
-        if len(games) == 1:
-            return games[0]
-
         # Find best match based on name similarity
         best_match = None
         best_score = 0
@@ -222,18 +217,15 @@ def find_best_search_match(
         if best_score > 0.5:  # 50% similarity threshold
             return best_match
 
-        # If no good match, return the first result as fallback
-        return games[0] if games else None
+        # No good match found — return None to avoid scraping wrong game
+        logger.log_warning(
+            f"No search result above similarity threshold for '{search_term}' "
+            f"(best score: {best_score:.2f})"
+        )
+        return None
 
     except Exception as e:
         logger.log_warning(f"Error finding best search match: {e}")
-        # Return first result as fallback
-        try:
-            if isinstance(search_results, dict) and "response" in search_results:
-                games = search_results["response"].get("jeux", [])
-                return games[0] if games else None
-        except Exception:
-            pass
         return None
 
 

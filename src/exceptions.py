@@ -1,28 +1,9 @@
-from logger import LoggerSingleton as logger
-
-
 class ScraperError(Exception):
     """Base exception for scraper-related errors."""
 
     def __init__(self, message: str):
         super().__init__(message)
         self.message = message
-        logger.log_error(message)
-
-    def get_message(self) -> str:
-        """Get the error message safely."""
-        # Use args[0] which is the standard way to access exception message
-        # or fall back to the stored message or string representation
-        if self.args:
-            return str(self.args[0])
-        elif hasattr(self, "message") and self.message:
-            return str(self.message)
-        else:
-            return str(self)
-
-    def __str__(self) -> str:
-        """String representation of the exception."""
-        return self.get_message()
 
 
 class ForbiddenError(ScraperError):

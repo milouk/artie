@@ -4,8 +4,10 @@ dist
 build
 app.spec
 .DS_Store
-build.sh
 todo.txt
+.artie/
+deploy.sh
+launch.sh
 
 # Testing and Coverage
 .pytest_cache/
@@ -39,3 +41,5 @@ Thumbs.db
 *.egg-info/
 *.whl
 *.tar.gz
+
+

@@ -1,5 +1,7 @@
 """Input handling module with proper resource management and state encapsulation."""
 
+import errno
+import os
 import struct
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -50,6 +52,7 @@ class InputManager:
         """
         self.device_path = Path(device_path)
         self.state = InputState()
+        self._nb_fd: int = -1  # Persistent fd for non-blocking reads
         self._validate_device()
 
     def _validate_device(self) -> None:
@@ -60,9 +63,15 @@ class InputManager:
 
     @contextmanager
     def _open_device(self):
-        """Context manager for opening input device with proper error handling."""
+        """Context manager for opening input device with proper error handling.
+
+        Uses unbuffered IO (buffering=0) so that select() accurately reflects
+        the kernel buffer state. With default buffering, Python reads ahead
+        into an internal buffer, causing select() to report 'not ready' even
+        when events remain unprocessed in the Python buffer.
+        """
         try:
-            with open(self.device_path, "rb") as device:
+            with open(self.device_path, "rb", buffering=0) as device:
                 yield device
         except (IOError, OSError) as e:
             raise exceptions.ScraperError(
@@ -131,6 +140,79 @@ class InputManager:
             logger.log_error(f"Unexpected error processing input event: {e}")
 
         return False
+
+    def start_nonblocking(self) -> None:
+        """Open a persistent fd for non-blocking reads.
+
+        Must be called before a polling loop (e.g. batch scraping) so that
+        events are queued by the kernel between polls. Without a persistent
+        fd, events that arrive between open/close cycles are lost because
+        Linux evdev queues events per open file descriptor.
+        """
+        self.stop_nonblocking()  # Close any previous fd
+        try:
+            self._nb_fd = os.open(str(self.device_path), os.O_RDONLY | os.O_NONBLOCK)
+        except OSError as e:
+            logger.log_warning(f"Failed to open non-blocking input fd: {e}")
+            self._nb_fd = -1
+
+    def stop_nonblocking(self) -> None:
+        """Close the persistent non-blocking fd."""
+        if self._nb_fd >= 0:
+            try:
+                os.close(self._nb_fd)
+            except OSError:
+                pass
+            self._nb_fd = -1
+
+    def check_input_nonblocking(self) -> bool:
+        """
+        Non-blocking input check. Returns True if a key event was read.
+
+        If a persistent fd was opened via start_nonblocking(), uses that fd
+        so events are never lost between polls. Otherwise falls back to
+        opening a temporary fd (original behavior).
+        """
+        if self._nb_fd >= 0:
+            return self._drain_nonblocking(self._nb_fd)
+
+        # Fallback: open a temporary fd (events between calls may be lost)
+        if not self.device_path.exists():
+            return False
+
+        found_key = False
+        fd = -1
+        try:
+            fd = os.open(str(self.device_path), os.O_RDONLY | os.O_NONBLOCK)
+            found_key = self._drain_nonblocking(fd)
+        except Exception:
+            pass
+        finally:
+            if fd >= 0:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+        return found_key
+
+    def _drain_nonblocking(self, fd: int) -> bool:
+        """Drain all pending events from a non-blocking fd."""
+        found_key = False
+        try:
+            while True:
+                try:
+                    event_data = os.read(fd, 24)
+                except OSError as e:
+                    if e.errno in (errno.EAGAIN, errno.EWOULDBLOCK):
+                        break
+                    raise
+                if len(event_data) < 24:
+                    break
+                if self._process_event(event_data):
+                    found_key = True
+        except Exception:
+            pass
+        return found_key
 
     def key_pressed(self, key_code_name: str, key_value: Optional[int] = None) -> bool:
         """
@@ -201,6 +283,25 @@ def key_pressed(key_code_name: str, key_value: Optional[int] = None) -> bool:
     if key_value == 99:
         key_value = None
     return manager.key_pressed(key_code_name, key_value)
+
+
+def start_nonblocking() -> None:
+    """Open persistent non-blocking fd (backward compatibility function)."""
+    _get_input_manager().start_nonblocking()
+
+
+def stop_nonblocking() -> None:
+    """Close persistent non-blocking fd (backward compatibility function)."""
+    _get_input_manager().stop_nonblocking()
+
+
+def check_input_nonblocking() -> bool:
+    """Non-blocking input check (backward compatibility function)."""
+    manager = _get_input_manager()
+    result = manager.check_input_nonblocking()
+    if result:
+        _update_legacy_variables()
+    return result
 
 
 def reset_input() -> None:

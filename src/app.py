@@ -2,6 +2,7 @@
 
 import concurrent.futures
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
@@ -14,7 +15,7 @@ if str(current_dir) not in sys.path:
 
 import exceptions
 import input
-from cache_manager import api_cached, get_cache_manager
+from cache_manager import get_cache_manager
 from config_manager import ConfigManager, ScraperConfig
 from graphic import GUI
 from image_processor import get_image_processor
@@ -22,7 +23,6 @@ from logger import LoggerSingleton as logger
 from rom_manager import Rom, RomManager
 from scraper import (
     check_destination,
-    check_rate_limit_cache_status,
     fetch_box,
     fetch_preview,
     fetch_synopsis,
@@ -32,7 +32,14 @@ from scraper import (
     get_user_data,
 )
 
-VERSION = "2.0.0"
+VERSION = "3.0.0"
+
+
+class _ScrapeCancelledError(Exception):
+    """Raised inside worker threads when scraping is cancelled."""
+
+    pass
+
 
 # Constants
 DEFAULT_MAX_ELEMENTS = 11
@@ -104,6 +111,9 @@ class App:
         self.cached_roms_data: Optional[RomsData] = None
         self.cached_system: Optional[str] = None
 
+        # Scraping cancellation
+        self._scrape_cancelled = threading.Event()
+
         # GUI
         self.gui: Optional[GUI] = None
 
@@ -164,21 +174,25 @@ class App:
 
             # Apply color configuration
             if self.config and self.config.colors:
-                self.gui.COLOR_PRIMARY = self.config.colors.get(
-                    "primary", self.gui.COLOR_PRIMARY
-                )
-                self.gui.COLOR_PRIMARY_DARK = self.config.colors.get(
-                    "primary_dark", self.gui.COLOR_PRIMARY_DARK
-                )
-                self.gui.COLOR_SECONDARY = self.config.colors.get(
-                    "secondary", self.gui.COLOR_SECONDARY
-                )
-                self.gui.COLOR_SECONDARY_LIGHT = self.config.colors.get(
-                    "secondary_light", self.gui.COLOR_SECONDARY_LIGHT
-                )
-                self.gui.COLOR_SECONDARY_DARK = self.config.colors.get(
-                    "secondary_dark", self.gui.COLOR_SECONDARY_DARK
-                )
+                color_map = {
+                    "primary": "COLOR_PRIMARY",
+                    "primary_dark": "COLOR_PRIMARY_DARK",
+                    "secondary": "COLOR_SECONDARY",
+                    "secondary_light": "COLOR_SECONDARY_LIGHT",
+                    "secondary_dark": "COLOR_SECONDARY_DARK",
+                    "accent_bar": "COLOR_ACCENT_BAR",
+                    "muted": "COLOR_MUTED",
+                    "header_bg": "COLOR_HEADER_BG",
+                    "row_hover": "COLOR_ROW_HOVER",
+                    "success": "COLOR_SUCCESS",
+                }
+                for key, attr in color_map.items():
+                    if key in self.config.colors:
+                        setattr(
+                            self.gui,
+                            attr,
+                            self.config.colors[key],
+                        )
 
         except Exception as e:
             logger.log_error(f"Failed to initialize GUI: {e}")
@@ -196,7 +210,6 @@ class App:
             logger.log_error(f"Failed to start main interface: {e}")
             raise
 
-    @api_cached(ttl=300)  # Cache for 5 minutes
     def _configure_user_threads(self) -> None:
         """Configure thread count based on user's API limits and server capacity with proper error handling."""
         try:
@@ -364,7 +377,8 @@ class App:
                 f"PERFORMANCE STATS: API cache hit rate: {stats.get('hit_rate_percent', 0):.1f}%"
             )
             logger.log_info(
-                f"PERFORMANCE STATS: Total cache entries: {stats.get('memory_cache_size', 0) + stats.get('api_cache_size', 0)}"
+                "PERFORMANCE STATS: Total cache entries: "
+                f"{stats.get('memory_cache_size', 0) + stats.get('api_cache_size', 0)}"
             )
 
             logger.log_info("Application cleanup complete")
@@ -417,14 +431,47 @@ class App:
         screen_image = self.gui.create_image()
         self.gui.draw_active(screen_image)
 
-        # Draw all interface elements to buffer
-        self.gui.draw_rectangle_r([10, 40, 630, 440], 15)
-        self.gui.draw_text((320, 20), f"Artie Scraper v{VERSION}", anchor="mm")
+        # Header bar
+        self.gui.draw_rectangle_r([0, 0, 640, 36], 0, fill=self.gui.COLOR_HEADER_BG)
+        self.gui.draw_text(
+            (20, 18),
+            "ARTIE SCRAPER",
+            font=18,
+            color=self.gui.COLOR_PRIMARY,
+            anchor="lm",
+        )
+        # Version badge
+        self.gui.draw_rectangle_r(
+            [160, 8, 220, 28], 10, fill=self.gui.COLOR_SECONDARY_LIGHT
+        )
+        self.gui.draw_text(
+            (190, 18), f"v{VERSION}", font=11, color=self.gui.COLOR_MUTED, anchor="mm"
+        )
+
+        # Content area
+        self.gui.draw_rectangle_r(
+            [10, 42, 630, 438], 10, fill=self.gui.COLOR_SECONDARY_DARK
+        )
 
         if available_systems:
             self._draw_available_systems(available_systems)
+            # Page indicator
+            total_pages = (len(available_systems) + self.max_elem - 1) // self.max_elem
+            current_page = (self.selected_position // self.max_elem) + 1
+            self.gui.draw_text(
+                (620, 18),
+                f"{current_page}/{total_pages}",
+                font=11,
+                color=self.gui.COLOR_MUTED,
+                anchor="rm",
+            )
         else:
             self._draw_no_emulators_message()
+
+        # Separator line above controls
+        self.gui.draw_line(
+            (10, 443), (630, 443), fill=self.gui.COLOR_SECONDARY_LIGHT, width=1
+        )
 
         self._draw_emulator_controls()
 
@@ -441,26 +488,80 @@ class App:
             self._draw_system_row(system, i, is_selected)
 
     def _draw_system_row(self, system: str, index: int, selected: bool) -> None:
-        """Draw a single system row."""
+        """Draw a single system row with accent bar and optional logo."""
         y_pos = 50 + (index * 35)
+
+        # Row background
+        row_fill = (
+            self.gui.COLOR_ROW_HOVER if selected else self.gui.COLOR_SECONDARY_DARK
+        )
         self.gui.draw_rectangle_r(
             [20, y_pos, 620, y_pos + 32],
-            5,
-            fill=self.gui.COLOR_PRIMARY if selected else self.gui.COLOR_SECONDARY_LIGHT,
+            6,
+            fill=row_fill,
         )
-        self.gui.draw_text((25, y_pos + 5), system)
+
+        # Left accent bar for selected row
+        if selected:
+            self.gui.draw_rectangle_r(
+                [20, y_pos, 24, y_pos + 32],
+                2,
+                fill=self.gui.COLOR_ACCENT_BAR,
+            )
+
+        # Try to show system logo if enabled
+        LOGO_AREA_W = 170  # Fixed width reserved for logos
+        show_logos = (
+            self.config and self.config.show_logos and self.config.systems_logo_path
+        )
+        if show_logos:
+            logo_path = f"{self.config.systems_logo_path}/" f"{system.upper()}.png"
+            logo = self.gui.load_logo(logo_path, max_height=20)
+            if logo:
+                max_logo_w = LOGO_AREA_W - 10
+                logo_y = y_pos + (32 - logo.height) // 2
+                self.gui.draw_image_at(
+                    (30, logo_y),
+                    logo,
+                    max_logo_w,
+                    20,
+                )
+
+        # Text always starts at a fixed column
+        text_x = 30 + LOGO_AREA_W if show_logos else 30
+
+        self.gui.draw_text(
+            (text_x, y_pos + 16),
+            system,
+            font=14 if selected else 13,
+            color=(self.gui.COLOR_WHITE if selected else self.gui.COLOR_MUTED),
+            anchor="lm",
+        )
 
     def _draw_no_emulators_message(self) -> None:
         """Draw message when no emulators are found."""
         self.gui.draw_text(
-            (320, 240), f"No Emulators found in {self.config.roms_path}", anchor="mm"
+            (320, 220),
+            "No Emulators Found",
+            font=18,
+            color=self.gui.COLOR_MUTED,
+            anchor="mm",
+        )
+        self.gui.draw_text(
+            (320, 250),
+            f"Check path: {self.config.roms_path}",
+            font=11,
+            color=self.gui.COLOR_MUTED,
+            anchor="mm",
         )
 
     def _draw_emulator_controls(self) -> None:
         """Draw control buttons for emulator screen."""
-        self._draw_button_circle((30, 450), "A", "Select")
-        self._draw_button_circle((170, 450), "X", "Delete")
-        self._draw_button_circle((300, 450), "M", "Exit")
+        y = 453
+        self._draw_button_pill((25, y), "ST", "All")
+        self._draw_button_pill((130, y), "A", "Select")
+        self._draw_button_pill((260, y), "X", "Delete")
+        self._draw_button_pill((390, y), "M", "Exit")
 
     def _handle_emulator_input(self, available_systems: List[str]) -> None:
         """Handle input for emulator selection screen."""
@@ -481,6 +582,8 @@ class App:
             self._handle_page_navigation(len(available_systems), -LARGE_NAVIGATION_STEP)
         elif input.key_pressed("R2"):
             self._handle_page_navigation(len(available_systems), LARGE_NAVIGATION_STEP)
+        elif input.key_pressed("START"):
+            self._scrape_all_systems(available_systems)
 
     def _handle_vertical_navigation(self, max_items: int) -> None:
         """Handle up/down navigation."""
@@ -506,12 +609,14 @@ class App:
             self.roms_selected_position = max(0, self.roms_selected_position + step)
 
     def _clear_rom_cache(self) -> None:
-        """Clear the ROM data cache."""
+        """Clear the ROM data cache and image cache."""
         self.cached_roms_data = None
         self.cached_system = None
+        if self.gui:
+            self.gui.clear_image_cache()
 
     def _select_system(self, available_systems: List[str]) -> None:
-        """Select a system and prepare for atomic transition to ROM view with data prepared BEFORE any visual changes."""
+        """Select a system and prepare for atomic transition to ROM view."""
         new_system = available_systems[self.selected_position]
 
         # Clear cache if system is changing
@@ -528,8 +633,6 @@ class App:
                 # ROM loading failed - show error and stay in emulator view
                 loading_image = self.gui.create_image()
                 self.gui.draw_active(loading_image)
-                self.gui.draw_rectangle_r([10, 40, 630, 440], 15)
-                self.gui.draw_text((320, 20), f"Artie Scraper v{VERSION}", anchor="mm")
                 self.gui.draw_log(f"Failed to load ROMs for {self.selected_system}")
                 self.gui.draw_paint()
                 time.sleep(self.LOG_WAIT)
@@ -548,8 +651,6 @@ class App:
             # On error, show error message and stay in emulator view
             loading_image = self.gui.create_image()
             self.gui.draw_active(loading_image)
-            self.gui.draw_rectangle_r([10, 40, 630, 440], 15)
-            self.gui.draw_text((320, 20), f"Artie Scraper v{VERSION}", anchor="mm")
             self.gui.draw_log(f"Error loading ROMs: {str(e)[:50]}...")
             self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
@@ -574,6 +675,77 @@ class App:
         self.gui.draw_paint()
         self.skip_input_check = True
         time.sleep(self.LOG_WAIT)
+
+    def _scrape_all_systems(self, available_systems: List[str]) -> None:
+        """Scrape all ROMs across all available systems sequentially."""
+        if not available_systems:
+            return
+
+        total_systems = len(available_systems)
+        self.gui.draw_log(
+            f"Scraping all {total_systems} systems..."
+        )
+        self.gui.draw_paint()
+
+        systems_completed = 0
+        systems_skipped = 0
+
+        for i, system_name in enumerate(available_systems):
+            # Check for cancellation between systems
+            if input.check_input_nonblocking() and input.key_pressed("B"):
+                self.gui.draw_log(
+                    f"Cancelled after {systems_completed}/{total_systems} systems."
+                )
+                self.gui.draw_paint()
+                time.sleep(self.LOG_WAIT * 2)
+                break
+
+            self.selected_system = system_name
+            self._clear_rom_cache()
+
+            self.gui.draw_log(
+                f"[{i + 1}/{total_systems}] Loading {system_name}..."
+            )
+            self.gui.draw_paint()
+
+            roms_data = self._prepare_roms_data()
+            if roms_data is None or not roms_data.roms_to_scrape:
+                logger.log_info(
+                    f"Skipping {system_name}: no ROMs to scrape"
+                )
+                systems_skipped += 1
+                continue
+
+            self.gui.draw_log(
+                f"[{i + 1}/{total_systems}] Scraping {system_name} "
+                f"({len(roms_data.roms_to_scrape)} ROMs)..."
+            )
+            self.gui.draw_paint()
+
+            self._scrape_all_roms(roms_data)
+
+            if self._scrape_cancelled.is_set():
+                systems_completed += 1
+                self.gui.draw_log(
+                    f"Cancelled during {system_name}. "
+                    f"Completed {systems_completed}/{total_systems} systems."
+                )
+                self.gui.draw_paint()
+                time.sleep(self.LOG_WAIT * 2)
+                break
+
+            systems_completed += 1
+
+        else:
+            self.gui.draw_log(
+                f"All systems done! {systems_completed} scraped, "
+                f"{systems_skipped} skipped."
+            )
+            self.gui.draw_paint()
+            time.sleep(self.LOG_WAIT * 3)
+
+        self._clear_rom_cache()
+        self.skip_input_check = True
 
     def load_roms(self) -> None:
         """Load and display ROM selection screen with optimized structure and caching."""
@@ -732,6 +904,8 @@ class App:
             self._scrape_single_rom(roms_data)
         elif input.key_pressed("X"):
             self._delete_single_rom_media(roms_data)
+        elif input.key_pressed("Y"):
+            self._show_rom_detail(roms_data)
         elif input.key_pressed("B"):
             return True  # Exit to emulator menu
         elif input.key_pressed("START"):
@@ -763,8 +937,6 @@ class App:
         rom = roms_data.roms_to_scrape[self.roms_selected_position]
         self.gui.draw_log(f"Scraping {rom.name}...")
         self.gui.draw_paint()
-
-        # Hash preloading removed - no longer calculating hashes
 
         try:
             self._process_rom(rom, roms_data)
@@ -805,19 +977,28 @@ class App:
         time.sleep(self.LOG_WAIT)
         self.skip_input_check = True
 
+    def _check_scrape_cancelled(self) -> bool:
+        """Poll for B button press to cancel scraping (non-blocking)."""
+        if input.check_input_nonblocking() and input.key_pressed("B"):
+            self._scrape_cancelled.set()
+            return True
+        return self._scrape_cancelled.is_set()
+
     def _scrape_all_roms(self, roms_data: RomsData) -> None:
         """Scrape all ROMs using thread pool with performance monitoring and progress indicators."""
         if not roms_data.roms_to_scrape:
             return
 
         total_roms = len(roms_data.roms_to_scrape)
+        self._scrape_cancelled.clear()
 
-        # PERFORMANCE: Show initial performance info (hash stats removed)
+        # Keep a persistent input fd open so B presses are queued by the
+        # kernel between polls (evdev queues events per open fd).
+        input.start_nonblocking()
+
         cache_stats = self.cache_manager.get_stats()
 
         self.gui.draw_log(f"Starting batch scraping of {total_roms} ROMs...")
-        # API Cache popup: Shows current cache statistics to help users understand
-        # performance optimizations - displays number of cached API responses and hit rate
         self.gui.draw_log(
             f"API cache: {cache_stats.get('api_cache_size', 0)} entries, "
             f"{cache_stats.get('hit_rate_percent', 0):.1f}% hit rate"
@@ -825,9 +1006,9 @@ class App:
         self.gui.draw_paint()
 
         completed = 0
+        cancelled = False
         quota_exceeded = False
         start_time = time.time()
-        # Hash functionality removed
 
         try:
             with concurrent.futures.ThreadPoolExecutor(
@@ -841,89 +1022,94 @@ class App:
                     for rom in roms_data.roms_to_scrape
                 }
 
-                # Process completed tasks with performance monitoring
-                for future in concurrent.futures.as_completed(future_to_rom):
-                    rom = future_to_rom[future]
-                    try:
-                        result = future.result()
-                        completed += 1
+                # Process completed tasks with cancellation polling
+                pending = set(future_to_rom.keys())
+                while pending:
+                    # Check for user cancellation
+                    if self._check_scrape_cancelled():
+                        cancelled = True
+                        logger.log_info("Batch scraping cancelled by user")
+                        self.gui.draw_log("Cancelling... waiting for active threads")
+                        self.gui.draw_paint()
+                        for f in pending:
+                            f.cancel()
+                        break
 
-                        # Hash tracking removed
+                    # Wait for next completion with short timeout
+                    # so we can poll for cancellation regularly
+                    done, pending = concurrent.futures.wait(
+                        pending,
+                        timeout=0.3,
+                        return_when=concurrent.futures.FIRST_COMPLETED,
+                    )
 
-                        # Show progress with performance info
+                    for future in done:
+                        rom = future_to_rom[future]
+                        try:
+                            future.result()
+                            completed += 1
+                        except exceptions.RateLimitError as e:
+                            logger.log_error(
+                                f"Rate limit error during batch scraping: {e}"
+                            )
+                            quota_exceeded = True
+                            for rf in pending:
+                                rf.cancel()
+                            pending = set()
+                            break
+                        except exceptions.ForbiddenError as e:
+                            logger.log_error(
+                                f"API access forbidden for ROM {rom.name}: {e}"
+                            )
+                        except Exception as e:
+                            logger.log_error(f"Error scraping ROM {rom.name}: {e}")
+
+                    if quota_exceeded:
+                        break
+
+                    # Show progress after processing completed batch
+                    if completed > 0:
                         elapsed_time = time.time() - start_time
-                        avg_time_per_rom = (
-                            elapsed_time / completed if completed > 0 else 0
-                        )
+                        avg_time_per_rom = elapsed_time / completed
                         estimated_remaining = avg_time_per_rom * (
                             total_roms - completed
                         )
-
                         progress_msg = (
-                            f"PROGRESS: {completed}/{total_roms} ROMs "
-                            f"({(completed/total_roms)*100:.1f}%) - "
-                            f"ETA: {estimated_remaining/60:.1f}min"
+                            f"{completed}/{total_roms} ROMs "
+                            f"- ETA: {estimated_remaining/60:.1f}min "
+                            f"[B] Cancel"
                         )
-
                         logger.log_info(progress_msg)
+                        progress = completed / total_roms
+                        self.gui.draw_log_with_progress(
+                            progress_msg,
+                            progress,
+                        )
+                        self.gui.draw_paint()
 
-                        # Update GUI after every ROM for live progress updates
-                        if True:  # Update after every ROM
-                            self.gui.draw_log(progress_msg)
-                            # Hash efficiency tracking removed
-                            self.gui.draw_paint()
-
-                    except exceptions.RateLimitError as e:
-                        logger.log_error(
-                            f"RATE_LIMIT_DEBUG: Rate limit error during batch scraping: {e}"
-                        )
-                        cache_status = check_rate_limit_cache_status(
-                            self.config.username
-                        )
-                        logger.log_error(
-                            f"RATE_LIMIT_DEBUG: Current cache status: {cache_status}"
-                        )
-                        quota_exceeded = True
-                        # Cancel remaining tasks when quota is exceeded
-                        for remaining_future in future_to_rom:
-                            remaining_future.cancel()
-                        break
-                    except exceptions.ForbiddenError as e:
-                        logger.log_error(
-                            f"API access forbidden for ROM {rom.name}: {e}"
-                        )
-                    except Exception as e:
-                        logger.log_error(f"Error scraping ROM {rom.name}: {e}")
-
-            # PERFORMANCE: Show final performance statistics
             total_time = time.time() - start_time
-            final_cache_stats = self.cache_manager.get_stats()
-
             performance_summary = [
-                f"PERFORMANCE SUMMARY:",
+                "PERFORMANCE SUMMARY:",
                 f"• Total time: {total_time/60:.1f} minutes",
                 (
                     f"• Average time per ROM: {total_time/completed:.1f}s"
                     if completed > 0
                     else "• No ROMs completed"
                 ),
-                f"• API requests optimized with caching",
-                f"• Network requests optimized with connection pooling",
             ]
 
             for msg in performance_summary:
-                if msg:  # Skip empty messages
-                    logger.log_info(msg)
-                    self.gui.draw_log(msg)
+                logger.log_info(msg)
 
             # Clear cache after batch scraping to ensure fresh data on next load
             if completed > 0:
-                logger.log_debug(
-                    "CACHE INVALIDATION: Clearing cache after batch ROM scraping"
-                )
                 self._clear_rom_cache()
 
-            if quota_exceeded:
+            if cancelled:
+                self.gui.draw_log(
+                    f"Scraping cancelled. Completed {completed}/{total_roms} ROMs."
+                )
+            elif quota_exceeded:
                 self.gui.draw_log(
                     f"Batch stopped: API quota exceeded. Completed {completed} ROMs."
                 )
@@ -936,18 +1122,16 @@ class App:
             logger.log_error(f"Error in batch scraping: {e}")
             self.gui.draw_log(f"Batch scraping error: {str(e)[:50]}...")
 
+        input.stop_nonblocking()
         self.gui.draw_paint()
-        time.sleep(self.LOG_WAIT * 3)  # Longer wait to read performance summary
+        time.sleep(self.LOG_WAIT * 3)
         self.skip_input_check = True
 
     def _process_rom(self, rom: Rom, roms_data: RomsData) -> Tuple[Any, Any, Any, str]:
         """Process a single ROM (scrape and save media)."""
-        try:
-            scraped_box, scraped_preview, scraped_synopsis = self._scrape_rom_media(
-                rom, roms_data.system_id
-            )
-        except (exceptions.ForbiddenError, exceptions.RateLimitError) as e:
-            raise e
+        scraped_box, scraped_preview, scraped_synopsis = self._scrape_rom_media(
+            rom, roms_data.system_id
+        )
 
         # Apply mask processing to images before saving
         image_processor = get_image_processor()
@@ -977,9 +1161,10 @@ class App:
 
     def _process_rom_with_monitoring(self, rom: Rom, roms_data: RomsData) -> dict:
         """Process a single ROM with performance monitoring."""
-        start_time = time.time()
+        if self._scrape_cancelled.is_set():
+            return {"success": False, "rom_name": rom.name, "skipped": True}
 
-        # Hash functionality removed
+        start_time = time.time()
 
         try:
             scraped_box, scraped_preview, scraped_synopsis, rom_name = (
@@ -992,12 +1177,13 @@ class App:
                 "success": True,
                 "rom_name": rom_name,
                 "processing_time": processing_time,
-                # Hash tracking removed
                 "scraped_box": scraped_box is not None,
                 "scraped_preview": scraped_preview is not None,
                 "scraped_synopsis": scraped_synopsis is not None,
             }
 
+        except _ScrapeCancelledError:
+            return {"success": False, "rom_name": rom.name, "skipped": True}
         except (exceptions.ForbiddenError, exceptions.RateLimitError) as e:
             raise e
         except Exception as e:
@@ -1008,13 +1194,15 @@ class App:
                 "success": False,
                 "rom_name": rom.name,
                 "processing_time": processing_time,
-                # Hash tracking removed
                 "error": str(e),
             }
 
     def _scrape_rom_media(self, rom: Rom, system_id: str) -> Tuple[Any, Any, Any]:
-        """Scrape media for a ROM."""
+        """Scrape media for a ROM. Raises _ScrapeCancelledError if cancelled."""
         scraped_box = scraped_preview = scraped_synopsis = None
+
+        if self._scrape_cancelled.is_set():
+            raise _ScrapeCancelledError()
 
         game = get_game_data(
             system_id,
@@ -1027,10 +1215,16 @@ class App:
 
         if game:
             content = self.config.content
+            if self._scrape_cancelled.is_set():
+                raise _ScrapeCancelledError()
             if self.config.box_enabled:
                 scraped_box = fetch_box(game, content)
+            if self._scrape_cancelled.is_set():
+                raise _ScrapeCancelledError()
             if self.config.preview_enabled:
                 scraped_preview = fetch_preview(game, content)
+            if self._scrape_cancelled.is_set():
+                raise _ScrapeCancelledError()
             if self.config.synopsis_enabled:
                 scraped_synopsis = fetch_synopsis(game, content)
 
@@ -1050,57 +1244,101 @@ class App:
 
     def _render_roms_interface(self, roms_data: RomsData) -> None:
         """Render the ROM selection interface with optimized double-buffering."""
-        logger.log_debug(
-            "=== ROM NAVIGATION DEBUG: Starting optimized ROM interface render ==="
-        )
-
-        # Create a new image buffer and prepare complete interface before painting
-        logger.log_debug(
-            "ROM NAVIGATION DEBUG: Creating new image buffer for complete interface"
-        )
         interface_image = self.gui.create_image()
         self.gui.draw_active(interface_image)
 
-        # Draw all interface elements to the buffer first
-        logger.log_debug(
-            "ROM NAVIGATION DEBUG: Drawing all interface elements to buffer"
+        # Header bar
+        self.gui.draw_rectangle_r(
+            [0, 0, 640, 36],
+            0,
+            fill=self.gui.COLOR_HEADER_BG,
         )
-        self.gui.draw_rectangle_r([10, 40, 630, 440], 15)
 
         # Draw header information
         self._draw_roms_header(roms_data)
 
+        # Content area
+        self.gui.draw_rectangle_r(
+            [10, 42, 630, 438],
+            10,
+            fill=self.gui.COLOR_SECONDARY_DARK,
+        )
+
         # Draw ROM list
         self._draw_roms_list(roms_data)
+
+        # Separator line above controls
+        self.gui.draw_line(
+            (10, 443),
+            (630, 443),
+            fill=self.gui.COLOR_SECONDARY_LIGHT,
+            width=1,
+        )
 
         # Draw controls
         self._draw_roms_controls()
 
-        # Paint the complete interface in one operation (no black flash)
-        logger.log_debug(
-            "ROM NAVIGATION DEBUG: Painting complete interface in single operation"
-        )
+        # Paint complete interface in single operation
         self.gui.draw_paint()
-        logger.log_debug(
-            "=== ROM NAVIGATION DEBUG: Optimized ROM interface render complete ==="
-        )
 
     def _draw_roms_header(self, roms_data: RomsData) -> None:
         """Draw header with ROM statistics."""
-        rom_text = f"{self.selected_system} - Total Roms: {len(roms_data.roms_list)}"
+        # System name
+        self.gui.draw_text(
+            (20, 18),
+            self.selected_system.upper(),
+            font=18,
+            color=self.gui.COLOR_PRIMARY,
+            anchor="lm",
+        )
 
-        missing_parts = []
-        if self.config.box_enabled:
-            missing_parts.append(f"No box: {len(roms_data.roms_without_box)}")
-        if self.config.preview_enabled:
-            missing_parts.append(f"No preview: {len(roms_data.roms_without_preview)}")
-        if self.config.synopsis_enabled:
-            missing_parts.append(f"No text: {len(roms_data.roms_without_synopsis)}")
+        # Total ROMs badge
+        total = len(roms_data.roms_list)
+        self.gui.draw_rectangle_r(
+            [160, 8, 230, 28],
+            10,
+            fill=self.gui.COLOR_SECONDARY_LIGHT,
+        )
+        self.gui.draw_text(
+            (195, 18),
+            f"{total} ROMs",
+            font=11,
+            color=self.gui.COLOR_MUTED,
+            anchor="mm",
+        )
 
-        missing_text = " / ".join(missing_parts)
+        # Missing media stats on the right
+        stats = []
+        if self.config.box_enabled and roms_data.roms_without_box:
+            stats.append(f"B:{len(roms_data.roms_without_box)}")
+        if self.config.preview_enabled and roms_data.roms_without_preview:
+            stats.append(f"P:{len(roms_data.roms_without_preview)}")
+        if self.config.synopsis_enabled and roms_data.roms_without_synopsis:
+            stats.append(f"T:{len(roms_data.roms_without_synopsis)}")
 
-        self.gui.draw_text((90, 10), rom_text, anchor="mm")
-        self.gui.draw_text((500, 10), missing_text, anchor="mm")
+        if stats:
+            missing_text = "  ".join(stats)
+            self.gui.draw_text(
+                (620, 18),
+                missing_text,
+                font=11,
+                color=self.gui.COLOR_MUTED,
+                anchor="rm",
+            )
+
+        # Page indicator
+        total_pages = max(
+            1,
+            (len(roms_data.roms_to_scrape) + self.max_elem - 1) // self.max_elem,
+        )
+        current_page = (self.roms_selected_position // self.max_elem) + 1
+        self.gui.draw_text(
+            (400, 18),
+            f"{current_page}/{total_pages}",
+            font=11,
+            color=self.gui.COLOR_MUTED,
+            anchor="mm",
+        )
 
     def _draw_roms_list(self, roms_data: RomsData) -> None:
         """Draw the list of ROMs with pagination."""
@@ -1114,76 +1352,399 @@ class App:
     def _draw_rom_row(
         self, rom: Rom, index: int, selected: bool, roms_data: RomsData
     ) -> None:
-        """Draw a single ROM row with status information."""
+        """Draw a single ROM row with status badges."""
         y_pos = 50 + (index * 35)
 
         # Determine what media already exists
-        already_scraped = []
-        if self.config.box_enabled and rom not in roms_data.roms_without_box:
-            already_scraped.append("Box")
-        if self.config.preview_enabled and rom not in roms_data.roms_without_preview:
-            already_scraped.append("Preview")
-        if self.config.synopsis_enabled and rom not in roms_data.roms_without_synopsis:
-            already_scraped.append("Text")
+        has_box = self.config.box_enabled and rom not in roms_data.roms_without_box
+        has_preview = (
+            self.config.preview_enabled and rom not in roms_data.roms_without_preview
+        )
+        has_text = (
+            self.config.synopsis_enabled and rom not in roms_data.roms_without_synopsis
+        )
 
         # Truncate ROM name if too long
-        max_length = 48
+        max_length = 45
         display_name = (
             rom.name[:max_length] + "..." if len(rom.name) > max_length else rom.name
         )
 
-        # Draw main row
+        # Row background
+        row_fill = (
+            self.gui.COLOR_ROW_HOVER if selected else self.gui.COLOR_SECONDARY_DARK
+        )
         self.gui.draw_rectangle_r(
             [20, y_pos, 620, y_pos + 32],
-            5,
-            fill=self.gui.COLOR_PRIMARY if selected else self.gui.COLOR_SECONDARY_LIGHT,
+            6,
+            fill=row_fill,
         )
-        self.gui.draw_text((25, y_pos + 5), display_name)
 
-        # Draw status information
-        if already_scraped:
-            status_text = "/".join(already_scraped)
+        # Left accent bar for selected
+        if selected:
             self.gui.draw_rectangle_r(
-                [500, y_pos, 550, y_pos + 32],
-                5,
-                fill=(
-                    self.gui.COLOR_PRIMARY
-                    if selected
-                    else self.gui.COLOR_SECONDARY_LIGHT
-                ),
+                [20, y_pos, 24, y_pos + 32],
+                2,
+                fill=self.gui.COLOR_ACCENT_BAR,
             )
-            self.gui.draw_text((505, y_pos + 5), status_text)
+
+        # ROM name
+        self.gui.draw_text(
+            (30, y_pos + 16),
+            display_name,
+            font=14 if selected else 13,
+            color=(self.gui.COLOR_WHITE if selected else self.gui.COLOR_MUTED),
+            anchor="lm",
+        )
+
+        # Status badges (small colored dots/pills)
+        badge_x = 615
+        badges = []
+        if self.config.box_enabled:
+            badges.append(("B", has_box))
+        if self.config.preview_enabled:
+            badges.append(("P", has_preview))
+        if self.config.synopsis_enabled:
+            badges.append(("T", has_text))
+
+        for label, has_it in reversed(badges):
+            color = self.gui.COLOR_SUCCESS if has_it else self.gui.COLOR_SECONDARY_LIGHT
+            self.gui.draw_rectangle_r(
+                [badge_x - 18, y_pos + 8, badge_x, y_pos + 24],
+                4,
+                fill=color,
+            )
+            self.gui.draw_text(
+                (badge_x - 9, y_pos + 16),
+                label,
+                font=10,
+                color=self.gui.COLOR_WHITE if has_it else "#555555",
+                anchor="mm",
+            )
+            badge_x -= 22
 
     def _draw_roms_controls(self) -> None:
         """Draw control buttons for ROM screen."""
-        self._draw_button_rectangle((30, 450), "Start", "All")
-        self._draw_button_circle((140, 450), "A", "Download")
-        self._draw_button_circle((250, 450), "X", "Delete")
-        self._draw_button_circle((370, 450), "B", "Back")
-        self._draw_button_circle((500, 450), "M", "Exit")
+        y = 453
+        self._draw_button_pill((15, y), "ST", "All")
+        self._draw_button_pill((95, y), "A", "Get")
+        self._draw_button_pill((170, y), "X", "Del")
+        self._draw_button_pill((245, y), "Y", "View")
+        self._draw_button_pill((340, y), "B", "Back")
+        self._draw_button_pill((440, y), "M", "Exit")
 
-    def _draw_button_circle(self, pos: Tuple[int, int], button: str, text: str) -> None:
-        """Draw a circular button with label."""
-        self.gui.draw_circle(pos, 25)
-        self.gui.draw_text((pos[0] + 12, pos[1] + 12), button, anchor="mm")
-        self.gui.draw_text((pos[0] + 30, pos[1] + 12), text, font=13, anchor="lm")
-
-    def _draw_button_rectangle(
-        self, pos: Tuple[int, int], button: str, text: str
-    ) -> None:
-        """Draw a rectangular button with label."""
+    def _draw_button_pill(self, pos: Tuple[int, int], button: str, text: str) -> None:
+        """Draw a modern pill-shaped button with label."""
+        # Button key circle/pill
+        btn_w = max(22, len(button) * 11 + 8)
         self.gui.draw_rectangle_r(
-            (pos[0], pos[1], pos[0] + 60, pos[1] + 25),
-            5,
+            (pos[0], pos[1], pos[0] + btn_w, pos[1] + 22),
+            11,
+            fill=self.gui.COLOR_PRIMARY_DARK,
+        )
+        self.gui.draw_text(
+            (pos[0] + btn_w // 2, pos[1] + 11),
+            button,
+            font=12,
+            anchor="mm",
+        )
+        # Label text
+        self.gui.draw_text(
+            (pos[0] + btn_w + 5, pos[1] + 11),
+            text,
+            font=13,
+            color=self.gui.COLOR_MUTED,
+            anchor="lm",
+        )
+
+    def _show_rom_detail(self, roms_data: RomsData) -> None:
+        """Show detailed view of selected ROM with scraped media previews."""
+        if not roms_data.roms_to_scrape:
+            return
+
+        rom = roms_data.roms_to_scrape[self.roms_selected_position]
+
+        has_box = self.config.box_enabled and rom not in roms_data.roms_without_box
+        has_preview = (
+            self.config.preview_enabled and rom not in roms_data.roms_without_preview
+        )
+        has_text = (
+            self.config.synopsis_enabled and rom not in roms_data.roms_without_synopsis
+        )
+
+        self._render_rom_detail(rom, roms_data, has_box, has_preview, has_text)
+
+        # Blocking input loop — wait for user action
+        while True:
+            input.check_input()
+            if input.key_pressed("B"):
+                break
+            elif input.key_pressed("A"):
+                self._scrape_single_rom(roms_data)
+                # Refresh detail view after scraping
+                self._clear_rom_cache()
+                roms_data = self._prepare_roms_data()
+                if roms_data is None:
+                    break
+                self.cached_roms_data = roms_data
+                self.cached_system = self.selected_system
+                has_box = (
+                    self.config.box_enabled and rom not in roms_data.roms_without_box
+                )
+                has_preview = (
+                    self.config.preview_enabled
+                    and rom not in roms_data.roms_without_preview
+                )
+                has_text = (
+                    self.config.synopsis_enabled
+                    and rom not in roms_data.roms_without_synopsis
+                )
+                self._render_rom_detail(rom, roms_data, has_box, has_preview, has_text)
+
+        self.skip_input_check = True
+
+    def _render_rom_detail(
+        self,
+        rom: Rom,
+        roms_data: RomsData,
+        has_box: bool,
+        has_preview: bool,
+        has_text: bool,
+    ) -> None:
+        """Render the ROM detail screen."""
+        interface_image = self.gui.create_image()
+        self.gui.draw_active(interface_image)
+
+        # Header bar
+        self.gui.draw_rectangle_r([0, 0, 640, 36], 0, fill=self.gui.COLOR_HEADER_BG)
+        display_name = rom.name[:50] + "..." if len(rom.name) > 50 else rom.name
+        self.gui.draw_text(
+            (20, 18),
+            display_name,
+            font=18,
+            color=self.gui.COLOR_PRIMARY,
+            anchor="lm",
+        )
+
+        # Status badges in header
+        badge_x = 620
+        badges = []
+        if self.config.box_enabled:
+            badges.append(("BOX", has_box))
+        if self.config.preview_enabled:
+            badges.append(("PRV", has_preview))
+        if self.config.synopsis_enabled:
+            badges.append(("TXT", has_text))
+        for label, has_it in reversed(badges):
+            color = self.gui.COLOR_SUCCESS if has_it else self.gui.COLOR_SECONDARY_LIGHT
+            w = len(label) * 8 + 10
+            self.gui.draw_rectangle_r([badge_x - w, 8, badge_x, 28], 10, fill=color)
+            self.gui.draw_text(
+                (badge_x - w // 2, 18),
+                label,
+                font=10,
+                color=self.gui.COLOR_WHITE if has_it else "#555555",
+                anchor="mm",
+            )
+            badge_x -= w + 6
+
+        # Content area
+        self.gui.draw_rectangle_r(
+            [10, 42, 630, 438], 10, fill=self.gui.COLOR_SECONDARY_DARK
+        )
+
+        # Determine layout based on what's enabled
+        show_box = self.config.box_enabled
+        show_preview = self.config.preview_enabled
+        img_y = 52
+        img_max_h = 180
+        synopsis_y = img_y + img_max_h + 25
+
+        if show_box and show_preview:
+            # Side by side: box left, preview right
+            self._draw_detail_media(
+                roms_data.box_dir,
+                rom.name,
+                has_box,
+                "Box Art",
+                20,
+                img_y,
+                285,
+                img_max_h,
+            )
+            self._draw_detail_media(
+                roms_data.preview_dir,
+                rom.name,
+                has_preview,
+                "Preview",
+                325,
+                img_y,
+                295,
+                img_max_h,
+            )
+        elif show_box:
+            # Box only, centered larger
+            self._draw_detail_media(
+                roms_data.box_dir,
+                rom.name,
+                has_box,
+                "Box Art",
+                120,
+                img_y,
+                400,
+                img_max_h,
+            )
+        elif show_preview:
+            # Preview only, centered larger
+            self._draw_detail_media(
+                roms_data.preview_dir,
+                rom.name,
+                has_preview,
+                "Preview",
+                80,
+                img_y,
+                480,
+                img_max_h,
+            )
+        else:
+            synopsis_y = img_y
+
+        # Synopsis section
+        if self.config.synopsis_enabled:
+            self.gui.draw_text(
+                (25, synopsis_y),
+                "Synopsis",
+                font=14,
+                color=self.gui.COLOR_PRIMARY,
+            )
+            self.gui.draw_line(
+                (25, synopsis_y + 18),
+                (120, synopsis_y + 18),
+                fill=self.gui.COLOR_PRIMARY_DARK,
+                width=1,
+            )
+            if has_text:
+                synopsis_path = roms_data.synopsis_dir / f"{rom.name}.txt"
+                try:
+                    text = synopsis_path.read_text(encoding="utf-8").strip()
+                    self._draw_wrapped_text(text, 25, synopsis_y + 25, 590, max_lines=7)
+                except Exception:
+                    self.gui.draw_text(
+                        (25, synopsis_y + 25),
+                        "Error reading synopsis",
+                        font=11,
+                        color=self.gui.COLOR_MUTED,
+                    )
+            else:
+                self.gui.draw_text(
+                    (25, synopsis_y + 25),
+                    "Not yet scraped",
+                    font=11,
+                    color=self.gui.COLOR_MUTED,
+                )
+
+        # Separator line above controls
+        self.gui.draw_line(
+            (10, 443), (630, 443), fill=self.gui.COLOR_SECONDARY_LIGHT, width=1
+        )
+
+        # Controls
+        y = 453
+        self._draw_button_pill((15, y), "A", "Get")
+        self._draw_button_pill((110, y), "B", "Back")
+
+        self.gui.draw_paint()
+
+    def _draw_detail_media(
+        self,
+        media_dir: Path,
+        rom_name: str,
+        has_media: bool,
+        label: str,
+        x: int,
+        y: int,
+        max_w: int,
+        max_h: int,
+    ) -> None:
+        """Draw a media thumbnail or placeholder in the detail view."""
+        # Background panel
+        self.gui.draw_rectangle_r(
+            [x, y, x + max_w, y + max_h],
+            6,
             fill=self.gui.COLOR_SECONDARY_LIGHT,
         )
-        self.gui.draw_text((pos[0] + 30, pos[1] + 12), button, anchor="mm")
-        self.gui.draw_text((pos[0] + 65, pos[1] + 12), text, font=13, anchor="lm")
+
+        if has_media:
+            media_path = media_dir / f"{rom_name}.png"
+            pad = 4
+            img = self.gui.load_image_cached(
+                str(media_path), max_w - pad * 2, max_h - pad * 2
+            )
+            if img:
+                # Center within panel
+                cx = x + (max_w - img.width) // 2
+                cy = y + (max_h - img.height) // 2
+                if img.mode == "RGBA":
+                    self.gui.activeImage.paste(img, (cx, cy), img)
+                else:
+                    self.gui.activeImage.paste(img, (cx, cy))
+            else:
+                self.gui.draw_text(
+                    (x + max_w // 2, y + max_h // 2),
+                    "Load error",
+                    font=11,
+                    color=self.gui.COLOR_MUTED,
+                    anchor="mm",
+                )
+        else:
+            self.gui.draw_text(
+                (x + max_w // 2, y + max_h // 2),
+                f"No {label}",
+                font=13,
+                color=self.gui.COLOR_MUTED,
+                anchor="mm",
+            )
+
+        # Label below panel
+        self.gui.draw_text(
+            (x + max_w // 2, y + max_h + 4),
+            label,
+            font=10,
+            color=self.gui.COLOR_MUTED,
+            anchor="mt",
+        )
+
+    def _draw_wrapped_text(
+        self, text: str, x: int, y: int, max_x: int, max_lines: int = 5
+    ) -> None:
+        """Draw word-wrapped text within bounds."""
+        chars_per_line = (max_x - x) // 6  # ~6px per char at font 11
+        words = text.split()
+        lines = []
+        current_line = ""
+        for word in words:
+            test = f"{current_line} {word}".strip()
+            if len(test) > chars_per_line:
+                if current_line:
+                    lines.append(current_line)
+                current_line = word
+            else:
+                current_line = test
+        if current_line:
+            lines.append(current_line)
+
+        for i, line in enumerate(lines[:max_lines]):
+            if i == max_lines - 1 and len(lines) > max_lines:
+                line = line[: chars_per_line - 3] + "..."
+            self.gui.draw_text(
+                (x, y + i * 16), line, font=11, color=self.gui.COLOR_WHITE
+            )
 
     def _exit_roms_menu(self) -> None:
         """Exit ROM menu and return to emulator selection with atomic transition."""
         logger.log_debug(
-            f"DEBUG_TRANSITION: _exit_roms_menu() called - preparing atomic transition from '{self.current_window}' to 'emulators'"
+            "DEBUG_TRANSITION: _exit_roms_menu() called - "
+            f"preparing atomic transition from '{self.current_window}' to 'emulators'"
         )
 
         # ATOMIC TRANSITION: Change state immediately and ensure proper input reset
@@ -1199,7 +1760,8 @@ class App:
         self.skip_input_check = True
 
         logger.log_debug(
-            f"DEBUG_TRANSITION: _exit_roms_menu() complete - current_window is now '{self.current_window}', input will be reset"
+            "DEBUG_TRANSITION: _exit_roms_menu() complete - "
+            f"current_window is now '{self.current_window}', input will be reset"
         )
 
 

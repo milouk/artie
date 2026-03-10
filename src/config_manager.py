@@ -1,5 +1,6 @@
 """Configuration management module for Artie Scraper."""
 
+import base64
 import json
 import logging
 from dataclasses import dataclass
@@ -29,6 +30,7 @@ class ScraperConfig:
     preview_enabled: bool
     synopsis_enabled: bool
     show_scraped_roms: bool
+    show_logos: bool
 
     # Performance settings
     threads: int
@@ -167,6 +169,7 @@ class ConfigManager:
                 raise exceptions.ConfigurationError("Missing content configuration")
 
             show_scraped_roms = screenscraper_config.get("show_scraped_roms", False)
+            show_logos = self._raw_config.get("show_logos", True)
 
             # Extract and validate content settings
             content_flags = self._extract_content_flags(content)
@@ -185,6 +188,7 @@ class ConfigManager:
                 preview_enabled=content_flags["preview_enabled"],
                 synopsis_enabled=content_flags["synopsis_enabled"],
                 show_scraped_roms=show_scraped_roms,
+                show_logos=show_logos,
                 threads=threads,
                 content=content,
                 systems_mapping=systems_mapping,
@@ -208,9 +212,18 @@ class ConfigManager:
         if not all([dev_id, dev_password, username, password]):
             raise exceptions.ConfigurationError("Missing screenscraper credentials")
 
+        # Decode base64 credentials once at load time
+        try:
+            decoded_dev_id = base64.b64decode(dev_id).decode()
+            decoded_dev_password = base64.b64decode(dev_password).decode()
+        except Exception as e:
+            raise exceptions.ConfigurationError(
+                f"Invalid base64-encoded credentials: {e}"
+            )
+
         return {
-            "dev_id": dev_id,
-            "dev_password": dev_password,
+            "dev_id": decoded_dev_id,
+            "dev_password": decoded_dev_password,
             "username": username,
             "password": password,
         }
@@ -405,7 +418,7 @@ class ConfigManager:
             user_level = ssuser.get("niveau", "Unknown")
             max_threads = ssuser.get("maxthreads", "Unknown")
 
-            logger.log_info(f"API credentials validated successfully")
+            logger.log_info("API credentials validated successfully")
             logger.log_info(
                 f"User: {username}, Level: {user_level}, Max threads: {max_threads}"
             )

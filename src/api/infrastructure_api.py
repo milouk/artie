@@ -1,6 +1,5 @@
 """Infrastructure API module for ScreenScraper server monitoring."""
 
-import base64
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlencode, urlparse, urlunparse
 
@@ -32,8 +31,8 @@ def parse_infrastructure_url(
     """
     try:
         params = {
-            "devid": base64.b64decode(dev_id).decode(),
-            "devpassword": base64.b64decode(dev_password).decode(),
+            "devid": dev_id,
+            "devpassword": dev_password,
             "softname": "artie",
             "output": "json",
             "ssid": username,
@@ -42,7 +41,7 @@ def parse_infrastructure_url(
 
         return urlunparse(urlparse(INFRA_URL)._replace(query=urlencode(params)))
 
-    except (UnicodeDecodeError, Exception) as e:
+    except Exception as e:
         raise exceptions.ScraperError(f"Error encoding infrastructure URL: {e}")
 
 

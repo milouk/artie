@@ -1,6 +1,5 @@
 """Systems API module for ScreenScraper dynamic system discovery."""
 
-import base64
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode, urlparse, urlunparse
 
@@ -33,8 +32,8 @@ def parse_systems_list_url(
     """
     try:
         params = {
-            "devid": base64.b64decode(dev_id).decode(),
-            "devpassword": base64.b64decode(dev_password).decode(),
+            "devid": dev_id,
+            "devpassword": dev_password,
             "softname": "artie",
             "output": "json",
             "ssid": username,
@@ -48,7 +47,7 @@ def parse_systems_list_url(
 
         return urlunparse(urlparse(SYSTEMS_LIST_URL)._replace(query=urlencode(params)))
 
-    except (UnicodeDecodeError, Exception) as e:
+    except Exception as e:
         raise exceptions.ScraperError(f"Error encoding systems list URL: {e}")
 
 
