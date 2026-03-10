@@ -35,13 +35,10 @@ jobs:
 
       - name: Bundle App
         run: |
-          mkdir -p .artie && \
-          cp -r ./dist/app ./assets ./config.json .artie && \
-          mkdir -p mnt/mmc/MUOS/application/Artie && \
-          cp -r ./.artie ./mux_launch.sh mnt/mmc/MUOS/application/Artie/ && \
-          cd mnt && \
-          zip -r ../Artie.zip . && \
-          cd .. && \
+          mkdir -p Artie/.artie && \
+          cp -r ./dist/app ./assets ./config.json Artie/.artie/ && \
+          cp ./mux_launch.sh Artie/ && \
+          zip -r Artie.zip Artie && \
           mv Artie.zip Artie.muxapp
 
       - name: Create release and upload assets
