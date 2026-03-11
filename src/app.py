@@ -15,7 +15,7 @@ if str(current_dir) not in sys.path:
 
 import exceptions
 import input
-from backup import backup_catalogue, restore_catalogue
+from backup import backup_catalogue
 from cache_manager import get_cache_manager
 from config_manager import ConfigManager, ScraperConfig
 from graphic import GUI
@@ -65,9 +65,9 @@ class RomsData:
     ):
         self.roms_list = roms_list
         self.roms_to_scrape = roms_to_scrape
-        self.roms_without_box = roms_without_box
-        self.roms_without_preview = roms_without_preview
-        self.roms_without_synopsis = roms_without_synopsis
+        self.roms_without_box = set(roms_without_box)
+        self.roms_without_preview = set(roms_without_preview)
+        self.roms_without_synopsis = set(roms_without_synopsis)
         self.system_config = system_config
         self.system_id = system_id
 
@@ -306,16 +306,20 @@ class App:
             )
 
     def _check_for_updates(self) -> None:
-        """Check for OTA updates on startup."""
-        try:
-            available, version, url = check_for_update(VERSION)
-            if available:
-                self._update_available = True
-                self._update_version = version
-                self._update_url = url
-                logger.log_info(f"Update available: v{version}")
-        except Exception as e:
-            logger.log_warning(f"Update check failed: {e}")
+        """Check for OTA updates on startup (non-blocking)."""
+
+        def _check():
+            try:
+                available, version, url = check_for_update(VERSION)
+                if available:
+                    self._update_available = True
+                    self._update_version = version
+                    self._update_url = url
+                    logger.log_info(f"Update available: v{version}")
+            except Exception as e:
+                logger.log_warning(f"Update check failed: {e}")
+
+        threading.Thread(target=_check, daemon=True).start()
 
     def _apply_update(self) -> None:
         """Download and apply an OTA update."""
@@ -754,6 +758,9 @@ class App:
         system_config = self.config.systems_mapping.get(self.selected_system)
 
         if system_config:
+            self.gui.draw_log(f"Deleting all {self.selected_system} media...")
+            self.gui.draw_paint()
+
             enabled_media_types = self.config_manager.get_enabled_media_types()
             self.rom_manager.delete_system_media(
                 self.selected_system, system_config, enabled_media_types
@@ -761,7 +768,10 @@ class App:
             # Clear cache after deleting system media
             self._clear_rom_cache()
 
-        self.gui.draw_log(f"Deleting all enabled {self.selected_system} media...")
+            self.gui.draw_log(f"Deleted all {self.selected_system} media")
+        else:
+            self.gui.draw_log(f"Unknown system: {self.selected_system}")
+
         self.gui.draw_paint()
         self.skip_input_check = True
         time.sleep(self.LOG_WAIT)
@@ -961,8 +971,10 @@ class App:
             return roms_list
 
         # Combine all ROMs missing any media type
-        missing_roms = set(
-            roms_without_box + roms_without_preview + roms_without_synopsis
+        missing_roms = (
+            set(roms_without_box)
+            | set(roms_without_preview)
+            | set(roms_without_synopsis)
         )
         return sorted(list(missing_roms), key=lambda rom: rom.name)
 
@@ -1019,6 +1031,7 @@ class App:
         if not roms_data.roms_to_scrape:
             return
 
+        self._scrape_cancelled.clear()
         rom = roms_data.roms_to_scrape[self.roms_selected_position]
         self.gui.draw_log(f"Scraping {rom.name}...")
         self.gui.draw_paint()
@@ -1585,7 +1598,7 @@ class App:
         # Blocking input loop — wait for user action
         while True:
             input.check_input()
-            if input.key_pressed("B"):
+            if input.key_pressed("B") or input.key_pressed("MENUF"):
                 break
             elif input.key_pressed("A"):
                 self._scrape_single_rom(roms_data)
@@ -1849,13 +1862,7 @@ class App:
             )
 
     def _exit_roms_menu(self) -> None:
-        """Exit ROM menu and return to emulator selection with atomic transition."""
-        logger.log_debug(
-            "DEBUG_TRANSITION: _exit_roms_menu() called - "
-            f"preparing atomic transition from '{self.current_window}' to 'emulators'"
-        )
-
-        # ATOMIC TRANSITION: Change state immediately and ensure proper input reset
+        """Exit ROM menu and return to emulator selection."""
         self.current_window = "emulators"
         self.roms_selected_position = 0
 
@@ -1864,13 +1871,7 @@ class App:
         self.transition_data = None
         self.transition_target_system = ""
 
-        # Ensure input is properly reset to prevent race conditions
         self.skip_input_check = True
-
-        logger.log_debug(
-            "DEBUG_TRANSITION: _exit_roms_menu() complete - "
-            f"current_window is now '{self.current_window}', input will be reset"
-        )
 
 
 if __name__ == "__main__":
@@ -1878,9 +1879,10 @@ if __name__ == "__main__":
 
     # Use command line argument if provided, otherwise default to config.json
     if len(sys.argv) > 1:
-        config_path = f"{Path.cwd()}/{sys.argv[1]}"
+        arg = Path(sys.argv[1])
+        config_path = str(arg if arg.is_absolute() else Path.cwd() / arg)
     else:
-        config_path = f"{Path.cwd()}/config.json"
+        config_path = str(Path.cwd() / "config.json")
 
     logger.log_info(f"Starting application with config path: {config_path}")
     logger.log_info(f"Current working directory: {Path.cwd()}")
