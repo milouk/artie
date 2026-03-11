@@ -37,7 +37,8 @@ jobs:
         run: |
           mkdir -p Artie/.artie && \
           cp -r ./dist/app ./assets ./config.json Artie/.artie/ && \
-          cp ./mux_launch.sh Artie/ && \
+          cp ./mux_launch.sh ./mux_lang.ini Artie/ && \
+          cp -r ./glyph Artie/ && \
           zip -r Artie.zip Artie && \
           mv Artie.zip Artie.muxapp
 
