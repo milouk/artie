@@ -75,6 +75,12 @@ class GUI:
             color=self.COLOR_BLACK,
         )
 
+        # Pre-allocated BGRA conversion buffer for framebuffer output
+        self._bgra_buffer = Image.new(
+            "RGBA",
+            (self.screen_width, self.screen_height),
+        )
+
         self.activeImage = None
         self.activeDraw = None
 
@@ -206,7 +212,10 @@ class GUI:
         if self.mm and self.activeImage:
             try:
                 self.mm.seek(0)
-                self.mm.write(self.activeImage.tobytes())
+                # Framebuffer expects BGRA; PIL produces RGBA — swap R and B
+                r, g, b, a = self.activeImage.split()
+                self._bgra_buffer = Image.merge("RGBA", (b, g, r, a))
+                self.mm.write(self._bgra_buffer.tobytes())
                 self.mm.flush()
 
                 # Reset failure counter on successful write
