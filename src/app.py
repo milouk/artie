@@ -777,9 +777,7 @@ class App:
         time.sleep(self.LOG_WAIT)
 
     def _show_overlay(self, message: str) -> None:
-        """Draw a message on a fresh screen to prevent popup stacking."""
-        screen = self.gui.create_image()
-        self.gui.draw_active(screen)
+        """Draw a message overlay on the current view without clearing it."""
         self.gui.draw_log(message)
         self.gui.draw_paint()
 
@@ -892,7 +890,6 @@ class App:
                 self.gui.draw_log(f"No roms found in {self.selected_system}...")
                 self.gui.draw_paint()
                 time.sleep(self.LOG_WAIT)
-                self.gui.draw_clear()
                 return None
 
             # Get system configuration
@@ -901,7 +898,6 @@ class App:
                 self.gui.draw_log("System is unknown...")
                 self.gui.draw_paint()
                 time.sleep(self.LOG_WAIT)
-                self.gui.draw_clear()
                 return None
 
             # Get ROMs missing different media types
@@ -924,7 +920,6 @@ class App:
                 self.gui.draw_log("No roms with missing media found...")
                 self.gui.draw_paint()
                 time.sleep(self.LOG_WAIT)
-                self.gui.draw_clear()
                 return None
 
             return RomsData(
