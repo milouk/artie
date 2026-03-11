@@ -10,8 +10,12 @@ permissions:
   contents: write
 
 jobs:
+  lint:
+    uses: ./.github/workflows/lint.yml
+
   build-release:
     name: Build artifacts
+    needs: lint
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
