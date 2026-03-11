@@ -73,7 +73,9 @@ def backup_catalogue(systems: List[dict]) -> Tuple[int, int, int]:
                     rel_path = Path(*parts[cat_idx:])
                 except ValueError:
                     # Fallback: use system dir name + media type
-                    rel_path = Path("catalogue") / system.get("dir", "unknown") / media_type
+                    rel_path = (
+                        Path("catalogue") / system.get("dir", "unknown") / media_type
+                    )
 
                 dst_dir = backup_root / rel_path
                 dst_dir.mkdir(parents=True, exist_ok=True)
@@ -84,7 +86,10 @@ def backup_catalogue(systems: List[dict]) -> Tuple[int, int, int]:
                     dst_file = dst_dir / src_file.name
 
                     # Skip if destination exists and is same size (already backed up)
-                    if dst_file.exists() and dst_file.stat().st_size == src_file.stat().st_size:
+                    if (
+                        dst_file.exists()
+                        and dst_file.stat().st_size == src_file.stat().st_size
+                    ):
                         files_skipped += 1
                         continue
 
@@ -102,7 +107,7 @@ def backup_catalogue(systems: List[dict]) -> Tuple[int, int, int]:
     logger.log_info(
         f"Backup complete: {files_copied} copied, {files_skipped} skipped, {errors} errors"
     )
-    return føiles_copied, files_skipped, errors
+    return files_copied, files_skipped, errors
 
 
 def restore_catalogue(systems: List[dict]) -> Tuple[int, int, int]:
@@ -135,7 +140,9 @@ def restore_catalogue(systems: List[dict]) -> Tuple[int, int, int]:
                     cat_idx = parts.index("catalogue")
                     rel_path = Path(*parts[cat_idx:])
                 except ValueError:
-                    rel_path = Path("catalogue") / system.get("dir", "unknown") / media_type
+                    rel_path = (
+                        Path("catalogue") / system.get("dir", "unknown") / media_type
+                    )
 
                 src_dir = backup_root / rel_path
                 if not src_dir.exists():
@@ -148,7 +155,10 @@ def restore_catalogue(systems: List[dict]) -> Tuple[int, int, int]:
                         continue
                     dst_file = dst_dir / src_file.name
 
-                    if dst_file.exists() and dst_file.stat().st_size == src_file.stat().st_size:
+                    if (
+                        dst_file.exists()
+                        and dst_file.stat().st_size == src_file.stat().st_size
+                    ):
                         files_skipped += 1
                         continue
 
