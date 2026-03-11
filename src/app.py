@@ -35,7 +35,7 @@ from scraper import (
 )
 from updater import check_for_update, download_and_apply_update
 
-VERSION = "3.0.0"
+VERSION = "3.5.0"
 
 
 class _ScrapeCancelledError(Exception):
