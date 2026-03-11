@@ -45,13 +45,20 @@ log_file="${ARTIE_DIR}/log.txt"
 >"$log_file"
 
 # Run Application with gptokeyb for controller support
-$GPTOKEYB "$APP_BIN" &
+# Loop to support automatic restart after OTA updates
+while true; do
+    $GPTOKEYB "$APP_BIN" &
 
-if ! $program "${SCREEN_RESOLUTION}" >"$log_file" 2>&1; then
-    echo "Error: Failed to execute $program"
+    $program "${SCREEN_RESOLUTION}" >>"$log_file" 2>&1
+    exit_code=$?
+
     kill -9 "$(pidof gptokeyb2.armhf)" 2>/dev/null
-    exit 1
-fi
 
-# Cleanup
-kill -9 "$(pidof gptokeyb2.armhf)" 2>/dev/null
+    # Exit code 42 = restart after update; anything else = normal exit
+    if [ "$exit_code" -ne 42 ]; then
+        break
+    fi
+
+    echo "Restarting after update..." >>"$log_file"
+    sleep 1
+done

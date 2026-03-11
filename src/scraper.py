@@ -884,6 +884,70 @@ def fetch_preview(game: dict, config: dict) -> Optional[bytes]:
         raise exceptions.ScraperError(f"Error downloading preview: {e}")
 
 
+def fetch_metadata(game: dict, config: dict) -> Optional[Dict[str, str]]:
+    """
+    Extract metadata (genre, developer, publisher, players, release date) from game data.
+
+    Args:
+        game: Game data from API
+        config: Configuration
+
+    Returns:
+        Dictionary of metadata fields, or None if no data available
+    """
+    jeu = game.get("response", {}).get("jeu", {})
+    if not jeu:
+        return None
+
+    synopsis_lang = config.get("synopsis", {}).get("lang", "en")
+    metadata = {}
+
+    # Genre
+    genres = jeu.get("genres", [])
+    if genres:
+        for genre in genres:
+            names = genre.get("noms", [])
+            genre_name = next(
+                (n["text"] for n in names if n.get("langue") == synopsis_lang), None
+            )
+            if not genre_name:
+                genre_name = next(
+                    (n["text"] for n in names if n.get("langue") == "en"), None
+                )
+            if genre_name:
+                metadata["Genre"] = genre_name
+                break
+
+    # Developer
+    dev = jeu.get("developpeur", {}).get("text")
+    if dev:
+        metadata["Developer"] = dev
+
+    # Publisher
+    pub = jeu.get("editeur", {}).get("text")
+    if pub:
+        metadata["Publisher"] = pub
+
+    # Players
+    players = jeu.get("joueurs", {}).get("text")
+    if players:
+        metadata["Players"] = players
+
+    # Release date (by region priority)
+    dates = jeu.get("dates", [])
+    regions = config.get("regions", ["us", "eu", "jp", "wor"])
+    if dates:
+        for region in regions:
+            date_text = next(
+                (d["text"] for d in dates if d.get("region") == region), None
+            )
+            if date_text:
+                metadata["Released"] = date_text
+                break
+
+    return metadata if metadata else None
+
+
 def fetch_synopsis(game: dict, config: dict) -> Optional[str]:
     """
     Fetch synopsis text for a game with HTML decoding and error handling.
@@ -1229,6 +1293,7 @@ def _get_optimized_session():
     with _session_lock:
         if _global_session is None:
             import requests.adapters
+
             _global_session = requests.Session()
 
             # Configure connection pooling for better performance

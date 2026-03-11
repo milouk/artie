@@ -15,6 +15,7 @@ if str(current_dir) not in sys.path:
 
 import exceptions
 import input
+from backup import backup_catalogue, restore_catalogue
 from cache_manager import get_cache_manager
 from config_manager import ConfigManager, ScraperConfig
 from graphic import GUI
@@ -24,6 +25,7 @@ from rom_manager import Rom, RomManager
 from scraper import (
     check_destination,
     fetch_box,
+    fetch_metadata,
     fetch_preview,
     fetch_synopsis,
     get_game_data,
@@ -31,6 +33,7 @@ from scraper import (
     get_txt_files_without_extension,
     get_user_data,
 )
+from updater import check_for_update, download_and_apply_update
 
 VERSION = "3.0.0"
 
@@ -114,6 +117,11 @@ class App:
         # Scraping cancellation
         self._scrape_cancelled = threading.Event()
 
+        # OTA update state
+        self._update_available = False
+        self._update_version: Optional[str] = None
+        self._update_url: Optional[str] = None
+
         # GUI
         self.gui: Optional[GUI] = None
 
@@ -156,6 +164,9 @@ class App:
 
             # Get user thread limits (now with proper error handling)
             self._configure_user_threads()
+
+            # Check for updates (non-blocking, don't fail startup)
+            self._check_for_updates()
 
             # Start main interface
             self._start_main_interface()
@@ -293,6 +304,64 @@ class App:
             logger.log_info(
                 f"Using default thread configuration: {self.config.threads} threads"
             )
+
+    def _check_for_updates(self) -> None:
+        """Check for OTA updates on startup."""
+        try:
+            available, version, url = check_for_update(VERSION)
+            if available:
+                self._update_available = True
+                self._update_version = version
+                self._update_url = url
+                logger.log_info(f"Update available: v{version}")
+        except Exception as e:
+            logger.log_warning(f"Update check failed: {e}")
+
+    def _apply_update(self) -> None:
+        """Download and apply an OTA update."""
+        if not self._update_url:
+            self.gui.draw_log("No download URL available for update")
+            self.gui.draw_paint()
+            time.sleep(self.LOG_WAIT)
+            return
+
+        self.gui.draw_log(f"Downloading v{self._update_version}...")
+        self.gui.draw_paint()
+
+        success = download_and_apply_update(self._update_url)
+        if success:
+            self.gui.draw_log(f"Updated to v{self._update_version}! Restarting...")
+            self.gui.draw_paint()
+            time.sleep(1)
+            self.gui.draw_end()
+            sys.exit(42)  # Signal mux_launch.sh to restart
+        else:
+            self.gui.draw_log("Update failed. Check logs for details.")
+        self.gui.draw_paint()
+        time.sleep(self.LOG_WAIT * 2)
+        self.skip_input_check = True
+
+    def _backup_catalogue(self) -> None:
+        """Backup catalogue data to SD2."""
+        self.gui.draw_log("Backing up to SD2...")
+        self.gui.draw_paint()
+
+        try:
+            systems = list(self.config.systems_mapping.values())
+            copied, skipped, errors = backup_catalogue(systems)
+            err_str = f", {errors} errors" if errors else ""
+            self.gui.draw_log(
+                f"Backup done: {copied} copied, {skipped} unchanged{err_str}"
+            )
+        except FileNotFoundError as e:
+            self.gui.draw_log(str(e))
+        except Exception as e:
+            logger.log_error(f"Backup failed: {e}")
+            self.gui.draw_log(f"Backup failed: {str(e)[:40]}")
+
+        self.gui.draw_paint()
+        time.sleep(self.LOG_WAIT * 2)
+        self.skip_input_check = True
 
     def update(self) -> None:
         """Main update loop with atomic transition handling and proper state management."""
@@ -448,6 +517,19 @@ class App:
             (190, 18), f"v{VERSION}", font=11, color=self.gui.COLOR_MUTED, anchor="mm"
         )
 
+        # Update available indicator
+        if self._update_available:
+            self.gui.draw_rectangle_r(
+                [226, 8, 330, 28], 10, fill=self.gui.COLOR_SUCCESS
+            )
+            self.gui.draw_text(
+                (278, 18),
+                f"v{self._update_version} available",
+                font=10,
+                color=self.gui.COLOR_WHITE,
+                anchor="mm",
+            )
+
         # Content area
         self.gui.draw_rectangle_r(
             [10, 42, 630, 438], 10, fill=self.gui.COLOR_SECONDARY_DARK
@@ -558,10 +640,13 @@ class App:
     def _draw_emulator_controls(self) -> None:
         """Draw control buttons for emulator screen."""
         y = 453
-        self._draw_button_pill((25, y), "ST", "All")
-        self._draw_button_pill((130, y), "A", "Select")
-        self._draw_button_pill((260, y), "X", "Delete")
-        self._draw_button_pill((390, y), "M", "Exit")
+        self._draw_button_pill((15, y), "ST", "All")
+        self._draw_button_pill((95, y), "A", "Select")
+        self._draw_button_pill((200, y), "X", "Delete")
+        self._draw_button_pill((300, y), "SE", "Backup")
+        if self._update_available:
+            self._draw_button_pill((420, y), "Y", "Update")
+        self._draw_button_pill((540, y), "M", "Exit")
 
     def _handle_emulator_input(self, available_systems: List[str]) -> None:
         """Handle input for emulator selection screen."""
@@ -584,6 +669,11 @@ class App:
             self._handle_page_navigation(len(available_systems), LARGE_NAVIGATION_STEP)
         elif input.key_pressed("START"):
             self._scrape_all_systems(available_systems)
+        elif input.key_pressed("SELECT"):
+            self._backup_catalogue()
+        elif input.key_pressed("Y"):
+            if self._update_available:
+                self._apply_update()
 
     def _handle_vertical_navigation(self, max_items: int) -> None:
         """Handle up/down navigation."""
@@ -676,16 +766,20 @@ class App:
         self.skip_input_check = True
         time.sleep(self.LOG_WAIT)
 
+    def _show_overlay(self, message: str) -> None:
+        """Draw a message on a fresh screen to prevent popup stacking."""
+        screen = self.gui.create_image()
+        self.gui.draw_active(screen)
+        self.gui.draw_log(message)
+        self.gui.draw_paint()
+
     def _scrape_all_systems(self, available_systems: List[str]) -> None:
         """Scrape all ROMs across all available systems sequentially."""
         if not available_systems:
             return
 
         total_systems = len(available_systems)
-        self.gui.draw_log(
-            f"Scraping all {total_systems} systems..."
-        )
-        self.gui.draw_paint()
+        self._show_overlay(f"Scraping all {total_systems} systems...")
 
         systems_completed = 0
         systems_skipped = 0
@@ -693,56 +787,47 @@ class App:
         for i, system_name in enumerate(available_systems):
             # Check for cancellation between systems
             if input.check_input_nonblocking() and input.key_pressed("B"):
-                self.gui.draw_log(
+                self._show_overlay(
                     f"Cancelled after {systems_completed}/{total_systems} systems."
                 )
-                self.gui.draw_paint()
-                time.sleep(self.LOG_WAIT * 2)
+                time.sleep(2)
                 break
 
             self.selected_system = system_name
             self._clear_rom_cache()
 
-            self.gui.draw_log(
-                f"[{i + 1}/{total_systems}] Loading {system_name}..."
-            )
-            self.gui.draw_paint()
+            self._show_overlay(f"[{i + 1}/{total_systems}] Loading {system_name}...")
 
             roms_data = self._prepare_roms_data()
             if roms_data is None or not roms_data.roms_to_scrape:
-                logger.log_info(
-                    f"Skipping {system_name}: no ROMs to scrape"
-                )
+                logger.log_info(f"Skipping {system_name}: no ROMs to scrape")
                 systems_skipped += 1
                 continue
 
-            self.gui.draw_log(
+            self._show_overlay(
                 f"[{i + 1}/{total_systems}] Scraping {system_name} "
                 f"({len(roms_data.roms_to_scrape)} ROMs)..."
             )
-            self.gui.draw_paint()
 
             self._scrape_all_roms(roms_data)
 
             if self._scrape_cancelled.is_set():
                 systems_completed += 1
-                self.gui.draw_log(
+                self._show_overlay(
                     f"Cancelled during {system_name}. "
                     f"Completed {systems_completed}/{total_systems} systems."
                 )
-                self.gui.draw_paint()
-                time.sleep(self.LOG_WAIT * 2)
+                time.sleep(2)
                 break
 
             systems_completed += 1
 
         else:
-            self.gui.draw_log(
+            self._show_overlay(
                 f"All systems done! {systems_completed} scraped, "
                 f"{systems_skipped} skipped."
             )
-            self.gui.draw_paint()
-            time.sleep(self.LOG_WAIT * 3)
+            time.sleep(2)
 
         self._clear_rom_cache()
         self.skip_input_check = True
@@ -1006,6 +1091,7 @@ class App:
         self.gui.draw_paint()
 
         completed = 0
+        failed = 0
         cancelled = False
         quota_exceeded = False
         start_time = time.time()
@@ -1046,8 +1132,11 @@ class App:
                     for future in done:
                         rom = future_to_rom[future]
                         try:
-                            future.result()
-                            completed += 1
+                            result = future.result()
+                            if result.get("success"):
+                                completed += 1
+                            else:
+                                failed += 1
                         except exceptions.RateLimitError as e:
                             logger.log_error(
                                 f"Rate limit error during batch scraping: {e}"
@@ -1061,26 +1150,29 @@ class App:
                             logger.log_error(
                                 f"API access forbidden for ROM {rom.name}: {e}"
                             )
+                            failed += 1
                         except Exception as e:
                             logger.log_error(f"Error scraping ROM {rom.name}: {e}")
+                            failed += 1
 
                     if quota_exceeded:
                         break
 
                     # Show progress after processing completed batch
-                    if completed > 0:
+                    processed = completed + failed
+                    if processed > 0:
                         elapsed_time = time.time() - start_time
-                        avg_time_per_rom = elapsed_time / completed
+                        avg_time_per_rom = elapsed_time / processed
                         estimated_remaining = avg_time_per_rom * (
-                            total_roms - completed
+                            total_roms - processed
                         )
                         progress_msg = (
-                            f"{completed}/{total_roms} ROMs "
+                            f"{processed}/{total_roms} ROMs "
                             f"- ETA: {estimated_remaining/60:.1f}min "
                             f"[B] Cancel"
                         )
                         logger.log_info(progress_msg)
-                        progress = completed / total_roms
+                        progress = processed / total_roms
                         self.gui.draw_log_with_progress(
                             progress_msg,
                             progress,
@@ -1105,32 +1197,37 @@ class App:
             if completed > 0:
                 self._clear_rom_cache()
 
+            # Build summary string
+            time_str = (
+                f"{total_time:.0f}s" if total_time < 60 else f"{total_time/60:.1f}m"
+            )
+            fail_str = f", {failed} failed" if failed else ""
+
             if cancelled:
-                self.gui.draw_log(
-                    f"Scraping cancelled. Completed {completed}/{total_roms} ROMs."
+                self._show_overlay(
+                    f"Cancelled: {completed}/{total_roms} scraped{fail_str} in {time_str}"
                 )
             elif quota_exceeded:
-                self.gui.draw_log(
-                    f"Batch stopped: API quota exceeded. Completed {completed} ROMs."
+                self._show_overlay(
+                    f"Quota hit: {completed} scraped{fail_str} in {time_str}"
                 )
             else:
-                self.gui.draw_log(
-                    f"Batch scraping completed: {completed}/{total_roms} ROMs"
+                self._show_overlay(
+                    f"Done: {completed}/{total_roms} scraped{fail_str} in {time_str}"
                 )
 
         except Exception as e:
             logger.log_error(f"Error in batch scraping: {e}")
-            self.gui.draw_log(f"Batch scraping error: {str(e)[:50]}...")
+            self._show_overlay(f"Batch scraping error: {str(e)[:50]}...")
 
         input.stop_nonblocking()
-        self.gui.draw_paint()
-        time.sleep(self.LOG_WAIT * 3)
+        time.sleep(1)
         self.skip_input_check = True
 
     def _process_rom(self, rom: Rom, roms_data: RomsData) -> Tuple[Any, Any, Any, str]:
         """Process a single ROM (scrape and save media)."""
-        scraped_box, scraped_preview, scraped_synopsis = self._scrape_rom_media(
-            rom, roms_data.system_id
+        scraped_box, scraped_preview, scraped_synopsis, scraped_metadata = (
+            self._scrape_rom_media(rom, roms_data.system_id)
         )
 
         # Apply mask processing to images before saving
@@ -1138,7 +1235,6 @@ class App:
 
         # Save scraped media with optional mask processing
         if scraped_box:
-            # Apply mask if configured
             processed_box = image_processor.process_image_with_mask(
                 scraped_box, self.config.content.get("box", {})
             )
@@ -1146,16 +1242,24 @@ class App:
             self._save_file_to_disk(processed_box, destination)
 
         if scraped_preview:
-            # Apply mask if configured
             processed_preview = image_processor.process_image_with_mask(
                 scraped_preview, self.config.content.get("preview", {})
             )
             destination = roms_data.preview_dir / f"{rom.name}.png"
             self._save_file_to_disk(processed_preview, destination)
 
-        if scraped_synopsis:
+        if scraped_synopsis or scraped_metadata:
+            # Combine synopsis text with metadata
+            parts = []
+            if scraped_synopsis:
+                parts.append(scraped_synopsis)
+            if scraped_metadata:
+                parts.append("")  # blank line separator
+                for key, value in scraped_metadata.items():
+                    parts.append(f"{key}: {value}")
+            text = "\n".join(parts)
             destination = roms_data.synopsis_dir / f"{rom.name}.txt"
-            self._save_file_to_disk(scraped_synopsis.encode("utf-8"), destination)
+            self._save_file_to_disk(text.encode("utf-8"), destination)
 
         return scraped_box, scraped_preview, scraped_synopsis, rom.name
 
@@ -1197,9 +1301,12 @@ class App:
                 "error": str(e),
             }
 
-    def _scrape_rom_media(self, rom: Rom, system_id: str) -> Tuple[Any, Any, Any]:
+    def _scrape_rom_media(
+        self, rom: Rom, system_id: str
+    ) -> Tuple[Any, Any, Any, Optional[dict]]:
         """Scrape media for a ROM. Raises _ScrapeCancelledError if cancelled."""
         scraped_box = scraped_preview = scraped_synopsis = None
+        scraped_metadata = None
 
         if self._scrape_cancelled.is_set():
             raise _ScrapeCancelledError()
@@ -1227,8 +1334,9 @@ class App:
                 raise _ScrapeCancelledError()
             if self.config.synopsis_enabled:
                 scraped_synopsis = fetch_synopsis(game, content)
+                scraped_metadata = fetch_metadata(game, content)
 
-        return scraped_box, scraped_preview, scraped_synopsis
+        return scraped_box, scraped_preview, scraped_synopsis, scraped_metadata
 
     def _save_file_to_disk(self, data: bytes, destination: Path) -> bool:
         """Save data to disk with comprehensive error handling."""
