@@ -1,5 +1,6 @@
 import mmap
 import os
+from collections import OrderedDict
 from fcntl import ioctl
 from pathlib import Path
 from typing import Optional, Tuple
@@ -7,6 +8,15 @@ from typing import Optional, Tuple
 from PIL import Image, ImageDraw, ImageFont
 
 from logger import LoggerSingleton as logger
+
+# Screen constants
+SCREEN_WIDTH = 640
+SCREEN_HEIGHT = 480
+BYTES_PER_PIXEL = 4
+
+# Cache limits
+MAX_IMAGE_CACHE_ENTRIES = 64
+MAX_LOGO_CACHE_ENTRIES = 128
 
 
 class GUI:
@@ -27,17 +37,15 @@ class GUI:
     def __init__(self):
         self.fb: Optional[int] = None
         self.mm: Optional[mmap.mmap] = None
-        self.screen_width = 640
-        self.screen_height = 480
-        self.bytes_per_pixel = 4
-        self.screen_size = self.screen_width * self.screen_height * self.bytes_per_pixel
+        self.screen_width = SCREEN_WIDTH
+        self.screen_height = SCREEN_HEIGHT
+        self.bytes_per_pixel = BYTES_PER_PIXEL
+        self.screen_size = SCREEN_WIDTH * SCREEN_HEIGHT * BYTES_PER_PIXEL
 
         # Framebuffer error suppression (keep UI working, suppress error messages only)
         self.suppress_framebuffer_errors = False
         self.framebuffer_write_failures = 0
-        self.max_write_failures = (
-            3  # Start suppressing errors after 3 consecutive failures
-        )
+        self.max_write_failures = 3
 
         try:
             self.fontFile = {
@@ -62,24 +70,19 @@ class GUI:
                 10: default,
             }
 
-        # Logo cache to avoid reloading on every frame
-        self._logo_cache = {}
-
-        # General image cache for media thumbnails (ROM detail view etc.)
-        self._image_cache = {}
+        # LRU caches for images and logos
+        self._logo_cache: OrderedDict = OrderedDict()
+        self._image_cache: OrderedDict = OrderedDict()
 
         # Pre-allocated frame buffer — reused every frame to avoid allocation
         self._frame_buffer = Image.new(
             "RGBA",
-            (self.screen_width, self.screen_height),
+            (SCREEN_WIDTH, SCREEN_HEIGHT),
             color=self.COLOR_BLACK,
         )
 
-        # Pre-allocated BGRA conversion buffer for framebuffer output
-        self._bgra_buffer = Image.new(
-            "RGBA",
-            (self.screen_width, self.screen_height),
-        )
+        # Pre-allocated byte array for BGRA framebuffer output
+        self._bgra_bytes = bytearray(self.screen_size)
 
         self.activeImage = None
         self.activeDraw = None
@@ -158,6 +161,7 @@ class GUI:
         """Load, resize, and cache an image. Returns cached copy on subsequent calls."""
         cache_key = f"{image_path}_{max_width}_{max_height}"
         if cache_key in self._image_cache:
+            self._image_cache.move_to_end(cache_key)
             return self._image_cache[cache_key]
 
         try:
@@ -166,14 +170,19 @@ class GUI:
                 self._image_cache[cache_key] = None
                 return None
 
-            img = Image.open(path).convert("RGBA")
+            with Image.open(path) as raw:
+                img = raw.convert("RGBA")
             img.thumbnail((max_width, max_height), Image.LANCZOS)
             self._image_cache[cache_key] = img
-            return img
         except Exception as e:
             logger.log_warning(f"Failed to load image {image_path}: {e}")
             self._image_cache[cache_key] = None
-            return None
+
+        # Evict oldest entries when cache is full
+        while len(self._image_cache) > MAX_IMAGE_CACHE_ENTRIES:
+            self._image_cache.popitem(last=False)
+
+        return self._image_cache.get(cache_key)
 
     def clear_image_cache(self) -> None:
         """Clear the image cache (call after scraping changes media files)."""
@@ -183,6 +192,7 @@ class GUI:
         """Load and cache a system logo, scaled to fit max_height."""
         cache_key = f"{logo_path}_{max_height}"
         if cache_key in self._logo_cache:
+            self._logo_cache.move_to_end(cache_key)
             return self._logo_cache[cache_key]
 
         try:
@@ -191,17 +201,20 @@ class GUI:
                 self._logo_cache[cache_key] = None
                 return None
 
-            logo = Image.open(path).convert("RGBA")
-            # Scale proportionally to fit max_height
+            with Image.open(path) as raw:
+                logo = raw.convert("RGBA")
             ratio = max_height / logo.height
             new_width = int(logo.width * ratio)
             logo = logo.resize((new_width, max_height), Image.LANCZOS)
             self._logo_cache[cache_key] = logo
-            return logo
         except Exception as e:
             logger.log_warning(f"Failed to load logo {logo_path}: {e}")
             self._logo_cache[cache_key] = None
-            return None
+
+        while len(self._logo_cache) > MAX_LOGO_CACHE_ENTRIES:
+            self._logo_cache.popitem(last=False)
+
+        return self._logo_cache.get(cache_key)
 
     def draw_active(self, image):
         self.activeImage = image
@@ -212,10 +225,14 @@ class GUI:
         if self.mm and self.activeImage:
             try:
                 self.mm.seek(0)
-                # Framebuffer expects BGRA; PIL produces RGBA — swap R and B
-                r, g, b, a = self.activeImage.split()
-                self._bgra_buffer = Image.merge("RGBA", (b, g, r, a))
-                self.mm.write(self._bgra_buffer.tobytes())
+                # Framebuffer expects BGRA; PIL produces RGBA — swap R and B in-place
+                raw = self.activeImage.tobytes()
+                buf = self._bgra_bytes
+                buf[0::4] = raw[2::4]  # B <- from RGBA offset 2
+                buf[1::4] = raw[1::4]  # G
+                buf[2::4] = raw[0::4]  # R <- from RGBA offset 0
+                buf[3::4] = raw[3::4]  # A
+                self.mm.write(buf)
                 self.mm.flush()
 
                 # Reset failure counter on successful write

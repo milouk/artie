@@ -125,13 +125,36 @@ def _sanitize_url(url: str) -> str:
         return "url_hidden"
 
 
+_MD5_CHUNK_SIZE = 1048576  # 1MB chunks for large ROMs
+
+# Cache: file_path -> (mtime, size, md5_hex)
+_md5_cache: Dict[str, tuple] = {}
+
+
 def calculate_md5(file_path: str) -> str:
-    """Calculate MD5 hash of a file."""
+    """Calculate MD5 hash of a file, with mtime+size caching."""
+    try:
+        stat = os.stat(file_path)
+        key = file_path
+        cached = _md5_cache.get(key)
+        if cached and cached[0] == stat.st_mtime and cached[1] == stat.st_size:
+            return cached[2]
+    except OSError:
+        pass
+
     md5 = hashlib.md5()
     with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(1048576), b""):  # 1MB chunks for large ROMs
+        for chunk in iter(lambda: f.read(_MD5_CHUNK_SIZE), b""):
             md5.update(chunk)
-    return md5.hexdigest()
+    digest = md5.hexdigest()
+
+    try:
+        stat = os.stat(file_path)
+        _md5_cache[file_path] = (stat.st_mtime, stat.st_size, digest)
+    except OSError:
+        pass
+
+    return digest
 
 
 def detect_rom_type(file_path: str) -> str:
@@ -365,7 +388,7 @@ def check_destination(dest: Union[str, Path]) -> None:
         )
 
 
-def get(url: str, max_retries: int = 3, timeout: int = 30) -> bytes:
+def get(url: str, max_retries: int = 3, timeout: int = 30, cancel_event=None) -> bytes:
     """
     Fetch data from URL with optimized connection pooling and retry logic.
 
@@ -376,6 +399,7 @@ def get(url: str, max_retries: int = 3, timeout: int = 30) -> bytes:
         url: URL to fetch
         max_retries: Maximum number of retry attempts
         timeout: Request timeout in seconds
+        cancel_event: Optional threading.Event; if set, aborts retries immediately
 
     Returns:
         Response content as bytes
@@ -543,7 +567,13 @@ def get(url: str, max_retries: int = 3, timeout: int = 30) -> bytes:
             logger.log_warning(
                 f"Request failed (attempt {attempt + 1}/{max_retries + 1}), retrying in {wait_time}s: {last_exception}"
             )
-            time.sleep(wait_time)
+            # Use cancel_event.wait() for interruptible sleep when available
+            if cancel_event is not None:
+                cancel_event.wait(wait_time)
+                if cancel_event.is_set():
+                    raise exceptions.ScraperError("Request cancelled")
+            else:
+                time.sleep(wait_time)
         else:
             logger.log_error(
                 f"Request failed after {max_retries + 1} attempts: {last_exception}"
