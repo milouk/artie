@@ -13,6 +13,7 @@ SD2_PATHS = [
 ]
 
 BACKUP_DIR_NAME = "MUOS/backup/artie"
+MEDIA_TYPES = ("box", "preview", "synopsis")
 
 
 def find_sd2() -> Optional[Path]:
@@ -37,6 +38,93 @@ def get_backup_path() -> Optional[Path]:
     return sd2 / BACKUP_DIR_NAME
 
 
+def _get_catalogue_rel_path(directory: Path, system: dict, media_type: str) -> Path:
+    """Extract catalogue-relative path from a media directory."""
+    parts = directory.parts
+    try:
+        cat_idx = parts.index("catalogue")
+        return Path(*parts[cat_idx:])
+    except ValueError:
+        return Path("catalogue") / system.get("dir", "unknown") / media_type
+
+
+def _copy_files(
+    src_dir: Path, dst_dir: Path, label: str
+) -> Tuple[int, int, int]:
+    """Copy files from src to dst, skipping same-size duplicates."""
+    copied = 0
+    skipped = 0
+    errors = 0
+
+    dst_dir.mkdir(parents=True, exist_ok=True)
+
+    for src_file in src_dir.iterdir():
+        if not src_file.is_file():
+            continue
+        dst_file = dst_dir / src_file.name
+
+        # Skip if destination exists and is same size (already synced)
+        try:
+            src_stat = src_file.stat()
+            if dst_file.exists() and dst_file.stat().st_size == src_stat.st_size:
+                skipped += 1
+                continue
+        except OSError:
+            pass
+
+        try:
+            shutil.copy2(src_file, dst_file)
+            copied += 1
+        except OSError as e:
+            logger.log_warning(f"Failed to {label} {src_file}: {e}")
+            errors += 1
+
+    return copied, skipped, errors
+
+
+def _sync_catalogue(
+    systems: List[dict], src_key: str, dst_resolver, operation: str
+) -> Tuple[int, int, int]:
+    """
+    Generic catalogue sync between local and backup directories.
+
+    Args:
+        systems: List of system config dicts
+        src_key: Which path is the source ("local" or "backup")
+        dst_resolver: Callable(system, media_type, rel_path) -> (src_dir, dst_dir)
+        operation: Label for logging ("copy" or "restore")
+    """
+    total_copied = 0
+    total_skipped = 0
+    total_errors = 0
+
+    for system in systems:
+        for media_type in MEDIA_TYPES:
+            local_dir = Path(system.get(media_type, ""))
+            rel_path = _get_catalogue_rel_path(local_dir, system, media_type)
+            src_dir, dst_dir = dst_resolver(local_dir, rel_path)
+
+            if not src_dir.exists():
+                continue
+
+            try:
+                copied, skipped, errors = _copy_files(
+                    src_dir, dst_dir, operation
+                )
+                total_copied += copied
+                total_skipped += skipped
+                total_errors += errors
+            except Exception as e:
+                logger.log_error(f"Error during {operation} for {src_dir}: {e}")
+                total_errors += 1
+
+    logger.log_info(
+        f"{operation.capitalize()} complete: {total_copied} {operation}d, "
+        f"{total_skipped} skipped, {total_errors} errors"
+    )
+    return total_copied, total_skipped, total_errors
+
+
 def backup_catalogue(systems: List[dict]) -> Tuple[int, int, int]:
     """
     Backup all catalogue data (box, preview, synopsis) to SD2.
@@ -52,62 +140,11 @@ def backup_catalogue(systems: List[dict]) -> Tuple[int, int, int]:
         raise FileNotFoundError("SD2 not found - insert second SD card")
 
     backup_root.mkdir(parents=True, exist_ok=True)
-    files_copied = 0
-    files_skipped = 0
-    errors = 0
 
-    for system in systems:
-        for media_type in ("box", "preview", "synopsis"):
-            src_dir = Path(system.get(media_type, ""))
-            if not src_dir.exists():
-                continue
+    def resolve(local_dir, rel_path):
+        return local_dir, backup_root / rel_path
 
-            # Mirror the catalogue structure
-            # e.g. /mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/box/
-            # becomes MUOS/backup/artie/catalogue/Nintendo SNES-SFC/box/
-            try:
-                # Extract catalogue-relative path
-                parts = src_dir.parts
-                try:
-                    cat_idx = parts.index("catalogue")
-                    rel_path = Path(*parts[cat_idx:])
-                except ValueError:
-                    # Fallback: use system dir name + media type
-                    rel_path = (
-                        Path("catalogue") / system.get("dir", "unknown") / media_type
-                    )
-
-                dst_dir = backup_root / rel_path
-                dst_dir.mkdir(parents=True, exist_ok=True)
-
-                for src_file in src_dir.iterdir():
-                    if not src_file.is_file():
-                        continue
-                    dst_file = dst_dir / src_file.name
-
-                    # Skip if destination exists and is same size (already backed up)
-                    if (
-                        dst_file.exists()
-                        and dst_file.stat().st_size == src_file.stat().st_size
-                    ):
-                        files_skipped += 1
-                        continue
-
-                    try:
-                        shutil.copy2(src_file, dst_file)
-                        files_copied += 1
-                    except OSError as e:
-                        logger.log_warning(f"Failed to copy {src_file}: {e}")
-                        errors += 1
-
-            except Exception as e:
-                logger.log_error(f"Error backing up {src_dir}: {e}")
-                errors += 1
-
-    logger.log_info(
-        f"Backup complete: {files_copied} copied, {files_skipped} skipped, {errors} errors"
-    )
-    return files_copied, files_skipped, errors
+    return _sync_catalogue(systems, "local", resolve, "copy")
 
 
 def restore_catalogue(systems: List[dict]) -> Tuple[int, int, int]:
@@ -124,56 +161,7 @@ def restore_catalogue(systems: List[dict]) -> Tuple[int, int, int]:
     if not backup_root or not backup_root.exists():
         raise FileNotFoundError("No backup found on SD2")
 
-    files_restored = 0
-    files_skipped = 0
-    errors = 0
+    def resolve(local_dir, rel_path):
+        return backup_root / rel_path, local_dir
 
-    for system in systems:
-        for media_type in ("box", "preview", "synopsis"):
-            dst_dir = Path(system.get(media_type, ""))
-            if not dst_dir.parent.exists():
-                continue
-
-            try:
-                parts = dst_dir.parts
-                try:
-                    cat_idx = parts.index("catalogue")
-                    rel_path = Path(*parts[cat_idx:])
-                except ValueError:
-                    rel_path = (
-                        Path("catalogue") / system.get("dir", "unknown") / media_type
-                    )
-
-                src_dir = backup_root / rel_path
-                if not src_dir.exists():
-                    continue
-
-                dst_dir.mkdir(parents=True, exist_ok=True)
-
-                for src_file in src_dir.iterdir():
-                    if not src_file.is_file():
-                        continue
-                    dst_file = dst_dir / src_file.name
-
-                    if (
-                        dst_file.exists()
-                        and dst_file.stat().st_size == src_file.stat().st_size
-                    ):
-                        files_skipped += 1
-                        continue
-
-                    try:
-                        shutil.copy2(src_file, dst_file)
-                        files_restored += 1
-                    except OSError as e:
-                        logger.log_warning(f"Failed to restore {src_file}: {e}")
-                        errors += 1
-
-            except Exception as e:
-                logger.log_error(f"Error restoring to {dst_dir}: {e}")
-                errors += 1
-
-    logger.log_info(
-        f"Restore complete: {files_restored} restored, {files_skipped} skipped, {errors} errors"
-    )
-    return files_restored, files_skipped, errors
+    return _sync_catalogue(systems, "backup", resolve, "restore")
