@@ -79,13 +79,50 @@ class InputManager:
                 f"Error opening input device {self.device_path}: {e}"
             )
 
+    def open_persistent(self) -> None:
+        """Open a persistent blocking fd for the main input loop.
+
+        Avoids the overhead of opening/closing the device file on every
+        call to check_input(). Call close_persistent() on shutdown.
+        """
+        self.close_persistent()
+        try:
+            self._persistent_fd = open(self.device_path, "rb", buffering=0)
+        except (IOError, OSError) as e:
+            logger.log_warning(f"Failed to open persistent input fd: {e}")
+            self._persistent_fd = None
+
+    def close_persistent(self) -> None:
+        """Close the persistent blocking fd."""
+        fd = getattr(self, "_persistent_fd", None)
+        if fd is not None:
+            try:
+                fd.close()
+            except (IOError, OSError):
+                pass
+            self._persistent_fd = None
+
     def check_input(self) -> None:
         """
         Check for input events and update state.
 
+        Uses persistent fd if available, otherwise opens/closes each time.
+
         Raises:
             ScraperError: If device cannot be accessed
         """
+        fd = getattr(self, "_persistent_fd", None)
+        if fd is not None:
+            try:
+                while True:
+                    event_data = fd.read(24)
+                    if event_data:
+                        if self._process_event(event_data):
+                            return
+            except Exception as e:
+                logger.log_error(f"Unexpected error reading input: {e}")
+            return
+
         try:
             with self._open_device() as device:
                 while True:
@@ -94,10 +131,8 @@ class InputManager:
                         if self._process_event(event_data):
                             return
         except exceptions.ScraperError:
-            # Re-raise scraper errors
             raise
         except Exception as e:
-            # Log other errors but don't crash the application
             logger.log_error(f"Unexpected error reading input: {e}")
 
     def _process_event(self, event_data: bytes) -> bool:
@@ -287,6 +322,16 @@ def key_pressed(key_code_name: str, key_value: Optional[int] = None) -> bool:
     if key_value == 99:
         key_value = None
     return manager.key_pressed(key_code_name, key_value)
+
+
+def open_persistent() -> None:
+    """Open persistent blocking fd for main loop (backward compatibility)."""
+    _get_input_manager().open_persistent()
+
+
+def close_persistent() -> None:
+    """Close persistent blocking fd (backward compatibility)."""
+    _get_input_manager().close_persistent()
 
 
 def start_nonblocking() -> None:
