@@ -114,6 +114,9 @@ class App:
         self.cached_roms_data: Optional[RomsData] = None
         self.cached_system: Optional[str] = None
 
+        # Emulator list caching (avoid filesystem scan every frame)
+        self._cached_available_systems: Optional[List[str]] = None
+
         # Scraping cancellation
         self._scrape_cancelled = threading.Event()
 
@@ -201,6 +204,7 @@ class App:
     def _start_main_interface(self) -> None:
         """Start the main GUI interface."""
         try:
+            input.open_persistent()
             self.gui.draw_start()
             self.gui.screen_reset()
             main_gui = self.gui.create_image()
@@ -438,6 +442,9 @@ class App:
 
             cleanup_network_resources()
 
+            # Close persistent input fd
+            input.close_persistent()
+
             # Cleanup GUI
             if self.gui:
                 self.gui.draw_end()
@@ -457,12 +464,18 @@ class App:
             time.sleep(self.LOG_WAIT)
         sys.exit(1)
 
+    def _invalidate_systems_cache(self) -> None:
+        """Invalidate cached available systems list, forcing a rescan on next frame."""
+        self._cached_available_systems = None
+
     def load_emulators(self) -> None:
         """Load and display emulator selection screen with optimized rendering."""
         try:
-            available_systems = self.rom_manager.get_available_systems(
-                self.config.systems_mapping
-            )
+            if self._cached_available_systems is None:
+                self._cached_available_systems = self.rom_manager.get_available_systems(
+                    self.config.systems_mapping
+                )
+            available_systems = self._cached_available_systems
 
             # Handle input first
             if available_systems:
