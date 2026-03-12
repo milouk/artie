@@ -2,6 +2,7 @@
 
 import json
 import pickle
+import threading
 import time
 from dataclasses import dataclass
 from functools import wraps
@@ -40,6 +41,11 @@ class CacheManager:
     DEFAULT_FILE_TTL = 300  # 5 minutes for file operations
     DEFAULT_GAME_DATA_TTL = 86400  # 24 hours for game data
 
+    # Maximum cache sizes
+    MAX_MEMORY_ENTRIES = 1000
+    MAX_API_ENTRIES = 500
+    MAX_FILE_ENTRIES = 200
+
     def __init__(self, cache_dir: str = ".cache"):
         """
         Initialize cache manager.
@@ -49,6 +55,8 @@ class CacheManager:
         """
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(exist_ok=True)
+
+        self._lock = threading.Lock()
 
         # In-memory caches
         self._memory_cache: Dict[str, CacheEntry] = {}
@@ -64,9 +72,9 @@ class CacheManager:
         }
 
         # Maximum cache sizes
-        self.max_memory_entries = 1000
-        self.max_api_entries = 500
-        self.max_file_entries = 200
+        self.max_memory_entries = self.MAX_MEMORY_ENTRIES
+        self.max_api_entries = self.MAX_API_ENTRIES
+        self.max_file_entries = self.MAX_FILE_ENTRIES
 
         logger.log_info(
             f"Cache manager initialized with cache directory: {self.cache_dir}"
@@ -138,22 +146,23 @@ class CacheManager:
             Cached value or None if not found/expired
         """
         try:
-            cache_dict = self._get_cache_dict(cache_type)
+            with self._lock:
+                cache_dict = self._get_cache_dict(cache_type)
 
-            if key not in cache_dict:
-                self._stats["misses"] += 1
-                return None
+                if key not in cache_dict:
+                    self._stats["misses"] += 1
+                    return None
 
-            entry = cache_dict[key]
+                entry = cache_dict[key]
 
-            if entry.is_expired():
-                del cache_dict[key]
-                self._stats["misses"] += 1
-                self._stats["evictions"] += 1
-                return None
+                if entry.is_expired():
+                    del cache_dict[key]
+                    self._stats["misses"] += 1
+                    self._stats["evictions"] += 1
+                    return None
 
-            self._stats["hits"] += 1
-            return entry.data
+                self._stats["hits"] += 1
+                return entry.data
 
         except Exception as e:
             logger.log_error(f"Error getting cache entry {key}: {e}")
@@ -168,22 +177,23 @@ class CacheManager:
         from cache misses.
         """
         try:
-            cache_dict = self._get_cache_dict(cache_type)
+            with self._lock:
+                cache_dict = self._get_cache_dict(cache_type)
 
-            if key not in cache_dict:
-                self._stats["misses"] += 1
-                return _CACHE_MISS
+                if key not in cache_dict:
+                    self._stats["misses"] += 1
+                    return _CACHE_MISS
 
-            entry = cache_dict[key]
+                entry = cache_dict[key]
 
-            if entry.is_expired():
-                del cache_dict[key]
-                self._stats["misses"] += 1
-                self._stats["evictions"] += 1
-                return _CACHE_MISS
+                if entry.is_expired():
+                    del cache_dict[key]
+                    self._stats["misses"] += 1
+                    self._stats["evictions"] += 1
+                    return _CACHE_MISS
 
-            self._stats["hits"] += 1
-            return entry.data
+                self._stats["hits"] += 1
+                return entry.data
 
         except Exception as e:
             logger.log_error(f"Error getting cache entry {key}: {e}")
@@ -207,19 +217,20 @@ class CacheManager:
             cache_type: Type of cache ("memory", "api", "file")
         """
         try:
-            cache_dict = self._get_cache_dict(cache_type)
-            max_size = self._get_max_size(cache_type)
-            default_ttl = self._get_default_ttl(cache_type)
+            with self._lock:
+                cache_dict = self._get_cache_dict(cache_type)
+                max_size = self._get_max_size(cache_type)
+                default_ttl = self._get_default_ttl(cache_type)
 
-            entry = CacheEntry(
-                data=value, timestamp=time.time(), ttl=ttl or default_ttl, key=key
-            )
+                entry = CacheEntry(
+                    data=value, timestamp=time.time(), ttl=ttl or default_ttl, key=key
+                )
 
-            cache_dict[key] = entry
+                cache_dict[key] = entry
 
-            # Cleanup and enforce limits
-            self._cleanup_expired_entries(cache_dict)
-            self._enforce_cache_size_limit(cache_dict, max_size)
+                # Cleanup and enforce limits
+                self._cleanup_expired_entries(cache_dict)
+                self._enforce_cache_size_limit(cache_dict, max_size)
 
         except Exception as e:
             logger.log_error(f"Error setting cache entry {key}: {e}")
@@ -264,13 +275,14 @@ class CacheManager:
             True if entry was found and removed, False otherwise
         """
         try:
-            cache_dict = self._get_cache_dict(cache_type)
+            with self._lock:
+                cache_dict = self._get_cache_dict(cache_type)
 
-            if key in cache_dict:
-                del cache_dict[key]
-                return True
+                if key in cache_dict:
+                    del cache_dict[key]
+                    return True
 
-            return False
+                return False
 
         except Exception as e:
             logger.log_error(f"Error invalidating cache entry {key}: {e}")
@@ -285,16 +297,16 @@ class CacheManager:
             cache_type: Type of cache to clear (None for all)
         """
         try:
-            if cache_type is None:
-                # Clear all caches
-                self._memory_cache.clear()
-                self._api_cache.clear()
-                self._file_cache.clear()
-                logger.log_info("Cleared all caches")
-            else:
-                cache_dict = self._get_cache_dict(cache_type)
-                cache_dict.clear()
-                logger.log_info(f"Cleared {cache_type} cache")
+            with self._lock:
+                if cache_type is None:
+                    self._memory_cache.clear()
+                    self._api_cache.clear()
+                    self._file_cache.clear()
+                    logger.log_info("Cleared all caches")
+                else:
+                    cache_dict = self._get_cache_dict(cache_type)
+                    cache_dict.clear()
+                    logger.log_info(f"Cleared {cache_type} cache")
 
         except Exception as e:
             logger.log_error(f"Error clearing cache: {e}")
@@ -431,11 +443,14 @@ def file_cached(ttl: Optional[float] = None):
 
 # Global cache manager instance
 _global_cache_manager: Optional[CacheManager] = None
+_cache_manager_lock = threading.Lock()
 
 
 def get_cache_manager() -> CacheManager:
-    """Get global cache manager instance."""
+    """Get global cache manager instance (thread-safe)."""
     global _global_cache_manager
     if _global_cache_manager is None:
-        _global_cache_manager = CacheManager()
+        with _cache_manager_lock:
+            if _global_cache_manager is None:
+                _global_cache_manager = CacheManager()
     return _global_cache_manager

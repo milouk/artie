@@ -3,6 +3,7 @@
 import json
 import logging
 import logging.handlers
+import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -89,6 +90,7 @@ class LoggerSingleton:
     _performance_logger: Optional[PerformanceLogger] = None
     _log_level = logging.INFO
     _structured_logging = False
+    _lock = threading.Lock()
 
     @classmethod
     def setup_logger(
@@ -163,9 +165,11 @@ class LoggerSingleton:
 
     @classmethod
     def get_logger(cls) -> logging.Logger:
-        """Get logger instance."""
+        """Get logger instance (thread-safe)."""
         if cls._logger_instance is None:
-            cls._initialize_logger()
+            with cls._lock:
+                if cls._logger_instance is None:
+                    cls._initialize_logger()
 
         return cls._logger_instance
 

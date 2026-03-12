@@ -1,6 +1,7 @@
 """Image processing module with mask functionality for Artie Scraper."""
 
 import io
+import threading
 from pathlib import Path
 
 from PIL import Image
@@ -207,11 +208,14 @@ class ImageProcessor:
 
 # Global instance for easy access
 _image_processor = None
+_image_processor_lock = threading.Lock()
 
 
 def get_image_processor() -> ImageProcessor:
-    """Get the global image processor instance."""
+    """Get the global image processor instance (thread-safe)."""
     global _image_processor
     if _image_processor is None:
-        _image_processor = ImageProcessor()
+        with _image_processor_lock:
+            if _image_processor is None:
+                _image_processor = ImageProcessor()
     return _image_processor

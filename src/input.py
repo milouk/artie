@@ -3,6 +3,7 @@
 import errno
 import os
 import struct
+import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -251,13 +252,16 @@ class InputManager:
 
 # Global input manager instance for backward compatibility
 _global_input_manager: Optional[InputManager] = None
+_input_manager_lock = threading.Lock()
 
 
 def _get_input_manager() -> InputManager:
-    """Get global input manager instance."""
+    """Get global input manager instance (thread-safe)."""
     global _global_input_manager
     if _global_input_manager is None:
-        _global_input_manager = InputManager()
+        with _input_manager_lock:
+            if _global_input_manager is None:
+                _global_input_manager = InputManager()
     return _global_input_manager
 
 
