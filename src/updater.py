@@ -63,15 +63,15 @@ def download_and_apply_update(download_url: str) -> bool:
     try:
         logger.log_info(f"Downloading update from {download_url}")
 
-        resp = requests.get(download_url, timeout=120, stream=True)
-        resp.raise_for_status()
+        with requests.get(download_url, timeout=120, stream=True) as resp:
+            resp.raise_for_status()
 
-        with tempfile.NamedTemporaryFile(
-            suffix=".zip", delete=False, dir=tmp_dir
-        ) as tmp:
-            tmp_path = tmp.name
-            for chunk in resp.iter_content(chunk_size=65536):
-                tmp.write(chunk)
+            with tempfile.NamedTemporaryFile(
+                suffix=".zip", delete=False, dir=tmp_dir
+            ) as tmp:
+                tmp_path = tmp.name
+                for chunk in resp.iter_content(chunk_size=65536):
+                    tmp.write(chunk)
 
         logger.log_info(f"Update downloaded to {tmp_path}")
 
