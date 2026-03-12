@@ -203,11 +203,26 @@ class ConfigManager:
     def _extract_credentials(
         self, screenscraper_config: Dict[str, Any]
     ) -> Dict[str, str]:
-        """Extract and validate API credentials."""
-        dev_id = screenscraper_config.get("devid")
-        dev_password = screenscraper_config.get("devpassword")
-        username = screenscraper_config.get("username")
-        password = screenscraper_config.get("password")
+        """Extract and validate API credentials.
+
+        Checks environment variables first (SCREENSCRAPER_USERNAME,
+        SCREENSCRAPER_PASSWORD, SCREENSCRAPER_DEVID, SCREENSCRAPER_DEVPASSWORD),
+        then falls back to config.json values.
+        """
+        import os
+
+        dev_id = os.environ.get(
+            "SCREENSCRAPER_DEVID", screenscraper_config.get("devid")
+        )
+        dev_password = os.environ.get(
+            "SCREENSCRAPER_DEVPASSWORD", screenscraper_config.get("devpassword")
+        )
+        username = os.environ.get(
+            "SCREENSCRAPER_USERNAME", screenscraper_config.get("username")
+        )
+        password = os.environ.get(
+            "SCREENSCRAPER_PASSWORD", screenscraper_config.get("password")
+        )
 
         if not all([dev_id, dev_password, username, password]):
             raise exceptions.ConfigurationError("Missing screenscraper credentials")
