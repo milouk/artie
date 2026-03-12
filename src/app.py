@@ -139,16 +139,8 @@ class App:
             self.config = self.config_manager.load_config(config_file)
             self.config_manager.setup_logging()
 
-            # Validate API credentials early - fail fast if invalid
-            logger.log_info("Validating API credentials before starting application...")
-            try:
-                self.config_manager.validate_credentials()
-                logger.log_info("API credentials validated successfully")
-            except exceptions.ConfigurationError as e:
-                logger.log_error(f"API credential validation failed: {e}")
-                logger.log_warning(
-                    "Continuing despite invalid credentials - application may not function properly"
-                )
+            # Validate credentials and configure threads in one API call
+            self._validate_and_configure_threads()
 
             # Initialize managers
             self.rom_manager = RomManager(self.config.roms_path)
@@ -161,9 +153,6 @@ class App:
 
             # Initialize GUI
             self._initialize_gui()
-
-            # Get user thread limits (now with proper error handling)
-            self._configure_user_threads()
 
             # Check for updates (non-blocking, don't fail startup)
             self._check_for_updates()
@@ -221,9 +210,10 @@ class App:
             logger.log_error(f"Failed to start main interface: {e}")
             raise
 
-    def _configure_user_threads(self) -> None:
-        """Configure thread count based on user's API limits and server capacity with proper error handling."""
+    def _validate_and_configure_threads(self) -> None:
+        """Validate API credentials and configure thread limits in a single API call."""
         try:
+            logger.log_info("Validating API credentials and configuring threads...")
             user_info = get_user_data(
                 self.config.dev_id,
                 self.config.dev_password,
@@ -233,17 +223,14 @@ class App:
 
             # Validate response structure
             if not user_info or "response" not in user_info:
-                logger.log_error("Invalid API response when getting user thread limits")
+                logger.log_error("Invalid API response during startup")
                 raise exceptions.ScraperError("Invalid API response structure")
 
             response = user_info.get("response", {})
 
-            # Check for API errors
             if "erreur" in response:
                 error_msg = response["erreur"]
-                logger.log_error(
-                    f"API error when getting user thread limits: {error_msg}"
-                )
+                logger.log_error(f"API error during startup: {error_msg}")
                 raise exceptions.ScraperError(f"API error: {error_msg}")
 
             ssuser = response.get("ssuser", {})
@@ -251,58 +238,48 @@ class App:
                 logger.log_error("No user information in API response")
                 raise exceptions.ScraperError("No user information returned by API")
 
-            max_threads = int(ssuser.get("maxthreads", 10))
+            # Credentials are valid — extract user info
+            username = ssuser.get("nom", "Unknown")
             user_level = ssuser.get("niveau", "Unknown")
+            max_threads = int(ssuser.get("maxthreads", 10))
 
             logger.log_info(
-                f"User level: {user_level}, Max threads allowed: {max_threads}"
+                f"API credentials validated - User: {username}, "
+                f"Level: {user_level}, Max threads: {max_threads}"
             )
 
-            # Use configured thread count directly - no server optimization
+            # Clamp configured threads to API limit
             self.config.threads = min(self.config.threads, max_threads)
-            logger.log_info(
-                f"Using configured thread count: {self.config.threads} threads"
-            )
-
-            logger.log_info(
-                f"Final thread configuration: {self.config.threads} threads for scraping"
-            )
+            logger.log_info(f"Thread configuration: {self.config.threads} threads")
 
         except exceptions.ForbiddenError as e:
-            logger.log_error(f"API access forbidden when configuring threads: {e}")
-            logger.log_error("This indicates invalid or expired credentials")
-            raise exceptions.ConfigurationError(
-                "Invalid API credentials - access forbidden"
+            logger.log_error(f"API access forbidden: {e}")
+            logger.log_warning(
+                "Continuing with configured settings - scraping may fail"
             )
 
         except exceptions.RateLimitError as e:
-            logger.log_error(f"API rate limit exceeded when configuring threads: {e}")
-            logger.log_error("Please reduce thread count or wait before retrying")
-            raise exceptions.ConfigurationError(
-                "API rate limit exceeded during startup"
+            logger.log_error(f"API rate limit exceeded during startup: {e}")
+            logger.log_warning(
+                "Continuing with configured settings - reduce thread count or wait"
             )
 
         except exceptions.NetworkError as e:
-            logger.log_warning(f"Network error when getting user thread limits: {e}")
+            logger.log_warning(f"Network error during startup: {e}")
             logger.log_warning(
-                "Using configured thread count, but API limits may not be enforced"
+                "Continuing with configured settings - API limits may not be enforced"
             )
-            # Don't fail startup for network errors, but warn user
 
         except exceptions.ScraperError as e:
-            logger.log_error(f"API error when getting user thread limits: {e}")
-            logger.log_warning("Using default thread configuration due to API issues")
-            logger.log_info(
-                f"Using default thread configuration: {self.config.threads} threads"
+            logger.log_error(f"API error during startup: {e}")
+            logger.log_warning(
+                f"Continuing with {self.config.threads} threads (unvalidated)"
             )
 
         except Exception as e:
-            logger.log_error(f"Unexpected error when configuring threads: {e}")
+            logger.log_error(f"Unexpected error during startup: {e}")
             logger.log_warning(
-                "Using default thread configuration due to unexpected error"
-            )
-            logger.log_info(
-                f"Using default thread configuration: {self.config.threads} threads"
+                f"Continuing with {self.config.threads} threads (unvalidated)"
             )
 
     def _check_for_updates(self) -> None:
@@ -1228,7 +1205,9 @@ class App:
             logger.log_error(f"Error in batch scraping: {e}")
             self._show_overlay(f"Batch scraping error: {str(e)[:50]}...")
 
-        input.stop_nonblocking()
+        finally:
+            input.stop_nonblocking()
+
         time.sleep(1)
         self.skip_input_check = True
 
