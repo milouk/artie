@@ -1,7 +1,6 @@
 """Caching system for Artie Scraper to improve performance."""
 
 import json
-import pickle
 import threading
 import time
 from dataclasses import dataclass
@@ -314,28 +313,37 @@ class CacheManager:
 
     def save_to_disk(self, cache_type: str = "api") -> None:
         """
-        Save cache to disk for persistence.
+        Save cache to disk for persistence using JSON.
 
         Args:
             cache_type: Type of cache to save
         """
         try:
             cache_dict = self._get_cache_dict(cache_type)
-            cache_file = self.cache_dir / f"{cache_type}_cache.pkl"
+            cache_file = self.cache_dir / f"{cache_type}_cache.json"
 
-            # Filter out expired entries before saving
-            valid_entries = {
-                key: entry
-                for key, entry in cache_dict.items()
-                if not entry.is_expired()
-            }
+            # Filter out expired entries and serialize
+            serializable = {}
+            for key, entry in cache_dict.items():
+                if not entry.is_expired():
+                    serializable[key] = {
+                        "data": entry.data,
+                        "timestamp": entry.timestamp,
+                        "ttl": entry.ttl,
+                        "key": entry.key,
+                    }
 
-            with open(cache_file, "wb") as f:
-                pickle.dump(valid_entries, f)
+            with open(cache_file, "w", encoding="utf-8") as f:
+                json.dump(serializable, f, default=str)
 
             logger.log_info(
-                f"Saved {len(valid_entries)} {cache_type} cache entries to disk"
+                f"Saved {len(serializable)} {cache_type} cache entries to disk"
             )
+
+            # Remove legacy pickle file if it exists
+            legacy_file = self.cache_dir / f"{cache_type}_cache.pkl"
+            if legacy_file.exists():
+                legacy_file.unlink()
 
         except Exception as e:
             logger.log_error(f"Error saving {cache_type} cache to disk: {e}")
@@ -349,19 +357,25 @@ class CacheManager:
             cache_type: Type of cache to load
         """
         try:
-            cache_file = self.cache_dir / f"{cache_type}_cache.pkl"
+            cache_file = self.cache_dir / f"{cache_type}_cache.json"
 
             if not cache_file.exists():
                 return
 
-            with open(cache_file, "rb") as f:
-                loaded_entries = pickle.load(f)
+            with open(cache_file, "r", encoding="utf-8") as f:
+                loaded_entries = json.load(f)
 
-            # Filter out expired entries
+            # Reconstruct CacheEntry objects and filter expired
             cache_dict = self._get_cache_dict(cache_type)
             valid_count = 0
 
-            for key, entry in loaded_entries.items():
+            for key, entry_data in loaded_entries.items():
+                entry = CacheEntry(
+                    data=entry_data["data"],
+                    timestamp=entry_data["timestamp"],
+                    ttl=entry_data["ttl"],
+                    key=entry_data["key"],
+                )
                 if not entry.is_expired():
                     cache_dict[key] = entry
                     valid_count += 1
