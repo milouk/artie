@@ -1725,8 +1725,20 @@ class App:
         else:
             synopsis_y = img_y
 
-        # Synopsis section
+        # Synopsis and metadata sections
         if self.config.synopsis_enabled:
+            synopsis_text = ""
+            metadata_lines = []
+
+            if has_text:
+                synopsis_path = roms_data.synopsis_dir / f"{rom.name}.txt"
+                try:
+                    raw = synopsis_path.read_text(encoding="utf-8").strip()
+                    synopsis_text, metadata_lines = self._parse_synopsis_file(raw)
+                except Exception:
+                    synopsis_text = ""
+
+            # Synopsis header
             self.gui.draw_text(
                 (25, synopsis_y),
                 "Synopsis",
@@ -1739,18 +1751,18 @@ class App:
                 fill=self.gui.COLOR_PRIMARY_DARK,
                 width=1,
             )
-            if has_text:
-                synopsis_path = roms_data.synopsis_dir / f"{rom.name}.txt"
-                try:
-                    text = synopsis_path.read_text(encoding="utf-8").strip()
-                    self._draw_wrapped_text(text, 25, synopsis_y + 25, 590, max_lines=7)
-                except Exception:
-                    self.gui.draw_text(
-                        (25, synopsis_y + 25),
-                        "Error reading synopsis",
-                        font=11,
-                        color=self.gui.COLOR_MUTED,
-                    )
+
+            max_synopsis_lines = 4 if metadata_lines else 7
+            if has_text and synopsis_text:
+                self._draw_wrapped_text(
+                    synopsis_text,
+                    25,
+                    synopsis_y + 25,
+                    590,
+                    max_lines=max_synopsis_lines,
+                )
+            elif has_text:
+                pass  # no synopsis text, but metadata may exist
             else:
                 self.gui.draw_text(
                     (25, synopsis_y + 25),
@@ -1758,6 +1770,29 @@ class App:
                     font=11,
                     color=self.gui.COLOR_MUTED,
                 )
+
+            # Metadata card
+            if metadata_lines:
+                meta_y = synopsis_y + 25 + max_synopsis_lines * 16 + 8
+                self.gui.draw_rectangle_r(
+                    [20, meta_y, 620, meta_y + len(metadata_lines) * 18 + 12],
+                    6,
+                    fill=self.gui.COLOR_ROW_HOVER,
+                )
+                for i, (key, value) in enumerate(metadata_lines):
+                    ly = meta_y + 8 + i * 18
+                    self.gui.draw_text(
+                        (30, ly),
+                        f"{key}:",
+                        font=11,
+                        color=self.gui.COLOR_PRIMARY,
+                    )
+                    self.gui.draw_text(
+                        (130, ly),
+                        value,
+                        font=11,
+                        color=self.gui.COLOR_WHITE,
+                    )
 
         # Separator line above controls
         self.gui.draw_line(
@@ -1829,6 +1864,27 @@ class App:
             color=self.gui.COLOR_MUTED,
             anchor="mt",
         )
+
+    @staticmethod
+    def _parse_synopsis_file(raw: str) -> tuple:
+        """Split a synopsis file into description text and metadata key-value pairs."""
+        lines = raw.split("\n")
+        synopsis_lines = []
+        metadata = []
+        in_metadata = False
+
+        for line in lines:
+            if not in_metadata and line == "" and synopsis_lines:
+                in_metadata = True
+                continue
+            if in_metadata and ": " in line:
+                key, _, value = line.partition(": ")
+                metadata.append((key.strip(), value.strip()))
+            else:
+                if not in_metadata:
+                    synopsis_lines.append(line)
+
+        return "\n".join(synopsis_lines).strip(), metadata
 
     def _draw_wrapped_text(
         self, text: str, x: int, y: int, max_x: int, max_lines: int = 5
