@@ -3,6 +3,7 @@
 import base64
 import json
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -209,8 +210,6 @@ class ConfigManager:
         SCREENSCRAPER_PASSWORD, SCREENSCRAPER_DEVID, SCREENSCRAPER_DEVPASSWORD),
         then falls back to config.json values.
         """
-        import os
-
         dev_id = os.environ.get(
             "SCREENSCRAPER_DEVID", screenscraper_config.get("devid")
         )
