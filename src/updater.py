@@ -160,8 +160,8 @@ def _get_install_dir() -> Optional[Path]:
     # Check if we're already in the Artie dir
     if (cwd / ".artie").exists():
         return cwd
-    # Fallback: try standard MuOS path
-    for mount in ["/run/muos/storage"]:
+    # Fallback: try standard MuOS paths
+    for mount in ["/mnt/mmc/MUOS", "/run/muos/storage"]:
         standard = Path(mount) / "application" / "Artie"
         if standard.exists():
             return standard

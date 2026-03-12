@@ -5,6 +5,8 @@ import html
 import json
 import os
 import re
+import threading
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
@@ -410,8 +412,6 @@ def get(url: str, max_retries: int = 3, timeout: int = 30, cancel_event=None) ->
         NetworkError: For network-related errors
         ScraperError: For other HTTP errors
     """
-    import time
-
     # Check if we recently hit 403 errors to avoid hammering the API
     cache_manager = get_cache_manager()
     forbidden_key = "forbidden_error_cache"
@@ -1303,7 +1303,7 @@ def download_manual_direct(
 
 # Global session for connection pooling optimization
 _global_session = None
-_session_lock = None
+_session_lock = threading.Lock()
 
 
 def _get_optimized_session():
@@ -1313,12 +1313,7 @@ def _get_optimized_session():
     This provides significant performance improvements by reusing connections
     and implementing proper connection pooling for multiple requests.
     """
-    global _global_session, _session_lock
-
-    if _session_lock is None:
-        import threading
-
-        _session_lock = threading.Lock()
+    global _global_session
 
     with _session_lock:
         if _global_session is None:
