@@ -126,6 +126,7 @@ class RomManager:
             for rom in self._discover_roms(system_path):
                 roms.append(rom)
 
+            roms.sort(key=lambda r: r.name.lower())
             logger.log_info(f"Found {len(roms)} ROMs for system '{system}'")
             return roms
 
