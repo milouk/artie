@@ -117,6 +117,10 @@ class App:
         # Emulator list caching (avoid filesystem scan every frame)
         self._cached_available_systems: Optional[List[str]] = None
 
+        # Dirty flags — skip re-render when nothing changed
+        self._emulators_dirty = True
+        self._roms_dirty = True
+
         # Scraping cancellation
         self._scrape_cancelled = threading.Event()
 
@@ -389,6 +393,7 @@ class App:
             self.cached_roms_data = self.transition_data
             self.cached_system = self.transition_target_system
             self.roms_selected_position = 0  # Reset ROM selection position
+            self._roms_dirty = True
 
             # SINGLE PAINT OPERATION: Render ROM interface directly
             self._render_roms_interface(self.transition_data)
@@ -415,6 +420,9 @@ class App:
         if self.skip_input_check:
             input.reset_input()
             self.skip_input_check = False
+            # Force re-render after actions that skip input
+            self._emulators_dirty = True
+            self._roms_dirty = True
         else:
             input.check_input()
 
@@ -479,10 +487,15 @@ class App:
 
             # Handle input first
             if available_systems:
+                old_pos = self.selected_position
                 self._handle_emulator_input(available_systems)
+                if self.selected_position != old_pos:
+                    self._emulators_dirty = True
 
-            # Create complete emulator interface using double-buffering
-            self._render_complete_emulator_interface(available_systems)
+            # Only re-render when something changed
+            if self._emulators_dirty:
+                self._render_complete_emulator_interface(available_systems)
+                self._emulators_dirty = False
 
         except Exception as e:
             logger.log_error(f"Error in load_emulators: {e}")
@@ -856,12 +869,17 @@ class App:
                 return
 
             # Handle input
+            old_pos = self.roms_selected_position
             if self._handle_roms_input(roms_data):
                 self._exit_roms_menu()
                 return
+            if self.roms_selected_position != old_pos:
+                self._roms_dirty = True
 
-            # Render interface
-            self._render_roms_interface(roms_data)
+            # Only re-render when something changed
+            if self._roms_dirty:
+                self._render_roms_interface(roms_data)
+                self._roms_dirty = False
 
         except Exception as e:
             logger.log_error(f"Error in load_roms: {e}")
@@ -1588,6 +1606,14 @@ class App:
             if input.key_pressed("B") or input.key_pressed("MENUF"):
                 break
             elif input.key_pressed("A"):
+                # Only scrape if ROM is missing at least one enabled media type
+                missing_media = (
+                    (self.config.box_enabled and not has_box)
+                    or (self.config.preview_enabled and not has_preview)
+                    or (self.config.synopsis_enabled and not has_text)
+                )
+                if not missing_media:
+                    continue
                 self._scrape_single_rom(roms_data)
                 # Refresh detail view after scraping
                 self._clear_rom_cache()
@@ -1881,14 +1907,15 @@ class App:
     def _draw_wrapped_text(
         self, text: str, x: int, y: int, max_x: int, max_lines: int = 5
     ) -> None:
-        """Draw word-wrapped text within bounds."""
-        chars_per_line = (max_x - x) // 6  # ~6px per char at font 11
+        """Draw word-wrapped text within bounds using actual font measurement."""
+        font = self.gui.fontFile[11]
+        max_width = max_x - x
         words = text.split()
         lines = []
         current_line = ""
         for word in words:
             test = f"{current_line} {word}".strip()
-            if len(test) > chars_per_line:
+            if font.getlength(test) > max_width:
                 if current_line:
                     lines.append(current_line)
                 current_line = word
@@ -1899,7 +1926,10 @@ class App:
 
         for i, line in enumerate(lines[:max_lines]):
             if i == max_lines - 1 and len(lines) > max_lines:
-                line = line[: chars_per_line - 3] + "..."
+                # Truncate with ellipsis using measured width
+                while font.getlength(line + "...") > max_width and len(line) > 0:
+                    line = line[:-1]
+                line = line + "..."
             self.gui.draw_text(
                 (x, y + i * 16), line, font=11, color=self.gui.COLOR_WHITE
             )
@@ -1908,6 +1938,7 @@ class App:
         """Exit ROM menu and return to emulator selection."""
         self.current_window = "emulators"
         self.roms_selected_position = 0
+        self._emulators_dirty = True
 
         # Clear any pending transitions to prevent conflicts
         self.pending_transition = False
