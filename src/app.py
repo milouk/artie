@@ -979,7 +979,7 @@ class App:
             | set(roms_without_preview)
             | set(roms_without_synopsis)
         )
-        return sorted(list(missing_roms), key=lambda rom: rom.name)
+        return sorted(list(missing_roms), key=lambda rom: rom.name.lower())
 
     def _handle_roms_input(self, roms_data: RomsData) -> bool:
         """
