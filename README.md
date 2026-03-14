@@ -58,7 +58,7 @@
 ## Quick Start
 
 1. Download `Artie.muxapp` from the [latest release](https://github.com/milouk/artie/releases/latest)
-2. Copy it to `/mnt/mmc/MUOS/ARCHIVE` on your device
+2. Copy it to `/mnt/mmc/MUOS/ARCHIVE/` on your device
 3. Run Applications > Archive Manager, and select and install Artie
 4. Edit `Artie/.artie/config.json` with your [ScreenScraper](https://screenscraper.fr/) credentials and ROM paths
 5. Launch from the MuOS applications menu
