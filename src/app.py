@@ -192,7 +192,12 @@ class App:
     def _initialize_gui(self) -> None:
         """Initialize GUI with proper error handling."""
         try:
+            from defaults import THEMES
+
             self.gui = GUI()
+            theme_name = self.config.theme if self.config else "dark"
+            theme = THEMES.get(theme_name, THEMES["dark"])
+            self.gui.apply_theme(theme)
         except Exception as e:
             logger.log_error(f"Failed to initialize GUI: {e}")
             raise exceptions.ScraperError(f"GUI initialization failed: {e}")
@@ -365,6 +370,11 @@ class App:
         if saved:
             try:
                 self.config = self.config_manager.load_settings(self._settings_dir)
+                # Re-apply theme in case it changed
+                from defaults import THEMES
+
+                theme = THEMES.get(self.config.theme, THEMES["dark"])
+                self.gui.apply_theme(theme)
                 logger.log_info("Configuration reloaded after settings change")
             except Exception as e:
                 logger.log_error(f"Failed to reload config: {e}")

@@ -14,6 +14,37 @@ COLORS = {
     "secondary_dark": "#14141e",
 }
 
+THEMES = {
+    "dark": {
+        "primary": "#d4881c",
+        "primary_dark": "#a06210",
+        "white": "#e8e8ec",
+        "black": "#0a0a12",
+        "muted": "#6c6c80",
+        "success": "#4caf50",
+        "accent_bar": "#d4881c",
+        "row_hover": "#252538",
+        "header_bg": "#181824",
+        "secondary": "#1e1e2e",
+        "secondary_light": "#2a2a3c",
+        "secondary_dark": "#14141e",
+    },
+    "light": {
+        "primary": "#c07818",
+        "primary_dark": "#8a5510",
+        "white": "#1a1a2e",
+        "black": "#f0f0f4",
+        "muted": "#707088",
+        "success": "#388e3c",
+        "accent_bar": "#c07818",
+        "row_hover": "#d8d8e4",
+        "header_bg": "#e0e0ec",
+        "secondary": "#c8c8d8",
+        "secondary_light": "#d0d0dc",
+        "secondary_dark": "#e8e8f0",
+    },
+}
+
 # Scraper content defaults
 BOX_CONFIG = {
     "height": 240,
@@ -52,6 +83,7 @@ DEFAULT_SETTINGS = {
     "synopsis_lang": "en",
     "regions": "us,eu,jp,br,ss,ame,wor",
     "log_level": "info",
+    "theme": "dark",
 }
 
 # Dev credentials — injected at build time via dev_credentials.py

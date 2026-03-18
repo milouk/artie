@@ -57,6 +57,13 @@ SETTINGS_DEFS: List[Tuple[str, str, str, str, dict]] = [
     ("Media", "synopsis_enabled", "Synopsis", "toggle", {}),
     ("Display", "show_logos", "Show Logos", "toggle", {}),
     (
+        "Display",
+        "theme",
+        "Theme",
+        "choice",
+        {"options": ["dark", "light"]},
+    ),
+    (
         "Advanced",
         "log_level",
         "Log Level",

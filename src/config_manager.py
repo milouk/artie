@@ -47,6 +47,9 @@ class ScraperConfig:
     # Performance settings
     threads: int
 
+    # Theme
+    theme: str
+
     # Content configuration (passed to scraper functions)
     content: Dict[str, Any]
     systems_mapping: Dict[str, Any]
@@ -243,6 +246,7 @@ class ConfigManager:
             show_scraped_roms=s.get("show_scraped_roms", True),
             show_logos=s.get("show_logos", True),
             threads=threads,
+            theme=s.get("theme", "dark"),
             content=content,
             systems_mapping=systems_mapping,
             colors=COLORS,

@@ -76,6 +76,23 @@ class GUI:
         # Store last log message for text-only fallback
         self._last_log_message = ""
 
+    def apply_theme(self, theme: dict) -> None:
+        """Apply a theme dict to all COLOR_* attributes."""
+        self.COLOR_PRIMARY = theme.get("primary", self.COLOR_PRIMARY)
+        self.COLOR_PRIMARY_DARK = theme.get("primary_dark", self.COLOR_PRIMARY_DARK)
+        self.COLOR_WHITE = theme.get("white", self.COLOR_WHITE)
+        self.COLOR_BLACK = theme.get("black", self.COLOR_BLACK)
+        self.COLOR_MUTED = theme.get("muted", self.COLOR_MUTED)
+        self.COLOR_SUCCESS = theme.get("success", self.COLOR_SUCCESS)
+        self.COLOR_ACCENT_BAR = theme.get("accent_bar", self.COLOR_ACCENT_BAR)
+        self.COLOR_ROW_HOVER = theme.get("row_hover", self.COLOR_ROW_HOVER)
+        self.COLOR_HEADER_BG = theme.get("header_bg", self.COLOR_HEADER_BG)
+        self.COLOR_SECONDARY = theme.get("secondary", self.COLOR_SECONDARY)
+        self.COLOR_SECONDARY_LIGHT = theme.get("secondary_light", self.COLOR_SECONDARY_LIGHT)
+        self.COLOR_SECONDARY_DARK = theme.get("secondary_dark", self.COLOR_SECONDARY_DARK)
+        # Clear color cache since hex values changed
+        self._color_cache.clear()
+
     # ------------------------------------------------------------------
     # Color helper
     # ------------------------------------------------------------------
