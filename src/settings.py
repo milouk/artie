@@ -536,6 +536,130 @@ class SettingsScreen:
 # ---------------------------------------------------------------------------
 
 
+class SystemSelectionScreen:
+    """Checkbox screen for selecting which systems to batch scrape."""
+
+    MAX_VISIBLE = 11
+
+    def __init__(self, gui, systems: List[str]):
+        self.gui = gui
+        self.systems = systems
+        self.selected = {s: True for s in systems}
+        self.pos = 0
+
+    def show(self) -> Optional[List[str]]:
+        """Run selection screen. Returns list of selected systems, or None if cancelled."""
+        while True:
+            self._render()
+            inp.check_input()
+
+            if inp.key_pressed("DY"):
+                if inp.current_value == 1 and self.pos < len(self.systems) - 1:
+                    self.pos += 1
+                elif inp.current_value == -1 and self.pos > 0:
+                    self.pos -= 1
+
+            elif inp.key_pressed("A"):
+                s = self.systems[self.pos]
+                self.selected[s] = not self.selected[s]
+
+            elif inp.key_pressed("X"):
+                # Toggle all
+                all_on = all(self.selected.values())
+                for s in self.systems:
+                    self.selected[s] = not all_on
+
+            elif inp.key_pressed("START"):
+                chosen = [s for s in self.systems if self.selected[s]]
+                return chosen if chosen else None
+
+            elif inp.key_pressed("B") or inp.key_pressed("MENUF"):
+                return None
+
+    def _render(self) -> None:
+        g = self.gui
+        scr = g.create_image()
+        g.draw_active(scr)
+
+        # Header
+        g.draw_rectangle_r([0, 0, 640, 36], 0, fill=g.COLOR_HEADER_BG)
+        g.draw_text(
+            (20, 18), "SELECT SYSTEMS", font=18, color=g.COLOR_PRIMARY, anchor="lm"
+        )
+        count = sum(1 for v in self.selected.values() if v)
+        g.draw_rectangle_r([230, 8, 310, 28], 10, fill=g.COLOR_SECONDARY_LIGHT)
+        g.draw_text(
+            (270, 18),
+            f"{count}/{len(self.systems)}",
+            font=11,
+            color=g.COLOR_MUTED,
+            anchor="mm",
+        )
+
+        # Content area
+        g.draw_rectangle_r([10, 42, 630, 438], 10, fill=g.COLOR_SECONDARY_DARK)
+
+        # Draw visible systems
+        start_idx = (self.pos // self.MAX_VISIBLE) * self.MAX_VISIBLE
+        end_idx = start_idx + self.MAX_VISIBLE
+
+        for i, system in enumerate(self.systems[start_idx:end_idx]):
+            idx = start_idx + i
+            selected_row = idx == self.pos
+            checked = self.selected[system]
+            y_pos = 50 + i * 35
+
+            bg = g.COLOR_ROW_HOVER if selected_row else g.COLOR_SECONDARY_DARK
+            g.draw_rectangle_r([20, y_pos, 620, y_pos + 32], 6, fill=bg)
+
+            if selected_row:
+                g.draw_rectangle_r(
+                    [20, y_pos, 24, y_pos + 32], 2, fill=g.COLOR_ACCENT_BAR
+                )
+
+            # Checkbox
+            cb_color = g.COLOR_SUCCESS if checked else g.COLOR_SECONDARY_LIGHT
+            g.draw_rectangle_r(
+                [30, y_pos + 6, 50, y_pos + 26], 4, fill=cb_color
+            )
+            if checked:
+                g.draw_text(
+                    (40, y_pos + 16), "✓", font=12, color=g.COLOR_WHITE, anchor="mm"
+                )
+
+            # System name
+            g.draw_text(
+                (60, y_pos + 16),
+                system,
+                font=14 if selected_row else 13,
+                color=g.COLOR_WHITE if selected_row else g.COLOR_MUTED,
+                anchor="lm",
+            )
+
+        # Page indicator
+        total_pages = max(
+            1, (len(self.systems) + self.MAX_VISIBLE - 1) // self.MAX_VISIBLE
+        )
+        current_page = (self.pos // self.MAX_VISIBLE) + 1
+        g.draw_text(
+            (620, 18),
+            f"{current_page}/{total_pages}",
+            font=11,
+            color=g.COLOR_MUTED,
+            anchor="rm",
+        )
+
+        # Controls
+        g.draw_line((10, 443), (630, 443), fill=g.COLOR_SECONDARY_LIGHT, width=1)
+        y = 453
+        _pill(g, (15, y), "A", "Toggle")
+        _pill(g, (130, y), "X", "All")
+        _pill(g, (230, y), "ST", "Start")
+        _pill(g, (350, y), "B", "Cancel")
+
+        g.draw_paint()
+
+
 def _pill(gui, pos: Tuple[int, int], button: str, text: str) -> None:
     """Draw a pill-shaped button with label (same style as app.py)."""
     btn_w = max(22, len(button) * 11 + 8)

@@ -35,7 +35,7 @@ from scraper import (
     get_user_data,
     get_video_files_without_extension,
 )
-from settings import SettingsScreen, VirtualKeyboard
+from settings import SettingsScreen, SystemSelectionScreen, VirtualKeyboard
 from updater import check_for_update, download_and_apply_update
 
 VERSION = "3.5.0"
@@ -869,8 +869,16 @@ class App:
             self.skip_input_check = True
             return
 
-        total_systems = len(available_systems)
-        self._show_overlay(f"Scraping all {total_systems} systems...")
+        # Show system selection screen
+        selection_screen = SystemSelectionScreen(self.gui, available_systems)
+        chosen = selection_screen.show()
+        if not chosen:
+            self.skip_input_check = True
+            return
+
+        total_systems = len(chosen)
+        available_systems = chosen
+        self._show_overlay(f"Scraping {total_systems} systems...")
 
         systems_completed = 0
         systems_skipped = 0
