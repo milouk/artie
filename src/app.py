@@ -1278,7 +1278,7 @@ class App:
 
         except Exception as e:
             logger.log_error(f"Error in batch scraping: {e}")
-            self._show_overlay(f"Batch scraping error: {str(e)[:50]}...")
+            self._show_overlay(f"Error: {str(e)[:40]}")
 
         finally:
             input.stop_nonblocking()

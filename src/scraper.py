@@ -553,6 +553,20 @@ def get(url: str, max_retries: int = 3, timeout: int = 30, cancel_event=None) ->
             last_exception = exceptions.NetworkError(f"Connection error: {e}")
 
         except requests.RequestException as e:
+            error_str = str(e)
+            # Decompression error — retry without compression
+            if "decompressing" in error_str.lower() or "Error -3" in error_str:
+                try:
+                    response = session.get(
+                        url,
+                        timeout=timeout,
+                        headers={"Accept-Encoding": "identity"},
+                    )
+                    response.raise_for_status()
+                    if response.content:
+                        return response.content
+                except Exception:
+                    pass
             last_exception = exceptions.NetworkError(f"Request failed: {e}")
 
         except Exception as e:
