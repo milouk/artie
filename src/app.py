@@ -1848,8 +1848,16 @@ class App:
 
         # Controls
         y = 453
-        self._draw_button_pill((15, y), "A", "Scrape")
-        self._draw_button_pill((130, y), "B", "Back")
+        missing_media = (
+            (self.config.box_enabled and not has_box)
+            or (self.config.preview_enabled and not has_preview)
+            or (self.config.synopsis_enabled and not has_text)
+        )
+        if missing_media:
+            self._draw_button_pill((15, y), "A", "Scrape")
+            self._draw_button_pill((130, y), "B", "Back")
+        else:
+            self._draw_button_pill((15, y), "B", "Back")
 
         self.gui.draw_paint()
 
