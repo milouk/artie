@@ -121,6 +121,8 @@ class GUI:
             self._display_size = (dw, dh)
             pygame.display.set_caption("Artie Scraper")
             pygame.mouse.set_visible(False)
+            # Enable key repeat for smooth hold-to-scroll (400ms delay, 80ms interval)
+            pygame.key.set_repeat(400, 80)
             logger.log_info(
                 f"Pygame display initialized: {dw}x{dh} "
                 f"(internal {SCREEN_WIDTH}x{SCREEN_HEIGHT})"
