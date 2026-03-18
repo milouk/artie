@@ -133,6 +133,13 @@ class App:
         # Config file path (set in start())
         self._config_path: str = ""
 
+        # Display resolution (0,0 = use internal default)
+        self._display_width: int = 0
+        self._display_height: int = 0
+
+        # API-reported max threads (updated after credential validation)
+        self._max_threads: int = 20
+
         # GUI
         self.gui: Optional[GUI] = None
 
@@ -147,8 +154,8 @@ class App:
         """
         try:
             # Load configuration
-            self._config_path = config_file
             self.config = self.config_manager.load_config(config_file)
+            self._config_path = self.config_manager.resolved_config_path
             self.config_manager.setup_logging()
 
             # Initialize managers
@@ -217,7 +224,7 @@ class App:
         """Start the main GUI interface."""
         try:
             input.open_persistent()
-            self.gui.draw_start()
+            self.gui.draw_start(self._display_width, self._display_height)
             self.gui.screen_reset()
             main_gui = self.gui.create_image()
             self.gui.draw_active(main_gui)
@@ -265,6 +272,7 @@ class App:
             )
 
             # Clamp configured threads to API limit
+            self._max_threads = max_threads
             self.config.threads = min(self.config.threads, max_threads)
             logger.log_info(f"Thread configuration: {self.config.threads} threads")
 
@@ -368,7 +376,8 @@ class App:
             return
 
         screen = SettingsScreen(
-            self.gui, self._config_path, self.config_manager._raw_config
+            self.gui, self._config_path, self.config_manager._raw_config,
+            max_threads=self._max_threads,
         )
         saved = screen.show()
 
@@ -553,7 +562,9 @@ class App:
                 self._emulators_dirty = False
 
         except Exception as e:
+            import traceback
             logger.log_error(f"Error in load_emulators: {e}")
+            logger.log_error(traceback.format_exc())
             self._show_error_and_exit(f"Failed to load emulators: {e}")
 
     def _render_complete_emulator_interface(self, available_systems: List[str]) -> None:
@@ -573,19 +584,19 @@ class App:
         )
         # Version badge
         self.gui.draw_rectangle_r(
-            [160, 8, 220, 28], 10, fill=self.gui.COLOR_SECONDARY_LIGHT
+            [200, 8, 270, 28], 10, fill=self.gui.COLOR_SECONDARY_LIGHT
         )
         self.gui.draw_text(
-            (190, 18), f"v{VERSION}", font=11, color=self.gui.COLOR_MUTED, anchor="mm"
+            (235, 18), f"v{VERSION}", font=11, color=self.gui.COLOR_MUTED, anchor="mm"
         )
 
         # Update available indicator
         if self._update_available:
             self.gui.draw_rectangle_r(
-                [226, 8, 330, 28], 10, fill=self.gui.COLOR_SUCCESS
+                [276, 8, 380, 28], 10, fill=self.gui.COLOR_SUCCESS
             )
             self.gui.draw_text(
-                (278, 18),
+                (328, 18),
                 f"v{self._update_version} available",
                 font=10,
                 color=self.gui.COLOR_WHITE,
@@ -2001,16 +2012,18 @@ class App:
 if __name__ == "__main__":
     app = App()
 
-    # Use command line argument if provided, otherwise default to config.json
-    if len(sys.argv) > 1:
-        arg = Path(sys.argv[1])
-        config_path = str(arg if arg.is_absolute() else Path.cwd() / arg)
-    else:
-        config_path = str(Path.cwd() / "config.json")
+    # argv[1] is screen resolution (e.g. "640x480")
+    if len(sys.argv) > 1 and "x" in sys.argv[1]:
+        try:
+            w, h = sys.argv[1].split("x")
+            app._display_width = int(w)
+            app._display_height = int(h)
+        except ValueError:
+            pass
 
+    config_path = str(Path.cwd() / "config.json")
     logger.log_info(f"Starting application with config path: {config_path}")
-    logger.log_info(f"Current working directory: {Path.cwd()}")
-    logger.log_info(f"Config file exists: {Path(config_path).exists()}")
+    logger.log_info(f"Display: {app._display_width}x{app._display_height}")
 
     app.start(config_path)
 
