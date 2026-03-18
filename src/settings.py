@@ -136,6 +136,9 @@ class VirtualKeyboard:
             elif inp.key_pressed("X"):
                 self._cycle_layout()
 
+            elif inp.key_pressed("START"):
+                return "".join(self.chars)
+
             elif inp.key_pressed("Y") or inp.key_pressed("MENUF"):
                 return None
 
@@ -176,15 +179,13 @@ class VirtualKeyboard:
         g.draw_rectangle_r([20, 50, 620, 90], 6, fill=g.COLOR_SECONDARY_LIGHT)
         display = "".join(self.chars)
         if self.masked:
-            display = "\u2022" * len(display)
+            display = "*" * len(display)
         # Truncate from left so cursor stays visible
         font_obj = g.fontFile[18]
         max_w = 570
-        while font_obj.size(display + "\u2502")[0] > max_w and display:
+        while font_obj.size(display + "|")[0] > max_w and display:
             display = display[1:]
-        g.draw_text(
-            (30, 70), display + "\u2502", font=18, color=g.COLOR_WHITE, anchor="lm"
-        )
+        g.draw_text((30, 70), display + "|", font=18, color=g.COLOR_WHITE, anchor="lm")
 
         # Keyboard grid
         rows = self._rows()
@@ -210,9 +211,9 @@ class VirtualKeyboard:
                 g.draw_rectangle_r([x, y, x + w, y + h], 6, fill=bg)
 
                 label = {
-                    "SPACE": "\u2423",
-                    "BKSP": "\u2190",
-                    "SHIFT": "\u21e7",
+                    "SPACE": "SPC",
+                    "BKSP": "DEL",
+                    "SHIFT": "SHIFT",
                 }.get(key, key)
 
                 fsz = 14 if len(label) <= 2 else 11
@@ -222,13 +223,11 @@ class VirtualKeyboard:
                 )
 
         # Controls
-        g.draw_line(
-            (10, 443), (630, 443), fill=g.COLOR_SECONDARY_LIGHT, width=1
-        )
+        g.draw_line((10, 443), (630, 443), fill=g.COLOR_SECONDARY_LIGHT, width=1)
         y = 453
         _pill(g, (15, y), "A", "Type")
-        _pill(g, (110, y), "B", "Bksp")
-        _pill(g, (220, y), "X", "Mode")
+        _pill(g, (110, y), "B", "Del")
+        _pill(g, (220, y), "X", "Shift")
         _pill(g, (330, y), "Y", "Cancel")
         _pill(g, (450, y), "ST", "Confirm")
 
@@ -243,9 +242,9 @@ class VirtualKeyboard:
 class SettingsScreen:
     """Full-screen settings editor."""
 
-    MAX_VISIBLE = 11
+    MAX_VISIBLE = 8
 
-    def __init__(self, gui, config_path: str, raw_config: dict):
+    def __init__(self, gui, config_path: str, raw_config: dict, max_threads: int = 20):
         self.gui = gui
         self.config_path = config_path
         self.raw_config = raw_config
@@ -254,6 +253,9 @@ class SettingsScreen:
         self.items: List[dict] = []
         prev_section = None
         for section, path, label, wtype, extra in SETTINGS_DEFS:
+            # Override thread max with API-reported limit
+            if path == "screenscraper.threads":
+                extra = {**extra, "max": max_threads}
             self.items.append(
                 {
                     "section": section,
@@ -359,31 +361,34 @@ class SettingsScreen:
 
         # Header
         g.draw_rectangle_r([0, 0, 640, 36], 0, fill=g.COLOR_HEADER_BG)
-        g.draw_text(
-            (20, 18), "SETTINGS", font=18, color=g.COLOR_PRIMARY, anchor="lm"
-        )
+        g.draw_text((20, 18), "SETTINGS", font=18, color=g.COLOR_PRIMARY, anchor="lm")
         if self.dirty:
-            g.draw_rectangle_r([130, 8, 210, 28], 10, fill=g.COLOR_PRIMARY_DARK)
+            g.draw_rectangle_r([160, 8, 250, 28], 10, fill=g.COLOR_PRIMARY_DARK)
             g.draw_text(
-                (170, 18), "modified", font=10, color=g.COLOR_WHITE, anchor="mm"
+                (205, 18), "modified", font=10, color=g.COLOR_WHITE, anchor="mm"
             )
 
         # Content area
-        g.draw_rectangle_r(
-            [10, 42, 630, 438], 10, fill=g.COLOR_SECONDARY_DARK
-        )
+        g.draw_rectangle_r([10, 42, 630, 438], 10, fill=g.COLOR_SECONDARY_DARK)
 
-        # Draw visible items
+        # Draw visible items with variable spacing
         page_start = (self.pos // self.MAX_VISIBLE) * self.MAX_VISIBLE
         page_end = page_start + self.MAX_VISIBLE
 
+        cur_y = 50
         for i, item in enumerate(self.items[page_start:page_end]):
             idx = page_start + i
             selected = idx == self.pos
-            self._draw_setting_row(item, i, selected)
+            # Extra space before a new section header
+            if item["show_section"] and i > 0:
+                cur_y += 12
+            self._draw_setting_row(item, cur_y, selected)
+            cur_y += 40
 
         # Page indicator
-        total_pages = max(1, (len(self.items) + self.MAX_VISIBLE - 1) // self.MAX_VISIBLE)
+        total_pages = max(
+            1, (len(self.items) + self.MAX_VISIBLE - 1) // self.MAX_VISIBLE
+        )
         current_page = (self.pos // self.MAX_VISIBLE) + 1
         g.draw_text(
             (620, 18),
@@ -394,45 +399,42 @@ class SettingsScreen:
         )
 
         # Controls
-        g.draw_line(
-            (10, 443), (630, 443), fill=g.COLOR_SECONDARY_LIGHT, width=1
-        )
+        g.draw_line((10, 443), (630, 443), fill=g.COLOR_SECONDARY_LIGHT, width=1)
         y = 453
         _pill(g, (15, y), "A", "Edit")
-        _pill(g, (95, y), "\u25c4\u25ba", "Adjust")
-        _pill(g, (220, y), "B", "Back")
-        _pill(g, (320, y), "ST", "Save")
-        _pill(g, (440, y), "M", "Exit")
+        _pill(g, (120, y), "LR", "Adjust")
+        _pill(g, (250, y), "B", "Back")
+        _pill(g, (340, y), "ST", "Save")
 
         g.draw_paint()
 
-    def _draw_setting_row(self, item: dict, vis_index: int, selected: bool) -> None:
+    def _draw_setting_row(self, item: dict, y: int, selected: bool) -> None:
         g = self.gui
-        y = 50 + vis_index * 35
 
-        # Section header (drawn above first item in section)
+        # Section header (drawn above the row)
         if item["show_section"]:
             g.draw_text(
-                (30, y + 2),
+                (30, y),
                 item["section"],
-                font=10,
+                font=11,
                 color=g.COLOR_PRIMARY_DARK,
             )
 
         # Row background
+        row_top = y + 14
+        row_bot = y + 38
+        row_mid = y + 26
         bg = g.COLOR_ROW_HOVER if selected else g.COLOR_SECONDARY_DARK
-        g.draw_rectangle_r([20, y + 12, 620, y + 32], 6, fill=bg)
+        g.draw_rectangle_r([20, row_top, 620, row_bot], 6, fill=bg)
 
         if selected:
-            g.draw_rectangle_r(
-                [20, y + 12, 24, y + 32], 2, fill=g.COLOR_ACCENT_BAR
-            )
+            g.draw_rectangle_r([20, row_top, 24, row_bot], 2, fill=g.COLOR_ACCENT_BAR)
 
         # Label
         g.draw_text(
-            (30, y + 22),
+            (30, row_mid),
             item["label"],
-            font=14 if selected else 13,
+            font=15 if selected else 14,
             color=g.COLOR_WHITE if selected else g.COLOR_MUTED,
             anchor="lm",
         )
@@ -446,17 +448,15 @@ class SettingsScreen:
             pill_bg = g.COLOR_SUCCESS if on else g.COLOR_SECONDARY_LIGHT
             pill_text = "ON" if on else "OFF"
             pill_clr = g.COLOR_WHITE if on else "#555555"
-            g.draw_rectangle_r([560, y + 14, 610, y + 30], 8, fill=pill_bg)
-            g.draw_text(
-                (585, y + 22), pill_text, font=11, color=pill_clr, anchor="mm"
-            )
+            g.draw_rectangle_r([555, row_top + 2, 610, row_bot - 2], 8, fill=pill_bg)
+            g.draw_text((583, row_mid), pill_text, font=12, color=pill_clr, anchor="mm")
 
         elif vtype == "number":
             display = str(val) if val is not None else "?"
             g.draw_text(
-                (585, y + 22),
-                f"\u25c4 {display} \u25ba",
-                font=13,
+                (585, row_mid),
+                f"< {display} >",
+                font=14,
                 color=g.COLOR_WHITE if selected else g.COLOR_MUTED,
                 anchor="mm",
             )
@@ -464,14 +464,14 @@ class SettingsScreen:
         elif vtype in ("text", "password"):
             display = str(val) if val else ""
             if vtype == "password" and display:
-                display = "\u2022" * min(len(display), 12)
+                display = "*" * min(len(display), 12)
             # Truncate
-            if len(display) > 18:
-                display = display[:17] + "\u2026"
+            if len(display) > 16:
+                display = display[:15] + "..."
             g.draw_text(
-                (610, y + 22),
-                display or "\u2014",
-                font=13,
+                (610, row_mid),
+                display or "--",
+                font=14,
                 color=g.COLOR_WHITE if selected else g.COLOR_MUTED,
                 anchor="rm",
             )
@@ -490,9 +490,7 @@ def _pill(gui, pos: Tuple[int, int], button: str, text: str) -> None:
         11,
         fill=gui.COLOR_PRIMARY_DARK,
     )
-    gui.draw_text(
-        (pos[0] + btn_w // 2, pos[1] + 11), button, font=12, anchor="mm"
-    )
+    gui.draw_text((pos[0] + btn_w // 2, pos[1] + 11), button, font=12, anchor="mm")
     gui.draw_text(
         (pos[0] + btn_w + 5, pos[1] + 11),
         text,
