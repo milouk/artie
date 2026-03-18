@@ -52,6 +52,7 @@ class ConfigManager:
     def __init__(self):
         self.config: Optional[ScraperConfig] = None
         self._raw_config: Dict[str, Any] = {}
+        self.resolved_config_path: str = ""
 
     def load_config(self, config_file: str) -> ScraperConfig:
         """
@@ -96,7 +97,8 @@ class ConfigManager:
                     )
 
             # Read and parse config file
-            logger.log_info(f"Reading config file: {config_path.absolute()}")
+            self.resolved_config_path = str(config_path.absolute())
+            logger.log_info(f"Reading config file: {self.resolved_config_path}")
             self._raw_config = self._read_config_file(config_path)
 
             # Validate and extract configuration
