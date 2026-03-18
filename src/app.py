@@ -35,7 +35,7 @@ from scraper import (
     get_user_data,
     get_video_files_without_extension,
 )
-from settings import SettingsScreen
+from settings import SettingsScreen, VirtualKeyboard
 from updater import check_for_update, download_and_apply_update
 
 VERSION = "3.5.0"
@@ -1133,9 +1133,17 @@ class App:
         self.gui.draw_paint()
 
         try:
-            self._process_rom(rom, roms_data)
+            scraped_box, scraped_preview, scraped_synopsis, _ = (
+                self._process_rom(rom, roms_data)
+            )
+            if not scraped_box and not scraped_preview and not scraped_synopsis:
+                # Nothing was scraped — offer refine search
+                self.gui.draw_log("Not found. Press A to search manually.")
+                self.gui.draw_paint()
+                self._offer_refine_search(rom, roms_data)
+                self.skip_input_check = True
+                return
             self.gui.draw_log(f"Completed scraping {rom.name}")
-            # Clear cache after scraping to ensure fresh data on next load
             self._clear_rom_cache()
         except exceptions.RateLimitError as e:
             logger.log_error(f"Rate limit error for ROM {rom.name}: {e}")
@@ -1150,6 +1158,83 @@ class App:
         self.gui.draw_paint()
         time.sleep(self.LOG_WAIT)
         self.skip_input_check = True
+
+    def _offer_refine_search(self, rom: Rom, roms_data: RomsData) -> None:
+        """Offer the user a chance to manually search for a ROM by name."""
+        while True:
+            input.check_input()
+            if input.key_pressed("A"):
+                break
+            elif input.key_pressed("B") or input.key_pressed("MENUF"):
+                return
+
+        from api.search_api import search_game_by_name
+
+        kb = VirtualKeyboard(
+            self.gui,
+            title="Search ROM",
+            initial=rom.name,
+        )
+        query = kb.run()
+        if not query:
+            return
+
+        self.gui.draw_log(f"Searching for '{query[:30]}'...")
+        self.gui.draw_paint()
+
+        try:
+            search_result = search_game_by_name(
+                query,
+                roms_data.system_id,
+                self.config.dev_id,
+                self.config.dev_password,
+                self.config.username,
+                self.config.password,
+            )
+            if search_result:
+                # Wrap search result in the format expected by fetch_* functions
+                game = {"response": {"jeu": search_result}}
+                name = str(search_result.get("nom", "Unknown"))[:40]
+                self.gui.draw_log(f"Found: {name}")
+                self.gui.draw_paint()
+                time.sleep(1)
+                self._process_rom_with_game(rom, roms_data, game)
+                self.gui.draw_log(f"Completed scraping {rom.name}")
+                self._clear_rom_cache()
+            else:
+                self.gui.draw_log("No results found")
+        except Exception as e:
+            logger.log_error(f"Refine search error: {e}")
+            self.gui.draw_log(f"Search error: {str(e)[:40]}")
+
+        self.gui.draw_paint()
+        time.sleep(self.LOG_WAIT)
+
+    def _process_rom_with_game(
+        self, rom: Rom, roms_data: RomsData, game: dict
+    ) -> None:
+        """Process a single ROM using pre-fetched game data (from refine search)."""
+        scraped_box, scraped_preview, scraped_synopsis, scraped_metadata = (
+            self._scrape_media_from_game(game)
+        )
+        self._save_scraped_media(rom, roms_data, scraped_box, scraped_preview,
+                                 scraped_synopsis, scraped_metadata)
+
+    def _scrape_media_from_game(self, game: dict) -> Tuple[Any, Any, Any, Optional[dict]]:
+        """Scrape media using pre-fetched game data."""
+        scraped_box = scraped_preview = scraped_synopsis = None
+        scraped_metadata = None
+        content = self.config.content
+
+        if self.config.box_enabled:
+            scraped_box = fetch_box(game, content)
+        if self.config.preview_enabled:
+            scraped_preview = fetch_preview(game, content)
+        if self.config.synopsis_enabled:
+            scraped_synopsis = fetch_synopsis(game, content)
+            scraped_metadata = fetch_metadata(game, content)
+
+        return scraped_box, scraped_preview, scraped_synopsis, scraped_metadata
 
     def _delete_single_rom_media(self, roms_data: RomsData) -> None:
         """Delete media for a single ROM."""
