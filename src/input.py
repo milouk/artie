@@ -42,26 +42,29 @@ class InputManager:
         pygame.K_m: ("MENUF", 1),
     }
 
-    # Joystick button mapping (SDL2 button indices — device-dependent)
+    # Joystick button mapping — muOS-Keys virtual joystick
+    # From gamecontrollerdb.txt: a:b3,b:b4,x:b6,y:b5,leftshoulder:b7,
+    # rightshoulder:b8,lefttrigger:b13,righttrigger:b14,guide:b11,
+    # start:b10,back:b9
     JOYSTICK_BUTTON_MAP: Dict[int, str] = {
-        0: "A",
-        1: "B",
-        2: "Y",
-        3: "X",
-        4: "L1",
-        5: "R1",
-        6: "SELECT",
-        7: "START",
-        8: "MENUF",
-        10: "L2",
-        11: "R2",
+        3: "A",
+        4: "B",
+        5: "Y",
+        6: "X",
+        7: "L1",
+        8: "R1",
+        9: "SELECT",
+        10: "START",
+        11: "MENUF",
+        13: "L2",
+        14: "R2",
     }
 
     AXIS_DEADZONE = 0.5
 
     def __init__(self):
         self.state = InputState()
-        self._joystick: Optional[pygame.joystick.JoystickType] = None
+        self._joystick: Optional[pygame.joystick.Joystick] = None
         self._init_joystick()
 
     def _init_joystick(self):
