@@ -5,7 +5,7 @@
 <h1 align="center">Artie</h1>
 
 <p align="center">
-  <strong>Art scraper for Anbernic devices running MuOS</strong>
+  <strong>Art scraper for Anbernic devices running muOS</strong>
 </p>
 
 <p align="center">
@@ -23,45 +23,61 @@
 
 ---
 
+Artie scrapes box art, previews, screenshots, videos, synopses, and metadata from [ScreenScraper](https://screenscraper.fr/) and organises them into the muOS catalogue so your game library looks the way it should. It runs directly on your Anbernic handheld — no PC required after installation.
+
 ## Features
 
 ### Scraping & Media
 
-- Scrape box art, previews, and screenshots from [ScreenScraper](https://screenscraper.fr/) with region priority
-- Fetch metadata for each ROM — genre, developer, publisher, player count, and release date
-- Localized synopsis support with configurable language
-- Scrape a single ROM, all ROMs in a system, or every system at once
-- Apply custom PNG masks as overlays on box art and previews
-- Choose from multiple media types: `mixrbv2`, `box-2D`, `box-3D`, `ss`, `marquee`
+- Box art, previews, screenshots, and gameplay videos from [ScreenScraper](https://screenscraper.fr/)
+- Metadata for every ROM: genre, developer, publisher, player count, release date
+- Localized synopsis with configurable language
+- Region priority presets (US, EU, JP, BR, World) so you always get the right cover
+- Multiple media types: `mixrbv2`, `mixrbv1`, `box-2D`, `box-3D`, `ss`, `sstitle`, `fanart`
+- Custom PNG mask overlays on box art and previews with auto-resize
+- Scrape a single ROM, all ROMs in a system, or batch scrape across selected systems
+
+### Search & Discovery
+
+- Automatic fallback search when a ROM hash isn't found in the database
+- Refine Search: when auto-matching fails, type a custom query via the on-screen keyboard and pick the correct game yourself
+- Per-system batch selection: choose exactly which systems to include before a batch scrape
 
 ### Performance
 
-- Multi-threaded scraping with configurable thread count
-- Connection pooling and API response caching for faster repeat runs
-- Smart thread limits — automatically respects your ScreenScraper API tier
+- Multi-threaded scraping (1-20 threads, configurable)
+- Automatic thread limit based on your ScreenScraper account tier
+- API response caching so repeat scrapes skip already-fetched data
+- Connection pooling for faster downloads
+- Hold-to-scroll with key repeat on D-pad navigation
 
 ### Interface
 
-- Dark UI with amber accent theme and fully configurable color palette
+- Dark and light themes, switchable from settings
 - System logos displayed inline in the emulator list
-- ROM detail view showing box art, preview, and synopsis at a glance
+- ROM detail view with box art, preview, synopsis, and metadata at a glance
 - Progress bar with ETA and cancel support during batch scrapes
-- Filter to hide already-scraped ROMs and focus on what's left
+- Missing-media filter to hide already-scraped ROMs
+- On-screen virtual keyboard for text entry (credentials, search queries)
+- In-app settings screen: edit every option without touching config files
+- Offline mode: browse your library without any network calls
 
 ### Device & Data
 
-- OTA updates — check for new versions and apply them without leaving the app (auto-restarts)
-- Backup your entire catalogue (art, previews, text) to SD2 for safekeeping
-- Delete media per-ROM or per-system to free up space
-- Configurable log levels for easy troubleshooting
+- OTA updates: check, download, and apply new versions without leaving the app
+- Backup your entire catalogue (art, previews, text) to SD2
+- Delete media per-ROM or per-system to reclaim storage
+- 110+ gaming systems supported out of the box
 
-## Quick Start
+## Installation
 
-1. Download `Artie.muxapp` from the [latest release](https://github.com/milouk/artie/releases/latest)
-2. Copy it to `/mnt/mmc/MUOS/ARCHIVE/` on your device
-3. Run Applications > Archive Manager, and select and install Artie
-4. Edit `Artie/.artie/config.json` with your [ScreenScraper](https://screenscraper.fr/) credentials and ROM paths
-5. Launch from the MuOS applications menu
+1. Download **`Artie.muxapp`** from the [latest release](https://github.com/milouk/artie/releases/latest)
+2. Copy it to **`/mnt/mmc/MUOS/ARCHIVE/`** on your SD card
+3. On your device, open **Applications > Archive Manager** and install Artie
+4. Launch Artie from the muOS applications menu
+5. On first launch you'll be prompted to enter your [ScreenScraper](https://screenscraper.fr/) credentials
+
+> **Tip:** Create a free ScreenScraper account at [screenscraper.fr](https://screenscraper.fr/) if you don't have one. Higher-tier accounts get more threads and faster scraping.
 
 ## Controls
 
@@ -72,11 +88,11 @@
 | D-pad | Navigate systems |
 | A | Select system |
 | X | Delete system media |
-| START | Scrape all systems |
-| SELECT | Backup to SD2 |
-| Y | Update (when available) |
-| L1/R1 | Page jump |
-| L2/R2 | Jump by 100 |
+| START | Batch scrape (opens system selection) |
+| SELECT | Backup catalogue to SD2 |
+| Y | Settings |
+| L1 / R1 | Page up / down |
+| L2 / R2 | Jump 100 entries |
 | MENU | Exit |
 
 ### ROMs Screen
@@ -88,102 +104,93 @@
 | X | Delete ROM media |
 | Y | ROM detail view |
 | B | Back to systems |
-| START | Scrape all ROMs |
-| L1/R1 | Page jump |
-| L2/R2 | Jump by 100 |
+| START | Scrape all ROMs in system |
+| L1 / R1 | Page up / down |
+| L2 / R2 | Jump 100 entries |
 | MENU | Exit |
 
 ### ROM Detail Screen
 
 | Button | Action |
 |--------|--------|
-| A | Scrape ROM |
+| A | Scrape (shown only when media is missing) |
 | B | Back |
 
-## Configuration
+### Virtual Keyboard
 
-```json
-{
-  "roms": "/mnt/sdcard/ROMS",
-  "logos": "assets/logos",
-  "show_logos": true,
-  "log_level": "info",
-  "colors": {
-    "primary": "#d4881c",
-    "primary_dark": "#a06210",
-    "secondary": "#1e1e2e",
-    "secondary_light": "#2a2a3c",
-    "secondary_dark": "#14141e"
-  },
-  "screenscraper": {
-    "username": "your_username",
-    "password": "your_password",
-    "threads": 10,
-    "show_scraped_roms": true,
-    "content": {
-      "synopsis": { "enabled": true, "lang": "en" },
-      "box": {
-        "enabled": true,
-        "type": "mixrbv2",
-        "height": 240,
-        "width": 320,
-        "apply_mask": false,
-        "mask_path": "assets/masks/box_mask.png",
-        "resize_mask": true
-      },
-      "preview": {
-        "enabled": true,
-        "type": "ss",
-        "height": 275,
-        "width": 515,
-        "apply_mask": false,
-        "mask_path": "assets/masks/preview_mask.png",
-        "resize_mask": true
-      },
-      "regions": ["us", "eu", "jp", "wor"]
-    },
-    "systems": [
-      {
-        "dir": "SNES",
-        "id": "4",
-        "name": "Super Nintendo (SNES)",
-        "box": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/box/",
-        "preview": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/preview/",
-        "synopsis": "/mnt/mmc/MUOS/info/catalogue/Nintendo SNES-SFC/text/"
-      }
-    ]
-  }
-}
-```
+| Button | Action |
+|--------|--------|
+| D-pad | Move cursor |
+| A | Type character |
+| B | Delete last character |
+| X | Cycle layout (lower / upper / symbols) |
+| Y | Cancel |
+| START | Confirm |
 
-### Key Options
+### System Selection Screen (batch scrape)
 
-| Option | Description |
-|--------|-------------|
-| `roms` | Path to ROMs directory |
-| `show_logos` | Show system logos in list |
-| `colors` | UI color theme |
-| `threads` | Concurrent scraping threads |
-| `show_scraped_roms` | Show already-scraped ROMs |
-| `content.*.type` | Media type (`mixrbv2`, `box-2D`, `box-3D`, `ss`, `marquee`) |
-| `content.*.apply_mask` | Enable mask overlay |
-| `content.regions` | Region priority for artwork |
-| `systems[].dir` | ROM directory name |
-| `systems[].id` | ScreenScraper system ID |
+| Button | Action |
+|--------|--------|
+| D-pad | Navigate systems |
+| A | Toggle system on/off |
+| X | Toggle all |
+| START | Begin scraping selected |
+| B | Cancel |
 
-## Image Masks
+## Settings
 
-Apply custom PNG overlays to box art and previews. Masks must be PNG with an alpha channel.
+All settings are edited in-app via the settings screen (press **Y** on the systems screen). Changes are saved to `settings.json` in the application directory.
 
-```json
-"box": {
-  "apply_mask": true,
-  "mask_path": "assets/masks/box_mask.png",
-  "resize_mask": true
-}
-```
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| **Account** | | | |
+| Username | text | | ScreenScraper username |
+| Password | text | | ScreenScraper password |
+| **Scraping** | | | |
+| Threads | 1-20 | 10 | Concurrent download threads |
+| Show All ROMs | toggle | on | Show already-scraped ROMs in lists |
+| Region Priority | choice | us | Region ordering preset (us/eu/jp/br/wor) |
+| **Media** | | | |
+| Box Art | toggle | on | Scrape box art |
+| Box Type | choice | mixrbv2 | `mixrbv2`, `mixrbv1`, `box-2D`, `box-3D` |
+| Box Mask | toggle | off | Apply PNG mask overlay to box art |
+| Box Mask Path | text | assets/masks/box_mask.png | Path to mask file |
+| Preview | toggle | on | Scrape preview screenshots |
+| Preview Type | choice | ss | `ss`, `sstitle`, `fanart` |
+| Preview Mask | toggle | off | Apply PNG mask overlay to previews |
+| Preview Mask Path | text | assets/masks/preview_mask.png | Path to mask file |
+| Synopsis | toggle | on | Scrape synopsis text and metadata |
+| Video | toggle | off | Download gameplay videos (.mp4) |
+| **Display** | | | |
+| Show Logos | toggle | on | Show system logos in emulator list |
+| Theme | choice | dark | `dark` or `light` |
+| **Advanced** | | | |
+| Offline Mode | toggle | off | Skip all API calls; browse-only |
+| Log Level | choice | info | `debug`, `info`, `warning`, `error` |
 
-Set `resize_mask: true` to auto-fit mask dimensions to artwork.
+### Image Masks
+
+Apply custom PNG overlays (with alpha channel) to box art and/or previews. Enable the mask toggle, point the mask path to your PNG file, and Artie will composite it on every downloaded image.
+
+### Offline Mode
+
+When enabled, Artie skips credential validation, update checks, and all scraping API calls. You can still browse your ROM library and view previously scraped media. Useful when you're away from Wi-Fi or just want to browse.
+
+## Supported Systems
+
+110+ systems including: NES, SNES, Genesis, Game Boy, GBA, N64, PlayStation, Dreamcast, Saturn, Arcade (MAME, CPS1/2/3, Neo Geo), Atari (2600, 5200, 7800, Lynx, Jaguar, ST), Amiga, Commodore 64, MSX, Master System, Game Gear, TurboGrafx-16, PC Engine, WonderSwan, Virtual Boy, Neo Geo Pocket, Game & Watch, PICO-8, TIC-80, DOS, and many more.
+
+The full system list is built in automatically — any system directory on your SD card that matches a known mapping will appear in the interface.
+
+## File Paths
+
+| Path | Description |
+|------|-------------|
+| `/mnt/mmc/MUOS/application/Artie/.artie/` | Application directory |
+| `/mnt/mmc/MUOS/application/Artie/.artie/settings.json` | User settings |
+| `/mnt/mmc/MUOS/application/Artie/.artie/log.txt` | Log file |
+| `/mnt/sdcard/ROMS/` | Default ROM directory |
+| `/mnt/mmc/MUOS/info/catalogue/` | muOS catalogue (where media is saved) |
 
 ## Troubleshooting
 
@@ -193,12 +200,32 @@ Check the log file first:
 /mnt/mmc/MUOS/application/Artie/.artie/log.txt
 ```
 
+Set **Log Level** to `debug` in settings for more detail.
+
 | Problem | Solution |
 |---------|----------|
-| Won't start | Verify `config.json` format and file paths |
-| Scraping fails | Check ScreenScraper credentials and internet connection |
-| Media missing | Check storage space and file permissions |
-| Masks not applying | Ensure `apply_mask: true` and mask file exists at `mask_path` |
+| Blank screen on launch | Check that the `.muxapp` was installed via Archive Manager, not just copied |
+| Credential prompt loop | Verify your ScreenScraper username and password; create a free account if needed |
+| Scraping returns no results | ROM filenames may not match ScreenScraper hashes; use Refine Search (press A when prompted) |
+| Decompression error | Known ScreenScraper issue with gzip responses; Artie retries automatically |
+| Slow scraping | Increase thread count in settings (limited by your ScreenScraper account tier) |
+| Media not showing in muOS | Ensure the system catalogue name matches; check the log for path mismatches |
+| Out of storage | Delete media per-system with X on the systems screen, or disable media types you don't need |
+
+## Building from Source
+
+Requirements: Docker, Python 3.11+
+
+```bash
+# Set ScreenScraper dev credentials
+export SS_DEV_ID="your_base64_dev_id"
+export SS_DEV_PASSWORD="your_base64_dev_password"
+
+# Build ARM64 binary and create .muxapp
+./deploy.sh build
+```
+
+The build uses `batonogov/pyinstaller-linux:v4.7.2` to cross-compile a single-file ARM64 binary with SDL2 dependencies bundled.
 
 ## Contributing
 
@@ -210,4 +237,4 @@ Bug reports welcome on the [issues page](https://github.com/milouk/artie/issues)
 
 ## License
 
-[MIT](LICENSE)
+[GPLv3](LICENSE)
