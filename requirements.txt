@@ -1,2 +1,3 @@
 requests==2.32.4
 Pillow==12.1.1
+pygame-ce==2.5.7

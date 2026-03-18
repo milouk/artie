@@ -1,18 +1,17 @@
-import mmap
+"""Pygame-based GUI module for Artie Scraper."""
+
 import os
 from collections import OrderedDict
-from fcntl import ioctl
 from pathlib import Path
 from typing import Optional, Tuple
 
-from PIL import Image, ImageDraw, ImageFont
+import pygame
 
 from logger import LoggerSingleton as logger
 
 # Screen constants
 SCREEN_WIDTH = 640
 SCREEN_HEIGHT = 480
-BYTES_PER_PIXEL = 4
 
 # Cache limits
 MAX_IMAGE_CACHE_ENTRIES = 64
@@ -35,129 +34,271 @@ class GUI:
     COLOR_HEADER_BG = "#181824"
 
     def __init__(self):
-        self.fb: Optional[int] = None
-        self.mm: Optional[mmap.mmap] = None
+        # Initialize subsystems (no window yet — that happens in draw_start)
+        pygame.display.init()
+        pygame.font.init()
+
         self.screen_width = SCREEN_WIDTH
         self.screen_height = SCREEN_HEIGHT
-        self.bytes_per_pixel = BYTES_PER_PIXEL
-        self.screen_size = SCREEN_WIDTH * SCREEN_HEIGHT * BYTES_PER_PIXEL
 
-        # Framebuffer error suppression (keep UI working, suppress error messages only)
-        self.suppress_framebuffer_errors = False
-        self.framebuffer_write_failures = 0
-        self.max_write_failures = 3
+        # Display surface (created in draw_start)
+        self._display: Optional[pygame.Surface] = None
+
+        # Hex → RGB conversion cache
+        self._color_cache: dict = {}
 
         try:
             self.fontFile = {
-                18: ImageFont.truetype("assets/Roboto-BoldCondensed.ttf", 18),
-                15: ImageFont.truetype("assets/Roboto-Condensed.ttf", 15),
-                14: ImageFont.truetype("assets/Roboto-BoldCondensed.ttf", 14),
-                13: ImageFont.truetype("assets/Roboto-Condensed.ttf", 13),
-                12: ImageFont.truetype("assets/Roboto-BoldCondensed.ttf", 12),
-                11: ImageFont.truetype("assets/Roboto-Condensed.ttf", 11),
-                10: ImageFont.truetype("assets/Roboto-Condensed.ttf", 10),
+                18: pygame.font.Font("assets/Roboto-BoldCondensed.ttf", 18),
+                15: pygame.font.Font("assets/Roboto-Condensed.ttf", 15),
+                14: pygame.font.Font("assets/Roboto-BoldCondensed.ttf", 14),
+                13: pygame.font.Font("assets/Roboto-Condensed.ttf", 13),
+                12: pygame.font.Font("assets/Roboto-BoldCondensed.ttf", 12),
+                11: pygame.font.Font("assets/Roboto-Condensed.ttf", 11),
+                10: pygame.font.Font("assets/Roboto-Condensed.ttf", 10),
             }
         except (OSError, IOError) as e:
             logger.log_warning(f"Error loading fonts: {e}. Using default font.")
-            default = ImageFont.load_default()
-            self.fontFile = {
-                18: default,
-                15: default,
-                14: default,
-                13: default,
-                12: default,
-                11: default,
-                10: default,
-            }
+            default = pygame.font.Font(None, 16)
+            self.fontFile = {s: default for s in (10, 11, 12, 13, 14, 15, 18)}
 
         # LRU caches for images and logos
         self._logo_cache: OrderedDict = OrderedDict()
         self._image_cache: OrderedDict = OrderedDict()
 
         # Pre-allocated frame buffer — reused every frame to avoid allocation
-        self._frame_buffer = Image.new(
-            "RGBA",
-            (SCREEN_WIDTH, SCREEN_HEIGHT),
-            color=self.COLOR_BLACK,
-        )
+        self._frame_buffer = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self._frame_buffer.fill((0, 0, 0))
 
-        # Pre-allocated byte array for BGRA framebuffer output
-        self._bgra_bytes = bytearray(self.screen_size)
+        self._active_surface: Optional[pygame.Surface] = None
 
-        self.activeImage = None
-        self.activeDraw = None
+        # Store last log message for text-only fallback
+        self._last_log_message = ""
+
+    # ------------------------------------------------------------------
+    # Color helper
+    # ------------------------------------------------------------------
+
+    def _color(self, c) -> Tuple[int, int, int]:
+        """Convert a hex colour string to an RGB tuple (cached)."""
+        if isinstance(c, (tuple, list)):
+            return tuple(c[:3])
+        cached = self._color_cache.get(c)
+        if cached is not None:
+            return cached
+        h = c.lstrip("#")
+        rgb = (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+        self._color_cache[c] = rgb
+        return rgb
+
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
 
     def screen_reset(self):
-        """Reset screen configuration with error handling."""
-        if self.fb:
-            try:
-                ioctl(
-                    self.fb,
-                    0x4601,
-                    b"\x80\x02\x00\x00\xe0\x01\x00\x00\x80\x02\x00\x00\xc0\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00 \x00\x00\x00\x00\x00\x00\x00\x10\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x08\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x18\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00\x00^\x00\x00\x00\x96\x00\x00\x00\x00\x00\x00\x00\xc2\xa2\x00\x00\x1a\x00\x00\x00T\x00\x00\x00\x0c\x00\x00\x00\x1e\x00\x00\x00\x14\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",  # noqa: E501
-                )
-                ioctl(self.fb, 0x4611, 0)
-            except (OSError, IOError) as e:
-                logger.log_warning(f"Error resetting screen: {e}")
+        """No-op — pygame handles display configuration."""
+        pass
 
     def draw_start(self):
-        """Initialize framebuffer with proper error handling."""
+        """Create the display surface."""
         try:
-            logger.log_info("Attempting to initialize framebuffer...")
-            self.fb = os.open("/dev/fb0", os.O_RDWR)
-            self.mm = mmap.mmap(self.fb, self.screen_size)
-            logger.log_info("Framebuffer device opened successfully - UI enabled")
-
-        except (OSError, IOError) as e:
-            logger.log_warning(f"Framebuffer initialization failed: {e}")
+            logger.log_info("Attempting to initialize pygame display...")
+            has_desktop = os.environ.get("DISPLAY") or os.environ.get(
+                "WAYLAND_DISPLAY"
+            )
+            flags = 0 if has_desktop else pygame.FULLSCREEN
+            self._display = pygame.display.set_mode(
+                (SCREEN_WIDTH, SCREEN_HEIGHT), flags
+            )
+            pygame.display.set_caption("Artie Scraper")
+            pygame.mouse.set_visible(False)
+            logger.log_info("Pygame display initialized successfully — UI enabled")
+        except (pygame.error, OSError) as e:
+            logger.log_warning(f"Display initialization failed: {e}")
             logger.log_info("Falling back to text-only mode")
-            self._cleanup_framebuffer_resources()
-
-    def _cleanup_framebuffer_resources(self):
-        """Clean up framebuffer resources."""
-        if self.mm:
-            try:
-                self.mm.close()
-            except (OSError, IOError):
-                pass
-            self.mm = None
-        if self.fb is not None:
-            try:
-                os.close(self.fb)
-            except (OSError, IOError):
-                pass
-            self.fb = None
+            self._display = None
 
     def draw_end(self):
-        """Clean up framebuffer resources."""
-        self._cleanup_framebuffer_resources()
+        """Clean up display resources."""
+        if self._display:
+            try:
+                pygame.display.quit()
+            except pygame.error:
+                pass
+            self._display = None
+
+    # ------------------------------------------------------------------
+    # Frame management
+    # ------------------------------------------------------------------
 
     def create_image(self):
         """Return the pre-allocated frame buffer, cleared to black."""
-        # Reuse the existing buffer instead of allocating ~1.2MB per frame
-        self._frame_buffer.paste(
-            self.COLOR_BLACK, (0, 0, self.screen_width, self.screen_height)
-        )
+        self._frame_buffer.fill(self._color(self.COLOR_BLACK))
         return self._frame_buffer
 
+    def draw_active(self, image):
+        """Set the active surface for subsequent draw calls."""
+        self._active_surface = image
+
+    def draw_paint(self):
+        """Present the active surface to the display."""
+        if self._display and self._active_surface:
+            self._display.blit(self._active_surface, (0, 0))
+            pygame.display.flip()
+        elif not self._display and self._last_log_message:
+            print(f"[ARTIE] {self._last_log_message}")
+
+    def draw_clear(self):
+        if self._active_surface:
+            self._active_surface.fill(self._color(self.COLOR_BLACK))
+
+    # ------------------------------------------------------------------
+    # Drawing primitives
+    # ------------------------------------------------------------------
+
+    def draw_text(self, position, text, font=15, color=COLOR_WHITE, **kwargs):
+        if not self._active_surface:
+            return
+
+        rgb = self._color(color)
+        font_obj = self.fontFile.get(font, self.fontFile[15])
+        rendered = font_obj.render(str(text), True, rgb)
+
+        anchor = kwargs.get("anchor", "la")
+        x, y = float(position[0]), float(position[1])
+        w, h = rendered.get_size()
+
+        # Horizontal: l=left, m=middle, r=right
+        ha = anchor[0] if anchor else "l"
+        if ha == "m":
+            x -= w / 2
+        elif ha == "r":
+            x -= w
+
+        # Vertical: a=ascender(≈top), t=top, m=middle
+        va = anchor[1] if len(anchor) > 1 else "a"
+        if va == "m":
+            y -= h / 2
+
+        self._active_surface.blit(rendered, (int(x), int(y)))
+
+    def draw_rectangle(self, position, fill=None, outline=None, width=1):
+        if not self._active_surface:
+            return
+        x1, y1, x2, y2 = position
+        rect = pygame.Rect(int(x1), int(y1), int(x2 - x1), int(y2 - y1))
+        if fill:
+            pygame.draw.rect(self._active_surface, self._color(fill), rect)
+        if outline:
+            pygame.draw.rect(
+                self._active_surface, self._color(outline), rect, width
+            )
+
+    def draw_rectangle_r(
+        self, position, radius, fill=COLOR_SECONDARY_DARK, outline=None
+    ):
+        if not self._active_surface:
+            return
+        x1, y1, x2, y2 = position
+        w, h = int(x2 - x1), int(y2 - y1)
+        if w <= 0 or h <= 0:
+            return
+        rect = pygame.Rect(int(x1), int(y1), w, h)
+        r = max(0, int(radius))
+        if fill:
+            pygame.draw.rect(
+                self._active_surface, self._color(fill), rect, border_radius=r
+            )
+        if outline:
+            pygame.draw.rect(
+                self._active_surface,
+                self._color(outline),
+                rect,
+                width=1,
+                border_radius=r,
+            )
+
+    def draw_circle(
+        self, position, radius, fill=COLOR_PRIMARY_DARK, outline=COLOR_WHITE
+    ):
+        if not self._active_surface:
+            return
+        # Match PIL semantics: ellipse inscribed in [pos, pos+radius]
+        cx = int(position[0] + radius // 2)
+        cy = int(position[1] + radius // 2)
+        r = max(1, int(radius // 2))
+        if fill:
+            pygame.draw.circle(
+                self._active_surface, self._color(fill), (cx, cy), r
+            )
+        if outline:
+            pygame.draw.circle(
+                self._active_surface, self._color(outline), (cx, cy), r, 1
+            )
+
+    def draw_line(
+        self,
+        start: Tuple[int, int],
+        end: Tuple[int, int],
+        fill=COLOR_MUTED,
+        width=1,
+    ):
+        if not self._active_surface:
+            return
+        pygame.draw.line(
+            self._active_surface, self._color(fill), start, end, width
+        )
+
+    def draw_progress_bar(
+        self,
+        position: Tuple[int, int, int, int],
+        progress: float,
+        bg_color=COLOR_SECONDARY_LIGHT,
+        fill_color=COLOR_PRIMARY,
+        radius: int = 4,
+    ):
+        if not self._active_surface:
+            return
+        x1, y1, x2, y2 = position
+        w, h = int(x2 - x1), int(y2 - y1)
+        r = max(0, radius)
+        bg_rect = pygame.Rect(int(x1), int(y1), w, h)
+        pygame.draw.rect(
+            self._active_surface, self._color(bg_color), bg_rect, border_radius=r
+        )
+        fill_w = int(w * max(0.0, min(1.0, progress)))
+        if fill_w > 0:
+            fill_rect = pygame.Rect(int(x1), int(y1), fill_w, h)
+            pygame.draw.rect(
+                self._active_surface,
+                self._color(fill_color),
+                fill_rect,
+                border_radius=r,
+            )
+
+    # ------------------------------------------------------------------
+    # Image helpers
+    # ------------------------------------------------------------------
+
     def draw_image(self, position, image, max_width, max_height):
-        if self.activeImage:
-            image.thumbnail((max_width, max_height), Image.LANCZOS)
-            new_position = (position[0] - image.width, position[1])
-            self.activeImage.paste(image, new_position)
+        """Draw image with its right edge at position[0]."""
+        if self._active_surface and image:
+            new_x = position[0] - image.get_width()
+            self._active_surface.blit(image, (new_x, position[1]))
 
     def draw_image_at(self, position, image, max_width, max_height):
         """Paste image at exact position (top-left corner)."""
-        if self.activeImage:
-            image.thumbnail((max_width, max_height), Image.LANCZOS)
-            if image.mode == "RGBA":
-                self.activeImage.paste(image, position, image)
-            else:
-                self.activeImage.paste(image, position)
+        if self._active_surface and image:
+            self._active_surface.blit(image, position)
+
+    def blit(self, surface, position):
+        """Blit a surface directly onto the active surface."""
+        if self._active_surface and surface:
+            self._active_surface.blit(surface, position)
 
     def load_image_cached(
         self, image_path: str, max_width: int, max_height: int
-    ) -> Optional[Image.Image]:
+    ) -> Optional[pygame.Surface]:
         """Load, resize, and cache an image. Returns cached copy on subsequent calls."""
         cache_key = f"{image_path}_{max_width}_{max_height}"
         if cache_key in self._image_cache:
@@ -170,15 +311,18 @@ class GUI:
                 self._image_cache[cache_key] = None
                 return None
 
-            with Image.open(path) as raw:
-                img = raw.convert("RGBA")
-            img.thumbnail((max_width, max_height), Image.LANCZOS)
+            img = pygame.image.load(str(path)).convert_alpha()
+            w, h = img.get_size()
+            scale = min(max_width / w, max_height / h, 1.0)
+            if scale < 1.0:
+                new_w = max(1, int(w * scale))
+                new_h = max(1, int(h * scale))
+                img = pygame.transform.smoothscale(img, (new_w, new_h))
             self._image_cache[cache_key] = img
         except Exception as e:
             logger.log_warning(f"Failed to load image {image_path}: {e}")
             self._image_cache[cache_key] = None
 
-        # Evict oldest entries when cache is full
         while len(self._image_cache) > MAX_IMAGE_CACHE_ENTRIES:
             self._image_cache.popitem(last=False)
 
@@ -188,7 +332,9 @@ class GUI:
         """Clear the image cache (call after scraping changes media files)."""
         self._image_cache.clear()
 
-    def load_logo(self, logo_path: str, max_height: int = 24) -> Optional[Image.Image]:
+    def load_logo(
+        self, logo_path: str, max_height: int = 24
+    ) -> Optional[pygame.Surface]:
         """Load and cache a system logo, scaled to fit max_height."""
         cache_key = f"{logo_path}_{max_height}"
         if cache_key in self._logo_cache:
@@ -201,11 +347,11 @@ class GUI:
                 self._logo_cache[cache_key] = None
                 return None
 
-            with Image.open(path) as raw:
-                logo = raw.convert("RGBA")
-            ratio = max_height / logo.height
-            new_width = int(logo.width * ratio)
-            logo = logo.resize((new_width, max_height), Image.LANCZOS)
+            logo = pygame.image.load(str(path)).convert_alpha()
+            w, h = logo.get_size()
+            ratio = max_height / h
+            new_width = max(1, int(w * ratio))
+            logo = pygame.transform.smoothscale(logo, (new_width, max_height))
             self._logo_cache[cache_key] = logo
         except Exception as e:
             logger.log_warning(f"Failed to load logo {logo_path}: {e}")
@@ -216,119 +362,9 @@ class GUI:
 
         return self._logo_cache.get(cache_key)
 
-    def draw_active(self, image):
-        self.activeImage = image
-        self.activeDraw = ImageDraw.Draw(self.activeImage)
-
-    def draw_paint(self):
-        """Paint the active image to framebuffer with error suppression (keep UI working)."""
-        if self.mm and self.activeImage:
-            try:
-                self.mm.seek(0)
-                # Framebuffer expects BGRA; PIL produces RGBA — swap R and B in-place
-                raw = self.activeImage.tobytes()
-                buf = self._bgra_bytes
-                buf[0::4] = raw[2::4]  # B <- from RGBA offset 2
-                buf[1::4] = raw[1::4]  # G
-                buf[2::4] = raw[0::4]  # R <- from RGBA offset 0
-                buf[3::4] = raw[3::4]  # A
-                self.mm.write(buf)
-                self.mm.flush()
-
-                # Reset failure counter on successful write
-                if self.framebuffer_write_failures > 0:
-                    self.framebuffer_write_failures = 0
-                    if not self.suppress_framebuffer_errors:
-                        logger.log_info(
-                            "Framebuffer write recovered - continuing normal operation"
-                        )
-
-            except (OSError, IOError) as e:
-                self.framebuffer_write_failures += 1
-
-                if self.framebuffer_write_failures <= self.max_write_failures:
-                    logger.log_warning(
-                        f"Framebuffer write failed "
-                        f"(attempt {self.framebuffer_write_failures}/{self.max_write_failures}): {e}"
-                    )
-
-                if self.framebuffer_write_failures >= self.max_write_failures:
-                    if not self.suppress_framebuffer_errors:
-                        logger.log_info(
-                            "Suppressing further framebuffer error messages - UI remains functional"
-                        )
-                        self.suppress_framebuffer_errors = True
-
-        elif not self.mm:
-            if hasattr(self, "_last_log_message"):
-                print(f"[ARTIE] {self._last_log_message}")
-
-    def draw_clear(self):
-        if self.activeDraw:
-            self.activeDraw.rectangle(
-                (0, 0, self.screen_width, self.screen_height), fill=self.COLOR_BLACK
-            )
-
-    def draw_text(self, position, text, font=15, color=COLOR_WHITE, **kwargs):
-        if self.activeDraw:
-            self.activeDraw.text(
-                position, text, font=self.fontFile[font], fill=color, **kwargs
-            )
-
-    def draw_rectangle(self, position, fill=None, outline=None, width=1):
-        if self.activeDraw:
-            self.activeDraw.rectangle(position, fill=fill, outline=outline, width=width)
-
-    def draw_rectangle_r(
-        self, position, radius, fill=COLOR_SECONDARY_DARK, outline=None
-    ):
-        if self.activeDraw:
-            self.activeDraw.rounded_rectangle(
-                position, radius, fill=fill, outline=outline
-            )
-
-    def draw_circle(
-        self, position, radius, fill=COLOR_PRIMARY_DARK, outline=COLOR_WHITE
-    ):
-        if self.activeDraw:
-            self.activeDraw.ellipse(
-                [
-                    position[0],
-                    position[1],
-                    position[0] + radius,
-                    position[1] + radius,
-                ],
-                fill=fill,
-                outline=outline,
-            )
-
-    def draw_line(
-        self, start: Tuple[int, int], end: Tuple[int, int], fill=COLOR_MUTED, width=1
-    ):
-        """Draw a line between two points."""
-        if self.activeDraw:
-            self.activeDraw.line([start, end], fill=fill, width=width)
-
-    def draw_progress_bar(
-        self,
-        position: Tuple[int, int, int, int],
-        progress: float,
-        bg_color=COLOR_SECONDARY_LIGHT,
-        fill_color=COLOR_PRIMARY,
-        radius: int = 4,
-    ):
-        """Draw a progress bar. progress is 0.0 to 1.0."""
-        if not self.activeDraw:
-            return
-        x1, y1, x2, y2 = position
-        # Background
-        self.activeDraw.rounded_rectangle([x1, y1, x2, y2], radius, fill=bg_color)
-        # Fill
-        fill_width = int((x2 - x1) * max(0.0, min(1.0, progress)))
-        if fill_width > 0:
-            self.activeDraw.rounded_rectangle(
-                [x1, y1, x1 + fill_width, y2], radius, fill=fill_color
-            )
+    # ------------------------------------------------------------------
+    # Overlay helpers
+    # ------------------------------------------------------------------
 
     def draw_log(self, text, fill=None, outline=None, width=520):
         """Draw a centered notification overlay."""
@@ -336,14 +372,13 @@ class GUI:
             fill = self.COLOR_SECONDARY_LIGHT
         if outline is None:
             outline = self.COLOR_PRIMARY
-        # Store message for potential text-only fallback
         self._last_log_message = text
 
-        # Center the rectangle horizontally
         x = (self.screen_width - width) / 2
-        # Center the rectangle vertically
         y = (self.screen_height - 70) / 2
-        self.draw_rectangle_r([x, y, x + width, y + 70], 8, fill=fill, outline=outline)
+        self.draw_rectangle_r(
+            [x, y, x + width, y + 70], 8, fill=fill, outline=outline
+        )
 
         # Accent bar at top of notification
         self.draw_rectangle_r(
@@ -392,5 +427,9 @@ class GUI:
         # Percentage text
         pct_text = f"{progress * 100:.0f}%"
         self.draw_text(
-            (text_x, y + 80), pct_text, font=11, color=self.COLOR_MUTED, anchor="mm"
+            (text_x, y + 80),
+            pct_text,
+            font=11,
+            color=self.COLOR_MUTED,
+            anchor="mm",
         )

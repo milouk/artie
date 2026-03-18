@@ -22,7 +22,6 @@ echo app >/tmp/act_go
 
 # Define paths using runtime mount
 ARTIE_DIR="$(GET_VAR "device" "storage/rom/mount")/MUOS/application/Artie/.artie"
-GPTOKEYB="$(GET_VAR "device" "storage/rom/mount")/MUOS/emulator/gptokeyb/gptokeyb2.armhf"
 STATICDIR="$ARTIE_DIR/static/"
 BINDIR="$ARTIE_DIR/bin"
 
@@ -44,15 +43,11 @@ log_file="${ARTIE_DIR}/log.txt"
 # Clear log file
 >"$log_file"
 
-# Run Application with gptokeyb for controller support
+# Run Application — pygame/SDL2 handles controller input directly
 # Loop to support automatic restart after OTA updates
 while true; do
-    $GPTOKEYB "$APP_BIN" &
-
     $program "${SCREEN_RESOLUTION}" >>"$log_file" 2>&1
     exit_code=$?
-
-    kill -9 "$(pidof gptokeyb2.armhf)" 2>/dev/null
 
     # Exit code 42 = restart after update; anything else = normal exit
     if [ "$exit_code" -ne 42 ]; then

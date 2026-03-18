@@ -608,7 +608,7 @@ class App:
             logo = self.gui.load_logo(logo_path, max_height=20)
             if logo:
                 max_logo_w = LOGO_AREA_W - 10
-                logo_y = y_pos + (32 - logo.height) // 2
+                logo_y = y_pos + (32 - logo.get_height()) // 2
                 self.gui.draw_image_at(
                     (30, logo_y),
                     logo,
@@ -1851,12 +1851,9 @@ class App:
             )
             if img:
                 # Center within panel
-                cx = x + (max_w - img.width) // 2
-                cy = y + (max_h - img.height) // 2
-                if img.mode == "RGBA":
-                    self.gui.activeImage.paste(img, (cx, cy), img)
-                else:
-                    self.gui.activeImage.paste(img, (cx, cy))
+                cx = x + (max_w - img.get_width()) // 2
+                cy = y + (max_h - img.get_height()) // 2
+                self.gui.blit(img, (cx, cy))
             else:
                 self.gui.draw_text(
                     (x + max_w // 2, y + max_h // 2),
@@ -1915,7 +1912,7 @@ class App:
         current_line = ""
         for word in words:
             test = f"{current_line} {word}".strip()
-            if font.getlength(test) > max_width:
+            if font.size(test)[0] > max_width:
                 if current_line:
                     lines.append(current_line)
                 current_line = word
@@ -1927,7 +1924,7 @@ class App:
         for i, line in enumerate(lines[:max_lines]):
             if i == max_lines - 1 and len(lines) > max_lines:
                 # Truncate with ellipsis using measured width
-                while font.getlength(line + "...") > max_width and len(line) > 0:
+                while font.size(line + "...")[0] > max_width and len(line) > 0:
                     line = line[:-1]
                 line = line + "..."
             self.gui.draw_text(
