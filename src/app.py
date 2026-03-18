@@ -1597,7 +1597,7 @@ class App:
         """Draw control buttons for ROM screen."""
         y = 453
         self._draw_button_pill((15, y), "ST", "All")
-        self._draw_button_pill((95, y), "A", "Get")
+        self._draw_button_pill((95, y), "A", "Scrape")
         self._draw_button_pill((170, y), "X", "Del")
         self._draw_button_pill((245, y), "Y", "View")
         self._draw_button_pill((340, y), "B", "Back")
@@ -1703,28 +1703,6 @@ class App:
             color=self.gui.COLOR_PRIMARY,
             anchor="lm",
         )
-
-        # Status badges in header
-        badge_x = 620
-        badges = []
-        if self.config.box_enabled:
-            badges.append(("BOX", has_box))
-        if self.config.preview_enabled:
-            badges.append(("PRV", has_preview))
-        if self.config.synopsis_enabled:
-            badges.append(("TXT", has_text))
-        for label, has_it in reversed(badges):
-            color = self.gui.COLOR_SUCCESS if has_it else self.gui.COLOR_SECONDARY_LIGHT
-            w = len(label) * 8 + 10
-            self.gui.draw_rectangle_r([badge_x - w, 8, badge_x, 28], 10, fill=color)
-            self.gui.draw_text(
-                (badge_x - w // 2, 18),
-                label,
-                font=10,
-                color=self.gui.COLOR_WHITE if has_it else "#555555",
-                anchor="mm",
-            )
-            badge_x -= w + 6
 
         # Content area
         self.gui.draw_rectangle_r(
@@ -1836,25 +1814,32 @@ class App:
             # Metadata card
             if metadata_lines:
                 meta_y = synopsis_y + 25 + max_synopsis_lines * 16 + 8
-                self.gui.draw_rectangle_r(
-                    [20, meta_y, 620, meta_y + len(metadata_lines) * 18 + 12],
-                    6,
-                    fill=self.gui.COLOR_ROW_HOVER,
-                )
-                for i, (key, value) in enumerate(metadata_lines):
-                    ly = meta_y + 8 + i * 18
-                    self.gui.draw_text(
-                        (30, ly),
-                        f"{key}:",
-                        font=11,
-                        color=self.gui.COLOR_PRIMARY,
+                # Clamp to available space
+                max_meta_bot = 436
+                avail = max_meta_bot - meta_y - 12
+                max_meta_lines = max(0, avail // 18)
+                visible_meta = metadata_lines[:max_meta_lines]
+                if visible_meta:
+                    meta_bot = meta_y + len(visible_meta) * 18 + 12
+                    self.gui.draw_rectangle_r(
+                        [20, meta_y, 620, meta_bot],
+                        6,
+                        fill=self.gui.COLOR_ROW_HOVER,
                     )
-                    self.gui.draw_text(
-                        (130, ly),
-                        value,
-                        font=11,
-                        color=self.gui.COLOR_WHITE,
-                    )
+                    for i, (key, value) in enumerate(visible_meta):
+                        ly = meta_y + 8 + i * 18
+                        self.gui.draw_text(
+                            (30, ly),
+                            f"{key}:",
+                            font=11,
+                            color=self.gui.COLOR_PRIMARY,
+                        )
+                        self.gui.draw_text(
+                            (130, ly),
+                            value,
+                            font=11,
+                            color=self.gui.COLOR_WHITE,
+                        )
 
         # Separator line above controls
         self.gui.draw_line(
@@ -1863,8 +1848,8 @@ class App:
 
         # Controls
         y = 453
-        self._draw_button_pill((15, y), "A", "Get")
-        self._draw_button_pill((110, y), "B", "Back")
+        self._draw_button_pill((15, y), "A", "Scrape")
+        self._draw_button_pill((130, y), "B", "Back")
 
         self.gui.draw_paint()
 
