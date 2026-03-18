@@ -100,17 +100,17 @@ def download_and_apply_update(download_url: str) -> bool:
         src_artie = artie_dir / ".artie"
         if src_artie.exists():
             dst_artie = app_dir / ".artie"
-            # Preserve config.json
-            config_backup = None
-            config_path = dst_artie / "config.json"
-            if config_path.exists():
-                config_backup = config_path.read_text()
+            # Preserve user's settings.json
+            settings_backup = None
+            settings_path = dst_artie / "settings.json"
+            if settings_path.exists():
+                settings_backup = settings_path.read_text()
 
             # Copy new app binary and assets
             for item in src_artie.iterdir():
                 dst = dst_artie / item.name
-                if item.name == "config.json" and config_backup:
-                    continue  # Keep user's config
+                if item.name == "settings.json" and settings_backup:
+                    continue  # Keep user's settings
                 if item.is_dir():
                     shutil.copytree(item, dst, dirs_exist_ok=True)
                 else:

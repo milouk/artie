@@ -26,6 +26,18 @@ jobs:
         with:
           platforms: arm64
 
+      - name: Inject dev credentials
+        env:
+          SS_DEV_ID: ${{ secrets.SS_DEV_ID }}
+          SS_DEV_PASSWORD: ${{ secrets.SS_DEV_PASSWORD }}
+        run: |
+          cat > src/dev_credentials.py << PYEOF
+          DEVID = "${SS_DEV_ID}"
+          DEVPASSWORD = "${SS_DEV_PASSWORD}"
+          PYEOF
+          # Remove leading whitespace from heredoc
+          sed -i 's/^          //' src/dev_credentials.py
+
       - name: Build package
         uses: addnab/docker-run-action@v3
         with:
@@ -42,7 +54,7 @@ jobs:
       - name: Bundle App
         run: |
           mkdir -p Artie/.artie && \
-          cp -r ./dist/app ./assets ./config.json Artie/.artie/ && \
+          cp -r ./dist/app ./assets Artie/.artie/ && \
           cp ./mux_launch.sh ./mux_lang.ini Artie/ && \
           cp -r ./glyph Artie/ && \
           zip -r Artie.zip Artie && \

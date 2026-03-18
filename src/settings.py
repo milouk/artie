@@ -1,60 +1,40 @@
 """Settings screen and virtual keyboard for Artie Scraper."""
 
 import json
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import input as inp
 from logger import LoggerSingleton as logger
 
 
 # ---------------------------------------------------------------------------
-# Nested dict helpers
-# ---------------------------------------------------------------------------
-
-
-def _get_nested(data: dict, path: str) -> Any:
-    """Get a value from a nested dict using a dotted path."""
-    for key in path.split("."):
-        if isinstance(data, dict):
-            data = data.get(key)
-        else:
-            return None
-    return data
-
-
-def _set_nested(data: dict, path: str, value: Any) -> None:
-    """Set a value in a nested dict using a dotted path."""
-    keys = path.split(".")
-    for key in keys[:-1]:
-        data = data.setdefault(key, {})
-    data[keys[-1]] = value
-
-
-# ---------------------------------------------------------------------------
 # Settings definitions
 # ---------------------------------------------------------------------------
 
-# Each tuple: (section, json_path, label, widget_type, extra_kwargs)
+# Each tuple: (section, key, label, widget_type, extra_kwargs)
+# Keys are flat — they map directly to settings.json top-level keys.
 SETTINGS_DEFS: List[Tuple[str, str, str, str, dict]] = [
-    ("Account", "screenscraper.username", "Username", "text", {}),
-    ("Account", "screenscraper.password", "Password", "password", {}),
-    ("Scraping", "screenscraper.threads", "Threads", "number", {"min": 1, "max": 20}),
-    (
-        "Scraping",
-        "screenscraper.show_scraped_roms",
-        "Show All ROMs",
-        "toggle",
-        {},
-    ),
-    ("Media", "screenscraper.content.box.enabled", "Box Art", "toggle", {}),
-    ("Media", "screenscraper.content.preview.enabled", "Preview", "toggle", {}),
+    ("Account", "username", "Username", "text", {}),
+    ("Account", "password", "Password", "password", {}),
+    ("Scraping", "threads", "Threads", "number", {"min": 1, "max": 20}),
+    ("Scraping", "show_scraped_roms", "Show All ROMs", "toggle", {}),
+    ("Media", "box_enabled", "Box Art", "toggle", {}),
     (
         "Media",
-        "screenscraper.content.synopsis.enabled",
-        "Synopsis",
-        "toggle",
-        {},
+        "box_type",
+        "Box Type",
+        "choice",
+        {"options": ["mixrbv2", "mixrbv1", "box-2D", "box-3D"]},
     ),
+    ("Media", "preview_enabled", "Preview", "toggle", {}),
+    (
+        "Media",
+        "preview_type",
+        "Preview Type",
+        "choice",
+        {"options": ["ss", "sstitle", "fanart"]},
+    ),
+    ("Media", "synopsis_enabled", "Synopsis", "toggle", {}),
     ("Display", "show_logos", "Show Logos", "toggle", {}),
 ]
 
@@ -244,26 +224,28 @@ class SettingsScreen:
 
     MAX_VISIBLE = 8
 
-    def __init__(self, gui, config_path: str, raw_config: dict, max_threads: int = 20):
+    def __init__(
+        self, gui, settings_path: str, settings: dict, max_threads: int = 20
+    ):
         self.gui = gui
-        self.config_path = config_path
-        self.raw_config = raw_config
+        self.settings_path = settings_path
+        self.settings = settings
 
         # Build flat list of editable settings with current values
         self.items: List[dict] = []
         prev_section = None
-        for section, path, label, wtype, extra in SETTINGS_DEFS:
+        for section, key, label, wtype, extra in SETTINGS_DEFS:
             # Override thread max with API-reported limit
-            if path == "screenscraper.threads":
+            if key == "threads":
                 extra = {**extra, "max": max_threads}
             self.items.append(
                 {
                     "section": section,
                     "show_section": section != prev_section,
-                    "path": path,
+                    "key": key,
                     "label": label,
                     "type": wtype,
-                    "value": _get_nested(raw_config, path),
+                    "value": settings.get(key),
                     **extra,
                 }
             )
@@ -293,6 +275,8 @@ class SettingsScreen:
                     self.dirty = True
                 elif item["type"] == "number" and inp.key_pressed("DX"):
                     self._adjust_number(item, inp.current_value)
+                elif item["type"] == "choice" and inp.key_pressed("DX"):
+                    self._cycle_choice(item, inp.current_value)
                 elif item["type"] in ("text", "password") and inp.key_pressed("A"):
                     self._edit_text(item)
 
@@ -317,6 +301,18 @@ class SettingsScreen:
         item["value"] = max(lo, min(hi, val + direction))
         self.dirty = True
 
+    def _cycle_choice(self, item: dict, direction: int) -> None:
+        options = item.get("options", [])
+        if not options:
+            return
+        current = item.get("value")
+        try:
+            idx = options.index(current)
+        except ValueError:
+            idx = 0
+        item["value"] = options[(idx + direction) % len(options)]
+        self.dirty = True
+
     def _edit_text(self, item: dict) -> None:
         current = item.get("value") or ""
         kb = VirtualKeyboard(
@@ -333,20 +329,17 @@ class SettingsScreen:
     # -- persistence --
 
     def _save(self) -> None:
-        """Write changed settings back to config.json."""
+        """Write settings to settings.json."""
         try:
-            # Re-read the file to avoid clobbering concurrent changes
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
+            data = {}
             for item in self.items:
-                _set_nested(data, item["path"], item["value"])
+                data[item["key"]] = item["value"]
 
-            with open(self.config_path, "w", encoding="utf-8") as f:
+            with open(self.settings_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
                 f.write("\n")
 
-            logger.log_info("Settings saved to config.json")
+            logger.log_info("Settings saved to settings.json")
             self.dirty = False
 
         except Exception as e:
@@ -453,6 +446,16 @@ class SettingsScreen:
 
         elif vtype == "number":
             display = str(val) if val is not None else "?"
+            g.draw_text(
+                (585, row_mid),
+                f"< {display} >",
+                font=14,
+                color=g.COLOR_WHITE if selected else g.COLOR_MUTED,
+                anchor="mm",
+            )
+
+        elif vtype == "choice":
+            display = str(val) if val else "?"
             g.draw_text(
                 (585, row_mid),
                 f"< {display} >",

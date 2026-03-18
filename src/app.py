@@ -130,8 +130,8 @@ class App:
         self._update_version: Optional[str] = None
         self._update_url: Optional[str] = None
 
-        # Config file path (set in start())
-        self._config_path: str = ""
+        # Settings directory (set in start())
+        self._settings_dir: str = ""
 
         # Display resolution (0,0 = use internal default)
         self._display_width: int = 0
@@ -145,17 +145,17 @@ class App:
 
         logger.log_info(f"Artie Scraper v{VERSION} initialized")
 
-    def start(self, config_file: str) -> None:
+    def start(self, settings_dir: str) -> None:
         """
-        Start the application with the given configuration file.
+        Start the application.
 
         Args:
-            config_file: Path to the configuration file
+            settings_dir: Directory containing settings.json
         """
         try:
             # Load configuration
-            self.config = self.config_manager.load_config(config_file)
-            self._config_path = self.config_manager.resolved_config_path
+            self._settings_dir = settings_dir
+            self.config = self.config_manager.load_settings(settings_dir)
             self.config_manager.setup_logging()
 
             # Initialize managers
@@ -193,29 +193,6 @@ class App:
         """Initialize GUI with proper error handling."""
         try:
             self.gui = GUI()
-
-            # Apply color configuration
-            if self.config and self.config.colors:
-                color_map = {
-                    "primary": "COLOR_PRIMARY",
-                    "primary_dark": "COLOR_PRIMARY_DARK",
-                    "secondary": "COLOR_SECONDARY",
-                    "secondary_light": "COLOR_SECONDARY_LIGHT",
-                    "secondary_dark": "COLOR_SECONDARY_DARK",
-                    "accent_bar": "COLOR_ACCENT_BAR",
-                    "muted": "COLOR_MUTED",
-                    "header_bg": "COLOR_HEADER_BG",
-                    "row_hover": "COLOR_ROW_HOVER",
-                    "success": "COLOR_SUCCESS",
-                }
-                for key, attr in color_map.items():
-                    if key in self.config.colors:
-                        setattr(
-                            self.gui,
-                            attr,
-                            self.config.colors[key],
-                        )
-
         except Exception as e:
             logger.log_error(f"Failed to initialize GUI: {e}")
             raise exceptions.ScraperError(f"GUI initialization failed: {e}")
@@ -356,12 +333,14 @@ class App:
             time.sleep(self.LOG_WAIT)
 
             screen = SettingsScreen(
-                self.gui, self._config_path, self.config_manager._raw_config
+                self.gui,
+                self.config_manager.settings_path,
+                self.config_manager.settings,
             )
             saved = screen.show()
 
             if saved:
-                self.config = self.config_manager.load_config(self._config_path)
+                self.config = self.config_manager.load_settings(self._settings_dir)
             else:
                 # User cancelled — exit gracefully
                 self.gui.draw_log("Credentials required. Exiting...")
@@ -372,19 +351,20 @@ class App:
 
     def _open_settings(self) -> None:
         """Open the settings screen and reload config if saved."""
-        if not self._config_path:
+        if not self._settings_dir:
             return
 
         screen = SettingsScreen(
-            self.gui, self._config_path, self.config_manager._raw_config,
+            self.gui,
+            self.config_manager.settings_path,
+            self.config_manager.settings,
             max_threads=self._max_threads,
         )
         saved = screen.show()
 
         if saved:
-            # Reload configuration from disk
             try:
-                self.config = self.config_manager.load_config(self._config_path)
+                self.config = self.config_manager.load_settings(self._settings_dir)
                 logger.log_info("Configuration reloaded after settings change")
             except Exception as e:
                 logger.log_error(f"Failed to reload config: {e}")
@@ -2021,11 +2001,11 @@ if __name__ == "__main__":
         except ValueError:
             pass
 
-    config_path = str(Path.cwd() / "config.json")
-    logger.log_info(f"Starting application with config path: {config_path}")
+    settings_dir = str(Path.cwd())
+    logger.log_info(f"Starting application from: {settings_dir}")
     logger.log_info(f"Display: {app._display_width}x{app._display_height}")
 
-    app.start(config_path)
+    app.start(settings_dir)
 
     while True:
         try:
