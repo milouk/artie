@@ -137,5 +137,6 @@ def build_systems_mapping(roms_path: str = None) -> dict:
             "box": f"{CATALOGUE_BASE}/{catalogue}/box/",
             "preview": f"{CATALOGUE_BASE}/{catalogue}/preview/",
             "synopsis": f"{CATALOGUE_BASE}/{catalogue}/text/",
+            "video": f"{CATALOGUE_BASE}/{catalogue}/video/",
         }
     return mapping

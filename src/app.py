@@ -24,6 +24,7 @@ from logger import LoggerSingleton as logger
 from rom_manager import Rom, RomManager
 from scraper import (
     check_destination,
+    download_video_direct,
     fetch_box,
     fetch_metadata,
     fetch_preview,
@@ -32,6 +33,7 @@ from scraper import (
     get_image_files_without_extension,
     get_txt_files_without_extension,
     get_user_data,
+    get_video_files_without_extension,
 )
 from settings import SettingsScreen
 from updater import check_for_update, download_and_apply_update
@@ -61,6 +63,7 @@ class RomsData:
         roms_without_box: List[Rom],
         roms_without_preview: List[Rom],
         roms_without_synopsis: List[Rom],
+        roms_without_video: List[Rom],
         system_config: dict,
         system_id: str,
     ):
@@ -69,6 +72,7 @@ class RomsData:
         self.roms_without_box = set(roms_without_box)
         self.roms_without_preview = set(roms_without_preview)
         self.roms_without_synopsis = set(roms_without_synopsis)
+        self.roms_without_video = set(roms_without_video)
         self.system_config = system_config
         self.system_id = system_id
 
@@ -76,6 +80,7 @@ class RomsData:
         self.box_dir = Path(system_config["box"])
         self.preview_dir = Path(system_config["preview"])
         self.synopsis_dir = Path(system_config["synopsis"])
+        self.video_dir = Path(system_config["video"])
 
 
 class App:
@@ -136,6 +141,9 @@ class App:
         # Display resolution (0,0 = use internal default)
         self._display_width: int = 0
         self._display_height: int = 0
+
+        # Last game ID from API (used for video download)
+        self._last_game_id: str = ""
 
         # API-reported max threads (updated after credential validation)
         self._max_threads: int = 20
@@ -990,6 +998,9 @@ class App:
             roms_without_synopsis = self._get_roms_missing_media(
                 roms_list, system_config, "synopsis", self.config.synopsis_enabled
             )
+            roms_without_video = self._get_roms_missing_media(
+                roms_list, system_config, "video", self.config.video_enabled
+            )
 
             # Determine ROMs to scrape
             roms_to_scrape = self._determine_roms_to_scrape(
@@ -1008,6 +1019,7 @@ class App:
                 roms_without_box=roms_without_box,
                 roms_without_preview=roms_without_preview,
                 roms_without_synopsis=roms_without_synopsis,
+                roms_without_video=roms_without_video,
                 system_config=system_config,
                 system_id=system_config["id"],
             )
@@ -1027,6 +1039,8 @@ class App:
 
         if media_type == "synopsis":
             get_files_func = get_txt_files_without_extension
+        elif media_type == "video":
+            get_files_func = get_video_files_without_extension
         else:
             get_files_func = get_image_files_without_extension
 
@@ -1323,14 +1337,31 @@ class App:
 
     def _process_rom(self, rom: Rom, roms_data: RomsData) -> Tuple[Any, Any, Any, str]:
         """Process a single ROM (scrape and save media)."""
+        self._last_game_id = ""
         scraped_box, scraped_preview, scraped_synopsis, scraped_metadata = (
             self._scrape_rom_media(rom, roms_data.system_id)
         )
+        self._save_scraped_media(rom, roms_data, scraped_box, scraped_preview,
+                                 scraped_synopsis, scraped_metadata)
 
-        # Apply mask processing to images before saving
+        # Download video if enabled and game was found
+        if self.config.video_enabled and self._last_game_id:
+            self._download_video_for_rom(rom, roms_data, self._last_game_id)
+
+        return scraped_box, scraped_preview, scraped_synopsis, rom.name
+
+    def _save_scraped_media(
+        self,
+        rom: Rom,
+        roms_data: RomsData,
+        scraped_box: Any,
+        scraped_preview: Any,
+        scraped_synopsis: Any,
+        scraped_metadata: Optional[dict],
+    ) -> None:
+        """Save scraped media to disk with optional mask processing."""
         image_processor = get_image_processor()
 
-        # Save scraped media with optional mask processing
         if scraped_box:
             processed_box = image_processor.process_image_with_mask(
                 scraped_box, self.config.content.get("box", {})
@@ -1346,19 +1377,37 @@ class App:
             self._save_file_to_disk(processed_preview, destination)
 
         if scraped_synopsis or scraped_metadata:
-            # Combine synopsis text with metadata
             parts = []
             if scraped_synopsis:
                 parts.append(scraped_synopsis)
             if scraped_metadata:
-                parts.append("")  # blank line separator
+                parts.append("")
                 for key, value in scraped_metadata.items():
                     parts.append(f"{key}: {value}")
             text = "\n".join(parts)
             destination = roms_data.synopsis_dir / f"{rom.name}.txt"
             self._save_file_to_disk(text.encode("utf-8"), destination)
 
-        return scraped_box, scraped_preview, scraped_synopsis, rom.name
+    def _download_video_for_rom(
+        self, rom: Rom, roms_data: RomsData, game_id: str
+    ) -> None:
+        """Download video for a ROM if not already present."""
+        video_path = roms_data.video_dir / f"{rom.name}.mp4"
+        if video_path.exists():
+            return
+        try:
+            video_data = download_video_direct(
+                game_id,
+                self.config.dev_id,
+                self.config.dev_password,
+                self.config.username,
+                self.config.password,
+            )
+            if video_data:
+                self._save_file_to_disk(video_data, video_path)
+                logger.log_info(f"Video saved for {rom.name}")
+        except Exception as e:
+            logger.log_warning(f"Video download failed for {rom.name}: {e}")
 
     def _process_rom_with_monitoring(self, rom: Rom, roms_data: RomsData) -> dict:
         """Process a single ROM with performance monitoring."""
@@ -1432,6 +1481,10 @@ class App:
             if self.config.synopsis_enabled:
                 scraped_synopsis = fetch_synopsis(game, content)
                 scraped_metadata = fetch_metadata(game, content)
+            if self._scrape_cancelled.is_set():
+                raise _ScrapeCancelledError()
+            # Store game_id for video download
+            self._last_game_id = game.get("id", "")
 
         return scraped_box, scraped_preview, scraped_synopsis, scraped_metadata
 

@@ -55,6 +55,7 @@ SETTINGS_DEFS: List[Tuple[str, str, str, str, dict]] = [
     ("Media", "preview_mask", "Preview Mask", "toggle", {}),
     ("Media", "preview_mask_path", "Preview Mask Path", "text", {}),
     ("Media", "synopsis_enabled", "Synopsis", "toggle", {}),
+    ("Media", "video_enabled", "Video", "toggle", {}),
     ("Display", "show_logos", "Show Logos", "toggle", {}),
     (
         "Display",

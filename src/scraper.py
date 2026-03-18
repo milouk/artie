@@ -115,6 +115,22 @@ def get_txt_files_without_extension(folder: Path) -> List[str]:
     return [f.stem for f in folder_path.glob("*.txt") if f.is_file()]
 
 
+VIDEO_EXTENSIONS = {".mp4", ".avi", ".mkv", ".webm"}
+
+
+def get_video_files_without_extension(folder: Path) -> List[str]:
+    """Get video files without extensions from a folder."""
+    folder_path = Path(folder)
+    if not folder_path.exists():
+        return []
+
+    return [
+        f.stem
+        for f in folder_path.glob("*")
+        if f.is_file() and f.suffix.lower() in VIDEO_EXTENSIONS
+    ]
+
+
 def _sanitize_url(url: str) -> str:
     """Mask sensitive parameters in URL for logging."""
     if not url:

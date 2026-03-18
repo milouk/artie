@@ -41,6 +41,7 @@ class ScraperConfig:
     box_enabled: bool
     preview_enabled: bool
     synopsis_enabled: bool
+    video_enabled: bool
     show_scraped_roms: bool
     show_logos: bool
     offline_mode: bool
@@ -244,6 +245,7 @@ class ConfigManager:
             box_enabled=s.get("box_enabled", True),
             preview_enabled=s.get("preview_enabled", True),
             synopsis_enabled=s.get("synopsis_enabled", True),
+            video_enabled=s.get("video_enabled", False),
             show_scraped_roms=s.get("show_scraped_roms", True),
             show_logos=s.get("show_logos", True),
             offline_mode=s.get("offline_mode", False),

@@ -84,6 +84,7 @@ DEFAULT_SETTINGS = {
     "regions": "us,eu,jp,br,ss,ame,wor",
     "log_level": "info",
     "theme": "dark",
+    "video_enabled": False,
     "offline_mode": False,
 }
 
