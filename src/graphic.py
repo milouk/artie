@@ -49,17 +49,17 @@ class GUI:
 
         try:
             self.fontFile = {
-                18: pygame.font.Font("assets/Roboto-BoldCondensed.ttf", 18),
-                15: pygame.font.Font("assets/Roboto-Condensed.ttf", 15),
-                14: pygame.font.Font("assets/Roboto-BoldCondensed.ttf", 14),
-                13: pygame.font.Font("assets/Roboto-Condensed.ttf", 13),
-                12: pygame.font.Font("assets/Roboto-BoldCondensed.ttf", 12),
-                11: pygame.font.Font("assets/Roboto-Condensed.ttf", 11),
-                10: pygame.font.Font("assets/Roboto-Condensed.ttf", 10),
+                18: pygame.font.Font("assets/Roboto-BoldCondensed.ttf", 24),
+                15: pygame.font.Font("assets/Roboto-Condensed.ttf", 20),
+                14: pygame.font.Font("assets/Roboto-BoldCondensed.ttf", 19),
+                13: pygame.font.Font("assets/Roboto-Condensed.ttf", 17),
+                12: pygame.font.Font("assets/Roboto-BoldCondensed.ttf", 16),
+                11: pygame.font.Font("assets/Roboto-Condensed.ttf", 15),
+                10: pygame.font.Font("assets/Roboto-Condensed.ttf", 14),
             }
         except (OSError, IOError) as e:
             logger.log_warning(f"Error loading fonts: {e}. Using default font.")
-            default = pygame.font.Font(None, 16)
+            default = pygame.font.Font(None, 20)
             self.fontFile = {s: default for s in (10, 11, 12, 13, 14, 15, 18)}
 
         # LRU caches for images and logos
@@ -71,6 +71,7 @@ class GUI:
         self._frame_buffer.fill((0, 0, 0))
 
         self._active_surface: Optional[pygame.Surface] = None
+        self._display_size = (SCREEN_WIDTH, SCREEN_HEIGHT)
 
         # Store last log message for text-only fallback
         self._last_log_message = ""
@@ -99,24 +100,36 @@ class GUI:
         """No-op — pygame handles display configuration."""
         pass
 
-    def draw_start(self):
-        """Create the display surface."""
+    def draw_start(self, display_width: int = 0, display_height: int = 0):
+        """Create the display surface.
+
+        Args:
+            display_width: Actual device screen width (0 = use internal size).
+            display_height: Actual device screen height (0 = use internal size).
+        """
         try:
             logger.log_info("Attempting to initialize pygame display...")
             has_desktop = os.environ.get("DISPLAY") or os.environ.get(
                 "WAYLAND_DISPLAY"
             )
             flags = 0 if has_desktop else pygame.FULLSCREEN
-            self._display = pygame.display.set_mode(
-                (SCREEN_WIDTH, SCREEN_HEIGHT), flags
-            )
+
+            # Use device resolution if provided, otherwise internal size
+            dw = display_width if display_width > 0 else SCREEN_WIDTH
+            dh = display_height if display_height > 0 else SCREEN_HEIGHT
+            self._display = pygame.display.set_mode((dw, dh), flags)
+            self._display_size = (dw, dh)
             pygame.display.set_caption("Artie Scraper")
             pygame.mouse.set_visible(False)
-            logger.log_info("Pygame display initialized successfully — UI enabled")
+            logger.log_info(
+                f"Pygame display initialized: {dw}x{dh} "
+                f"(internal {SCREEN_WIDTH}x{SCREEN_HEIGHT})"
+            )
         except (pygame.error, OSError) as e:
             logger.log_warning(f"Display initialization failed: {e}")
             logger.log_info("Falling back to text-only mode")
             self._display = None
+            self._display_size = (SCREEN_WIDTH, SCREEN_HEIGHT)
 
     def draw_end(self):
         """Clean up display resources."""
@@ -141,9 +154,16 @@ class GUI:
         self._active_surface = image
 
     def draw_paint(self):
-        """Present the active surface to the display."""
+        """Present the active surface to the display (scaled to fit)."""
         if self._display and self._active_surface:
-            self._display.blit(self._active_surface, (0, 0))
+            dw, dh = self._display_size
+            fw, fh = self._active_surface.get_size()
+            if (dw, dh) != (fw, fh):
+                # Scale internal buffer to fill the display
+                scaled = pygame.transform.smoothscale(self._active_surface, (dw, dh))
+                self._display.blit(scaled, (0, 0))
+            else:
+                self._display.blit(self._active_surface, (0, 0))
             pygame.display.flip()
         elif not self._display and self._last_log_message:
             print(f"[ARTIE] {self._last_log_message}")
@@ -160,9 +180,15 @@ class GUI:
         if not self._active_surface:
             return
 
+        text_str = str(text).strip()
+        if not text_str:
+            return
         rgb = self._color(color)
         font_obj = self.fontFile.get(font, self.fontFile[15])
-        rendered = font_obj.render(str(text), True, rgb)
+        try:
+            rendered = font_obj.render(text_str, True, rgb)
+        except pygame.error:
+            return
 
         anchor = kwargs.get("anchor", "la")
         x, y = float(position[0]), float(position[1])
