@@ -84,6 +84,7 @@ DEFAULT_SETTINGS = {
     "regions": "us,eu,jp,br,ss,ame,wor",
     "log_level": "info",
     "theme": "dark",
+    "offline_mode": False,
 }
 
 # Dev credentials — injected at build time via dev_credentials.py

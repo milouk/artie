@@ -63,6 +63,7 @@ SETTINGS_DEFS: List[Tuple[str, str, str, str, dict]] = [
         "choice",
         {"options": ["dark", "light"]},
     ),
+    ("Advanced", "offline_mode", "Offline Mode", "toggle", {}),
     (
         "Advanced",
         "log_level",

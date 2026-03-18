@@ -170,14 +170,17 @@ class App:
             # Initialize GUI
             self._initialize_gui()
 
-            # Prompt for credentials if missing
-            self._ensure_credentials()
+            if not self.config.offline_mode:
+                # Prompt for credentials if missing
+                self._ensure_credentials()
 
-            # Validate credentials and configure threads in one API call
-            self._validate_and_configure_threads()
+                # Validate credentials and configure threads in one API call
+                self._validate_and_configure_threads()
 
-            # Check for updates (non-blocking, don't fail startup)
-            self._check_for_updates()
+                # Check for updates (non-blocking, don't fail startup)
+                self._check_for_updates()
+            else:
+                logger.log_info("Offline mode enabled — skipping API checks")
 
             # Start main interface
             self._start_main_interface()
@@ -580,8 +583,17 @@ class App:
             (235, 18), f"v{VERSION}", font=11, color=self.gui.COLOR_MUTED, anchor="mm"
         )
 
+        # Offline mode badge
+        if self.config and self.config.offline_mode:
+            self.gui.draw_rectangle_r(
+                [276, 8, 350, 28], 10, fill=self.gui.COLOR_MUTED
+            )
+            self.gui.draw_text(
+                (313, 18), "OFFLINE", font=10, color=self.gui.COLOR_WHITE, anchor="mm"
+            )
+
         # Update available indicator
-        if self._update_available:
+        if self._update_available and not (self.config and self.config.offline_mode):
             self.gui.draw_rectangle_r(
                 [276, 8, 380, 28], 10, fill=self.gui.COLOR_SUCCESS
             )
@@ -843,6 +855,12 @@ class App:
         if not available_systems:
             return
 
+        if self.config.offline_mode:
+            self._show_overlay("Offline mode — scraping disabled")
+            time.sleep(self.LOG_WAIT)
+            self.skip_input_check = True
+            return
+
         total_systems = len(available_systems)
         self._show_overlay(f"Scraping all {total_systems} systems...")
 
@@ -1086,6 +1104,13 @@ class App:
     def _scrape_single_rom(self, roms_data: RomsData) -> None:
         """Scrape a single ROM with proper error handling."""
         if not roms_data.roms_to_scrape:
+            return
+
+        if self.config.offline_mode:
+            self.gui.draw_log("Offline mode — scraping disabled")
+            self.gui.draw_paint()
+            time.sleep(self.LOG_WAIT)
+            self.skip_input_check = True
             return
 
         self._scrape_cancelled.clear()

@@ -43,6 +43,7 @@ class ScraperConfig:
     synopsis_enabled: bool
     show_scraped_roms: bool
     show_logos: bool
+    offline_mode: bool
 
     # Performance settings
     threads: int
@@ -245,6 +246,7 @@ class ConfigManager:
             synopsis_enabled=s.get("synopsis_enabled", True),
             show_scraped_roms=s.get("show_scraped_roms", True),
             show_logos=s.get("show_logos", True),
+            offline_mode=s.get("offline_mode", False),
             threads=threads,
             theme=s.get("theme", "dark"),
             content=content,
