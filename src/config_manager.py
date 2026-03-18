@@ -223,8 +223,10 @@ class ConfigManager:
             "SCREENSCRAPER_PASSWORD", screenscraper_config.get("password")
         )
 
-        if not all([dev_id, dev_password, username, password]):
-            raise exceptions.ConfigurationError("Missing screenscraper credentials")
+        if not all([dev_id, dev_password]):
+            raise exceptions.ConfigurationError(
+                "Missing screenscraper developer credentials"
+            )
 
         # Decode base64 credentials once at load time
         try:

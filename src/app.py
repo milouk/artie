@@ -33,6 +33,7 @@ from scraper import (
     get_txt_files_without_extension,
     get_user_data,
 )
+from settings import SettingsScreen
 from updater import check_for_update, download_and_apply_update
 
 VERSION = "3.5.0"
@@ -129,6 +130,9 @@ class App:
         self._update_version: Optional[str] = None
         self._update_url: Optional[str] = None
 
+        # Config file path (set in start())
+        self._config_path: str = ""
+
         # GUI
         self.gui: Optional[GUI] = None
 
@@ -143,11 +147,9 @@ class App:
         """
         try:
             # Load configuration
+            self._config_path = config_file
             self.config = self.config_manager.load_config(config_file)
             self.config_manager.setup_logging()
-
-            # Validate credentials and configure threads in one API call
-            self._validate_and_configure_threads()
 
             # Initialize managers
             self.rom_manager = RomManager(self.config.roms_path)
@@ -160,6 +162,12 @@ class App:
 
             # Initialize GUI
             self._initialize_gui()
+
+            # Prompt for credentials if missing
+            self._ensure_credentials()
+
+            # Validate credentials and configure threads in one API call
+            self._validate_and_configure_threads()
 
             # Check for updates (non-blocking, don't fail startup)
             self._check_for_updates()
@@ -328,6 +336,53 @@ class App:
             self.gui.draw_log("Update failed. Check logs for details.")
         self.gui.draw_paint()
         time.sleep(self.LOG_WAIT * 2)
+        self.skip_input_check = True
+
+    def _ensure_credentials(self) -> None:
+        """Prompt the user to configure credentials if they are missing."""
+        assert self.config is not None
+        assert self.gui is not None
+        while not self.config.username or not self.config.password:
+            self.gui.draw_log("Please configure your ScreenScraper credentials.")
+            self.gui.draw_paint()
+            time.sleep(self.LOG_WAIT)
+
+            screen = SettingsScreen(
+                self.gui, self._config_path, self.config_manager._raw_config
+            )
+            saved = screen.show()
+
+            if saved:
+                self.config = self.config_manager.load_config(self._config_path)
+            else:
+                # User cancelled — exit gracefully
+                self.gui.draw_log("Credentials required. Exiting...")
+                self.gui.draw_paint()
+                time.sleep(self.LOG_WAIT)
+                self.gui.draw_end()
+                sys.exit(0)
+
+    def _open_settings(self) -> None:
+        """Open the settings screen and reload config if saved."""
+        if not self._config_path:
+            return
+
+        screen = SettingsScreen(
+            self.gui, self._config_path, self.config_manager._raw_config
+        )
+        saved = screen.show()
+
+        if saved:
+            # Reload configuration from disk
+            try:
+                self.config = self.config_manager.load_config(self._config_path)
+                logger.log_info("Configuration reloaded after settings change")
+            except Exception as e:
+                logger.log_error(f"Failed to reload config: {e}")
+
+        # Force redraw
+        self._emulators_dirty = True
+        self._roms_dirty = True
         self.skip_input_check = True
 
     def _backup_catalogue(self) -> None:
@@ -651,8 +706,7 @@ class App:
         self._draw_button_pill((95, y), "A", "Select")
         self._draw_button_pill((200, y), "X", "Delete")
         self._draw_button_pill((300, y), "SE", "Backup")
-        if self._update_available:
-            self._draw_button_pill((420, y), "Y", "Update")
+        self._draw_button_pill((420, y), "Y", "Settings")
         self._draw_button_pill((540, y), "M", "Exit")
 
     def _handle_emulator_input(self, available_systems: List[str]) -> None:
@@ -679,8 +733,7 @@ class App:
         elif input.key_pressed("SELECT"):
             self._backup_catalogue()
         elif input.key_pressed("Y"):
-            if self._update_available:
-                self._apply_update()
+            self._open_settings()
 
     def _handle_vertical_navigation(self, max_items: int) -> None:
         """Handle up/down navigation."""
