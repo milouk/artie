@@ -29,13 +29,15 @@ jobs:
       - name: Build package
         uses: addnab/docker-run-action@v3
         with:
-          image: docker.io/batonogov/pyinstaller-linux:latest
+          image: docker.io/batonogov/pyinstaller-linux:v4.7.2
           options: |
             --platform linux/arm64
             --volume ${{ github.workspace }}/:/src
           run: |
-            pip install -r /src/requirements.txt
-            pyinstaller --onefile /src/src/app.py
+            cd /src
+            apt-get update && apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev
+            pip install -r requirements.txt
+            pyinstaller app.spec
 
       - name: Bundle App
         run: |
