@@ -41,11 +41,16 @@ DEFAULT_SETTINGS = {
     "show_scraped_roms": True,
     "show_logos": True,
     "box_enabled": True,
+    "box_type": "mixrbv2",
+    "box_mask": False,
+    "box_mask_path": "assets/masks/box_mask.png",
     "preview_enabled": True,
+    "preview_type": "ss",
+    "preview_mask": False,
+    "preview_mask_path": "assets/masks/preview_mask.png",
     "synopsis_enabled": True,
     "synopsis_lang": "en",
-    "box_type": "mixrbv2",
-    "preview_type": "ss",
+    "regions": "us,eu,jp,br,ss,ame,wor",
     "log_level": "info",
 }
 

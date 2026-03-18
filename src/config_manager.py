@@ -151,7 +151,20 @@ class ConfigManager:
         settings["synopsis_enabled"] = content.get("synopsis", {}).get("enabled", True)
         settings["synopsis_lang"] = content.get("synopsis", {}).get("lang", "en")
         settings["box_type"] = content.get("box", {}).get("type", "mixrbv2")
+        settings["box_mask"] = content.get("box", {}).get("apply_mask", False)
+        settings["box_mask_path"] = content.get("box", {}).get(
+            "mask_path", "assets/masks/box_mask.png"
+        )
         settings["preview_type"] = content.get("preview", {}).get("type", "ss")
+        settings["preview_mask"] = content.get("preview", {}).get("apply_mask", False)
+        settings["preview_mask_path"] = content.get("preview", {}).get(
+            "mask_path", "assets/masks/preview_mask.png"
+        )
+        regions = content.get("regions", ["us", "eu", "jp", "br", "ss", "ame", "wor"])
+        if isinstance(regions, list):
+            settings["regions"] = ",".join(regions)
+        else:
+            settings["regions"] = str(regions)
         settings["log_level"] = old.get("log_level", "info")
 
         logger.log_info("Successfully migrated settings from config.json")
@@ -181,22 +194,37 @@ class ConfigManager:
         threads = min(threads, self.MAX_THREAD_COUNT)
 
         # Build content dict (expected by scraper functions)
+        # Regions: stored as comma-separated string, parsed to list
+        regions_str = s.get("regions", "us,eu,jp,br,ss,ame,wor")
+        if isinstance(regions_str, list):
+            regions = regions_str
+        else:
+            regions = [r.strip() for r in regions_str.split(",") if r.strip()]
+        if not regions:
+            regions = REGIONS
+
         content = {
             "box": {
                 **BOX_CONFIG,
                 "type": s.get("box_type", "mixrbv2"),
                 "enabled": s.get("box_enabled", True),
+                "apply_mask": s.get("box_mask", False),
+                "mask_path": s.get("box_mask_path", BOX_CONFIG["mask_path"]),
             },
             "preview": {
                 **PREVIEW_CONFIG,
                 "type": s.get("preview_type", "ss"),
                 "enabled": s.get("preview_enabled", True),
+                "apply_mask": s.get("preview_mask", False),
+                "mask_path": s.get(
+                    "preview_mask_path", PREVIEW_CONFIG["mask_path"]
+                ),
             },
             "synopsis": {
                 "enabled": s.get("synopsis_enabled", True),
                 "lang": s.get("synopsis_lang", "en"),
             },
-            "regions": REGIONS,
+            "regions": regions,
         }
 
         # Systems mapping

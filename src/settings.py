@@ -13,11 +13,27 @@ from logger import LoggerSingleton as logger
 
 # Each tuple: (section, key, label, widget_type, extra_kwargs)
 # Keys are flat — they map directly to settings.json top-level keys.
+# Preset region orderings keyed by primary region
+REGION_PRESETS = {
+    "us": "us,eu,jp,br,ss,ame,wor",
+    "eu": "eu,us,jp,br,ss,ame,wor",
+    "jp": "jp,us,eu,br,ss,ame,wor",
+    "br": "br,us,eu,jp,ss,ame,wor",
+    "wor": "wor,us,eu,jp,br,ss,ame",
+}
+
 SETTINGS_DEFS: List[Tuple[str, str, str, str, dict]] = [
     ("Account", "username", "Username", "text", {}),
     ("Account", "password", "Password", "password", {}),
     ("Scraping", "threads", "Threads", "number", {"min": 1, "max": 20}),
     ("Scraping", "show_scraped_roms", "Show All ROMs", "toggle", {}),
+    (
+        "Scraping",
+        "regions",
+        "Region Priority",
+        "choice",
+        {"options": list(REGION_PRESETS.keys())},
+    ),
     ("Media", "box_enabled", "Box Art", "toggle", {}),
     (
         "Media",
@@ -26,6 +42,8 @@ SETTINGS_DEFS: List[Tuple[str, str, str, str, dict]] = [
         "choice",
         {"options": ["mixrbv2", "mixrbv1", "box-2D", "box-3D"]},
     ),
+    ("Media", "box_mask", "Box Mask", "toggle", {}),
+    ("Media", "box_mask_path", "Box Mask Path", "text", {}),
     ("Media", "preview_enabled", "Preview", "toggle", {}),
     (
         "Media",
@@ -34,8 +52,17 @@ SETTINGS_DEFS: List[Tuple[str, str, str, str, dict]] = [
         "choice",
         {"options": ["ss", "sstitle", "fanart"]},
     ),
+    ("Media", "preview_mask", "Preview Mask", "toggle", {}),
+    ("Media", "preview_mask_path", "Preview Mask Path", "text", {}),
     ("Media", "synopsis_enabled", "Synopsis", "toggle", {}),
     ("Display", "show_logos", "Show Logos", "toggle", {}),
+    (
+        "Advanced",
+        "log_level",
+        "Log Level",
+        "choice",
+        {"options": ["debug", "info", "warning", "error"]},
+    ),
 ]
 
 
@@ -224,9 +251,7 @@ class SettingsScreen:
 
     MAX_VISIBLE = 8
 
-    def __init__(
-        self, gui, settings_path: str, settings: dict, max_threads: int = 20
-    ):
+    def __init__(self, gui, settings_path: str, settings: dict, max_threads: int = 20):
         self.gui = gui
         self.settings_path = settings_path
         self.settings = settings
@@ -238,6 +263,13 @@ class SettingsScreen:
             # Override thread max with API-reported limit
             if key == "threads":
                 extra = {**extra, "max": max_threads}
+            value = settings.get(key)
+            # Regions: stored as comma string, display as primary region
+            if key == "regions" and isinstance(value, str):
+                primary = value.split(",")[0].strip() if value else "us"
+                if primary not in REGION_PRESETS:
+                    primary = "us"
+                value = primary
             self.items.append(
                 {
                     "section": section,
@@ -245,14 +277,18 @@ class SettingsScreen:
                     "key": key,
                     "label": label,
                     "type": wtype,
-                    "value": settings.get(key),
+                    "value": value,
+                    "original": value,
                     **extra,
                 }
             )
             prev_section = section
 
         self.pos = 0
-        self.dirty = False
+
+    @property
+    def dirty(self) -> bool:
+        return any(i["value"] != i["original"] for i in self.items)
 
     # -- public API --
 
@@ -272,7 +308,7 @@ class SettingsScreen:
                 item = self.items[self.pos]
                 if item["type"] == "toggle":
                     item["value"] = not item["value"]
-                    self.dirty = True
+
                 elif item["type"] == "number" and inp.key_pressed("DX"):
                     self._adjust_number(item, inp.current_value)
                 elif item["type"] == "choice" and inp.key_pressed("DX"):
@@ -299,7 +335,6 @@ class SettingsScreen:
         if not isinstance(val, int):
             val = lo
         item["value"] = max(lo, min(hi, val + direction))
-        self.dirty = True
 
     def _cycle_choice(self, item: dict, direction: int) -> None:
         options = item.get("options", [])
@@ -311,7 +346,6 @@ class SettingsScreen:
         except ValueError:
             idx = 0
         item["value"] = options[(idx + direction) % len(options)]
-        self.dirty = True
 
     def _edit_text(self, item: dict) -> None:
         current = item.get("value") or ""
@@ -324,7 +358,6 @@ class SettingsScreen:
         result = kb.run()
         if result is not None:
             item["value"] = result
-            self.dirty = True
 
     # -- persistence --
 
@@ -333,14 +366,21 @@ class SettingsScreen:
         try:
             data = {}
             for item in self.items:
-                data[item["key"]] = item["value"]
+                value = item["value"]
+                # Regions: expand primary key to full comma string
+                if item["key"] == "regions":
+                    value = REGION_PRESETS.get(value, REGION_PRESETS["us"])
+                data[item["key"]] = value
 
             with open(self.settings_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
                 f.write("\n")
 
+            # Update originals so dirty resets
+            for item in self.items:
+                item["original"] = item["value"]
+
             logger.log_info("Settings saved to settings.json")
-            self.dirty = False
 
         except Exception as e:
             logger.log_error(f"Failed to save settings: {e}")
@@ -373,10 +413,13 @@ class SettingsScreen:
             idx = page_start + i
             selected = idx == self.pos
             # Extra space before a new section header
-            if item["show_section"] and i > 0:
-                cur_y += 12
+            if item["show_section"]:
+                if i > 0:
+                    cur_y += 8
+                self._draw_section_header(item["section"], cur_y)
+                cur_y += 20
             self._draw_setting_row(item, cur_y, selected)
-            cur_y += 40
+            cur_y += 26
 
         # Page indicator
         total_pages = max(
@@ -395,28 +438,27 @@ class SettingsScreen:
         g.draw_line((10, 443), (630, 443), fill=g.COLOR_SECONDARY_LIGHT, width=1)
         y = 453
         _pill(g, (15, y), "A", "Edit")
-        _pill(g, (120, y), "LR", "Adjust")
-        _pill(g, (250, y), "B", "Back")
-        _pill(g, (340, y), "ST", "Save")
+        _pill(g, (120, y), "B", "Back")
+        _pill(g, (230, y), "ST", "Save")
 
         g.draw_paint()
+
+    def _draw_section_header(self, section: str, y: int) -> None:
+        g = self.gui
+        g.draw_text(
+            (30, y),
+            section,
+            font=11,
+            color=g.COLOR_PRIMARY_DARK,
+        )
 
     def _draw_setting_row(self, item: dict, y: int, selected: bool) -> None:
         g = self.gui
 
-        # Section header (drawn above the row)
-        if item["show_section"]:
-            g.draw_text(
-                (30, y),
-                item["section"],
-                font=11,
-                color=g.COLOR_PRIMARY_DARK,
-            )
-
         # Row background
-        row_top = y + 14
-        row_bot = y + 38
-        row_mid = y + 26
+        row_top = y
+        row_bot = y + 24
+        row_mid = y + 12
         bg = g.COLOR_ROW_HOVER if selected else g.COLOR_SECONDARY_DARK
         g.draw_rectangle_r([20, row_top, 620, row_bot], 6, fill=bg)
 
