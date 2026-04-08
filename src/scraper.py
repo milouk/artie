@@ -17,6 +17,7 @@ import exceptions
 from cache_manager import api_cached, get_cache_manager
 from logger import LoggerSingleton as logger
 
+SOFT_NAME = "artie"
 GAME_INFO_URL = "https://api.screenscraper.fr/api2/jeuInfos.php"
 USER_INFO_URL = "https://api.screenscraper.fr/api2/ssuserInfos.php"
 MEDIA_DOWNLOAD_URL = "https://api.screenscraper.fr/api2/mediaJeu.php"
@@ -323,7 +324,7 @@ def parse_find_game_url(
         params = {
             "devid": dev_id,
             "devpassword": dev_password,
-            "softname": "artie",
+            "softname": SOFT_NAME,
             "output": "json",
             "ssid": username,
             "sspassword": password,
@@ -347,7 +348,7 @@ def parse_user_info_url(
         params = {
             "devid": dev_id,
             "devpassword": dev_password,
-            "softname": "artie",
+            "softname": SOFT_NAME,
             "output": "json",
             "ssid": username,
             "sspassword": password,
@@ -890,9 +891,9 @@ def get_user_data(dev_id: str, dev_password: str, username: str, password: str) 
 
 
 def _fetch_media(medias: List[dict], properties: dict, regions: List[str]) -> bytes:
-    media_type = properties["type"]
-    media_height = properties["height"]
-    media_width = properties["width"]
+    media_type = properties.get("type", "")
+    media_height = properties.get("height", "")
+    media_width = properties.get("width", "")
 
     is_media_type_valid(media_type)
     media_url = find_media_url_by_region(medias, media_type, regions)
@@ -914,12 +915,11 @@ def fetch_box(game: dict, config: dict) -> Optional[bytes]:
     Raises:
         ScraperError: If download fails
     """
-    try:
-        medias = game["response"]["jeu"]["medias"]
-        regions = config.get("regions", ["us", "ame", "wor"])
-        return _fetch_media(medias, config["box"], regions)
-    except exceptions.ScraperError as e:
-        raise exceptions.ScraperError(f"Error downloading box: {e}")
+    medias = game.get("response", {}).get("jeu", {}).get("medias", [])
+    if not medias:
+        return None
+    regions = config.get("regions", ["us", "ame", "wor"])
+    return _fetch_media(medias, config["box"], regions)
 
 
 def fetch_preview(game: dict, config: dict) -> Optional[bytes]:
@@ -936,12 +936,11 @@ def fetch_preview(game: dict, config: dict) -> Optional[bytes]:
     Raises:
         ScraperError: If download fails
     """
-    try:
-        medias = game["response"]["jeu"]["medias"]
-        regions = config.get("regions", ["us", "ame", "wor"])
-        return _fetch_media(medias, config["preview"], regions)
-    except exceptions.ScraperError as e:
-        raise exceptions.ScraperError(f"Error downloading preview: {e}")
+    medias = game.get("response", {}).get("jeu", {}).get("medias", [])
+    if not medias:
+        return None
+    regions = config.get("regions", ["us", "ame", "wor"])
+    return _fetch_media(medias, config["preview"], regions)
 
 
 def fetch_metadata(game: dict, config: dict) -> Optional[Dict[str, str]]:
@@ -1019,12 +1018,13 @@ def fetch_synopsis(game: dict, config: dict) -> Optional[str]:
     Returns:
         Synopsis text with HTML entities decoded, or None if not available
     """
-    synopsis = game["response"]["jeu"].get("synopsis")
+    jeu = game.get("response", {}).get("jeu", {})
+    synopsis = jeu.get("synopsis")
     if not synopsis:
         logger.log_debug("No synopsis data available in game response")
         return None
 
-    synopsis_lang = config["synopsis"]["lang"]
+    synopsis_lang = config.get("synopsis", {}).get("lang", "en")
     synopsis_text = next(
         (item["text"] for item in synopsis if item.get("langue") == synopsis_lang), None
     )
@@ -1128,7 +1128,7 @@ def parse_media_download_url(
         params = {
             "devid": dev_id,
             "devpassword": dev_password,
-            "softname": "artie",
+            "softname": SOFT_NAME,
             "output": "json",
             "ssid": username,
             "sspassword": password,
@@ -1244,7 +1244,7 @@ def download_video_direct(
         params = {
             "devid": dev_id,
             "devpassword": dev_password,
-            "softname": "artie",
+            "softname": SOFT_NAME,
             "output": "json",
             "ssid": username,
             "sspassword": password,
@@ -1299,7 +1299,7 @@ def download_manual_direct(
         params = {
             "devid": dev_id,
             "devpassword": dev_password,
-            "softname": "artie",
+            "softname": SOFT_NAME,
             "output": "json",
             "ssid": username,
             "sspassword": password,

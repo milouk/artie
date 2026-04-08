@@ -1,5 +1,6 @@
 """Caching system for Artie Scraper to improve performance."""
 
+import hashlib
 import json
 import threading
 import time
@@ -99,8 +100,7 @@ class CacheManager:
         """Generate a cache key from arguments."""
         key_data = {"args": args, "kwargs": sorted(kwargs.items()) if kwargs else {}}
         key_string = json.dumps(key_data, sort_keys=True, default=str)
-        # Use simple hash() function instead of MD5 for cache keys
-        return str(abs(hash(key_string)))
+        return hashlib.md5(key_string.encode()).hexdigest()
 
     def _cleanup_expired_entries(self, cache_dict: Dict[str, CacheEntry]) -> None:
         """Remove expired entries from a cache dictionary."""

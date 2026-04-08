@@ -18,6 +18,7 @@ import input
 from backup import backup_catalogue
 from cache_manager import get_cache_manager
 from config_manager import ConfigManager, ScraperConfig
+from defaults import THEMES
 from graphic import GUI
 from image_processor import get_image_processor
 from logger import LoggerSingleton as logger
@@ -38,7 +39,7 @@ from scraper import (
 from settings import SettingsScreen, SystemSelectionScreen, VirtualKeyboard
 from updater import check_for_update, download_and_apply_update
 
-VERSION = "3.5.0"
+VERSION = "4.0.0"
 
 
 class _ScrapeCancelledError(Exception):
@@ -142,9 +143,6 @@ class App:
         self._display_width: int = 0
         self._display_height: int = 0
 
-        # Last game ID from API (used for video download)
-        self._last_game_id: str = ""
-
         # API-reported max threads (updated after credential validation)
         self._max_threads: int = 20
 
@@ -203,8 +201,6 @@ class App:
     def _initialize_gui(self) -> None:
         """Initialize GUI with proper error handling."""
         try:
-            from defaults import THEMES
-
             self.gui = GUI()
             theme_name = self.config.theme if self.config else "dark"
             theme = THEMES.get(theme_name, THEMES["dark"])
@@ -382,8 +378,6 @@ class App:
             try:
                 self.config = self.config_manager.load_settings(self._settings_dir)
                 # Re-apply theme in case it changed
-                from defaults import THEMES
-
                 theme = THEMES.get(self.config.theme, THEMES["dark"])
                 self.gui.apply_theme(theme)
                 logger.log_info("Configuration reloaded after settings change")
@@ -877,13 +871,12 @@ class App:
             return
 
         total_systems = len(chosen)
-        available_systems = chosen
         self._show_overlay(f"Scraping {total_systems} systems...")
 
         systems_completed = 0
         systems_skipped = 0
 
-        for i, system_name in enumerate(available_systems):
+        for i, system_name in enumerate(chosen):
             # Check for cancellation between systems
             if input.check_input_nonblocking() and input.key_pressed("B"):
                 self._show_overlay(
@@ -1227,6 +1220,10 @@ class App:
         )
         self._save_scraped_media(rom, roms_data, scraped_box, scraped_preview,
                                  scraped_synopsis, scraped_metadata)
+        # Download video if enabled
+        game_id = game.get("response", {}).get("jeu", {}).get("id", "")
+        if self.config.video_enabled and game_id:
+            self._download_video_for_rom(rom, roms_data, str(game_id))
 
     def _scrape_media_from_game(self, game: dict) -> Tuple[Any, Any, Any, Optional[dict]]:
         """Scrape media using pre-fetched game data."""
@@ -1430,16 +1427,15 @@ class App:
 
     def _process_rom(self, rom: Rom, roms_data: RomsData) -> Tuple[Any, Any, Any, str]:
         """Process a single ROM (scrape and save media)."""
-        self._last_game_id = ""
-        scraped_box, scraped_preview, scraped_synopsis, scraped_metadata = (
+        scraped_box, scraped_preview, scraped_synopsis, scraped_metadata, game_id = (
             self._scrape_rom_media(rom, roms_data.system_id)
         )
         self._save_scraped_media(rom, roms_data, scraped_box, scraped_preview,
                                  scraped_synopsis, scraped_metadata)
 
         # Download video if enabled and game was found
-        if self.config.video_enabled and self._last_game_id:
-            self._download_video_for_rom(rom, roms_data, self._last_game_id)
+        if self.config.video_enabled and game_id:
+            self._download_video_for_rom(rom, roms_data, game_id)
 
         return scraped_box, scraped_preview, scraped_synopsis, rom.name
 
@@ -1542,10 +1538,15 @@ class App:
 
     def _scrape_rom_media(
         self, rom: Rom, system_id: str
-    ) -> Tuple[Any, Any, Any, Optional[dict]]:
-        """Scrape media for a ROM. Raises _ScrapeCancelledError if cancelled."""
+    ) -> Tuple[Any, Any, Any, Optional[dict], str]:
+        """Scrape media for a ROM. Raises _ScrapeCancelledError if cancelled.
+
+        Returns:
+            Tuple of (box_data, preview_data, synopsis_text, metadata_dict, game_id)
+        """
         scraped_box = scraped_preview = scraped_synopsis = None
         scraped_metadata = None
+        game_id = ""
 
         if self._scrape_cancelled.is_set():
             raise _ScrapeCancelledError()
@@ -1561,6 +1562,7 @@ class App:
 
         if game:
             content = self.config.content
+            game_id = game.get("id", "")
             if self._scrape_cancelled.is_set():
                 raise _ScrapeCancelledError()
             if self.config.box_enabled:
@@ -1576,10 +1578,8 @@ class App:
                 scraped_metadata = fetch_metadata(game, content)
             if self._scrape_cancelled.is_set():
                 raise _ScrapeCancelledError()
-            # Store game_id for video download
-            self._last_game_id = game.get("id", "")
 
-        return scraped_box, scraped_preview, scraped_synopsis, scraped_metadata
+        return scraped_box, scraped_preview, scraped_synopsis, scraped_metadata, game_id
 
     def _save_file_to_disk(self, data: bytes, destination: Path) -> bool:
         """Save data to disk with comprehensive error handling."""
@@ -1982,9 +1982,7 @@ class App:
                     590,
                     max_lines=max_synopsis_lines,
                 )
-            elif has_text:
-                pass  # no synopsis text, but metadata may exist
-            else:
+            elif not has_text:
                 self.gui.draw_text(
                     (25, synopsis_y + 25),
                     "Not yet scraped",

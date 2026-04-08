@@ -46,7 +46,6 @@ class ImageProcessor:
             # Load original image from bytes
             try:
                 original_image = Image.open(io.BytesIO(image_data))
-                # Convert to RGBA to ensure alpha channel support
                 if original_image.mode != "RGBA":
                     original_image = original_image.convert("RGBA")
             except Exception as e:
@@ -56,10 +55,8 @@ class ImageProcessor:
 
             # Load mask image
             try:
-                mask_image = Image.open(mask_path)
-                # Convert mask to RGBA
-                if mask_image.mode != "RGBA":
-                    mask_image = mask_image.convert("RGBA")
+                with Image.open(mask_path) as raw_mask:
+                    mask_image = raw_mask.convert("RGBA")
             except Exception as e:
                 raise exceptions.MediaProcessingError(
                     f"Failed to load mask image from {mask_path}: {e}"
@@ -68,7 +65,7 @@ class ImageProcessor:
             # Resize mask to match original image dimensions if requested
             if resize_mask and mask_image.size != original_image.size:
                 logger.log_debug(
-                    f"Resizing mask from {mask_image.size} to " f"{original_image.size}"
+                    f"Resizing mask from {mask_image.size} to {original_image.size}"
                 )
                 mask_image = mask_image.resize(
                     original_image.size, Image.Resampling.LANCZOS
@@ -76,19 +73,19 @@ class ImageProcessor:
 
             # Apply mask using alpha compositing
             try:
-                # Create a new image with the original as base
-                result_image = original_image.copy()
-
-                # Composite the mask over the original image
-                result_image = Image.alpha_composite(result_image, mask_image)
-
+                result_image = Image.alpha_composite(original_image, mask_image)
                 logger.log_debug(f"Successfully applied mask {mask_path} to image")
-
             except Exception as e:
                 raise exceptions.MediaProcessingError(f"Failed to apply mask: {e}")
+            finally:
+                original_image.close()
+                mask_image.close()
 
             # Convert back to bytes
-            return self._image_to_bytes(result_image)
+            try:
+                return self._image_to_bytes(result_image)
+            finally:
+                result_image.close()
 
         except exceptions.MediaProcessingError:
             raise
