@@ -10,3 +10,4 @@ deploy.sh
 launch.sh
 .env
 src/dev_credentials.py
+.secrets

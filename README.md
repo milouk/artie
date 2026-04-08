@@ -32,7 +32,7 @@ Artie scrapes box art, previews, screenshots, videos, synopses, and metadata fro
 - Box art, previews, screenshots, and gameplay videos from [ScreenScraper](https://screenscraper.fr/)
 - Metadata for every ROM: genre, developer, publisher, player count, release date
 - Localized synopsis with configurable language
-- Region priority presets (US, EU, JP, BR, World) so you always get the right cover
+- Region priority presets (US, EU, JP, BR, SS, AME, World) so you always get the right cover
 - Multiple media types: `mixrbv2`, `mixrbv1`, `box-2D`, `box-3D`, `ss`, `sstitle`, `fanart`
 - Custom PNG mask overlays on box art and previews with auto-resize
 - Scrape a single ROM, all ROMs in a system, or batch scrape across selected systems
@@ -149,7 +149,7 @@ All settings are edited in-app via the settings screen (press **Y** on the syste
 | **Scraping** | | | |
 | Threads | 1-20 | 10 | Concurrent download threads |
 | Show All ROMs | toggle | on | Show already-scraped ROMs in lists |
-| Region Priority | choice | us | Region ordering preset (us/eu/jp/br/wor) |
+| Region Priority | choice | us | Region ordering preset (us/eu/jp/br/wor) — each includes all 7 regions |
 | **Media** | | | |
 | Box Art | toggle | on | Scrape box art |
 | Box Type | choice | mixrbv2 | `mixrbv2`, `mixrbv1`, `box-2D`, `box-3D` |
@@ -217,15 +217,16 @@ Set **Log Level** to `debug` in settings for more detail.
 Requirements: Docker, Python 3.11+
 
 ```bash
-# Set ScreenScraper dev credentials
-export SS_DEV_ID="your_base64_dev_id"
-export SS_DEV_PASSWORD="your_base64_dev_password"
+# Create .env with ScreenScraper dev credentials
+echo 'SS_DEV_ID="your_base64_dev_id"' >> .env
+echo 'SS_DEV_PASSWORD="your_base64_dev_password"' >> .env
 
-# Build ARM64 binary and create .muxapp
-./deploy.sh build
+# Build ARM64 binary and deploy to device
+./deploy.sh              # uses default device IP
+./deploy.sh -i 192.168.1.100  # custom device IP
 ```
 
-The build uses `batonogov/pyinstaller-linux:v4.7.2` to cross-compile a single-file ARM64 binary with SDL2 dependencies bundled.
+The build uses `batonogov/pyinstaller-linux:v4.7.2` to cross-compile a single-file ARM64 binary with SDL2 dependencies bundled. The script builds via Docker and deploys to the device over SSH in one step.
 
 ## Contributing
 
