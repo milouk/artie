@@ -1,7 +1,11 @@
 """Hardcoded defaults for Artie Scraper."""
 
-# Paths
-ROMS_PATH = "/mnt/sdcard/ROMS"
+# Paths — checked in order; first existing path wins
+ROMS_PATH_CANDIDATES = [
+    "/mnt/sdcard/ROMS",
+    "/mnt/mmc/ROMS",
+]
+ROMS_PATH = "/mnt/sdcard/ROMS"  # fallback default
 LOGOS_PATH = "assets/logos"
 CATALOGUE_BASE = "/mnt/mmc/MUOS/info/catalogue"
 

@@ -18,6 +18,7 @@ from defaults import (
     PREVIEW_CONFIG,
     REGIONS,
     ROMS_PATH,
+    ROMS_PATH_CANDIDATES,
 )
 from logger import LoggerSingleton as logger
 from systems import build_systems_mapping
@@ -235,8 +236,16 @@ class ConfigManager:
         # Systems mapping
         systems_mapping = build_systems_mapping()
 
+        # Auto-detect ROMs path
+        roms_path = ROMS_PATH
+        for candidate in ROMS_PATH_CANDIDATES:
+            if Path(candidate).is_dir():
+                roms_path = candidate
+                break
+        logger.log_info(f"ROMs path: {roms_path}")
+
         return ScraperConfig(
-            roms_path=ROMS_PATH,
+            roms_path=roms_path,
             systems_logo_path=LOGOS_PATH,
             dev_id=dev_id,
             dev_password=dev_password,
