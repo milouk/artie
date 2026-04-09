@@ -129,7 +129,7 @@ class GUI:
             has_desktop = os.environ.get("DISPLAY") or os.environ.get(
                 "WAYLAND_DISPLAY"
             )
-            flags = 0 if has_desktop else pygame.FULLSCREEN
+            flags = 0 if has_desktop else pygame.NOFRAME
 
             # Use device resolution if provided, otherwise internal size
             dw = display_width if display_width > 0 else SCREEN_WIDTH

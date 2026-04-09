@@ -20,13 +20,15 @@ fi
 
 echo app >/tmp/act_go
 
-# Define paths using runtime mount
-ARTIE_DIR="$(GET_VAR "device" "storage/rom/mount")/MUOS/application/Artie/.artie"
+# Resolve paths relative to this script's location (works on SD1 or SD2)
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+ARTIE_DIR="$SCRIPT_DIR/.artie"
 STATICDIR="$ARTIE_DIR/static/"
 BINDIR="$ARTIE_DIR/bin"
 
 # Export environment variables
 export SDL_GAMECONTROLLERCONFIG_FILE="/usr/lib/gamecontrollerdb.txt"
+export SDL_ASSERT=always_ignore
 export XDG_DATA_HOME="$STATICDIR"
 export HOME="$STATICDIR"
 export LD_LIBRARY_PATH="$BINDIR/libs.aarch64:$LD_LIBRARY_PATH"
