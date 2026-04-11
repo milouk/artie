@@ -129,11 +129,22 @@ class GUI:
             has_desktop = os.environ.get("DISPLAY") or os.environ.get(
                 "WAYLAND_DISPLAY"
             )
-            flags = 0 if has_desktop else pygame.NOFRAME
 
             # Use device resolution if provided, otherwise internal size
             dw = display_width if display_width > 0 else SCREEN_WIDTH
             dh = display_height if display_height > 0 else SCREEN_HEIGHT
+
+            # Pick flags based on environment:
+            # - Desktop (with window manager): plain window
+            # - Standard 640x480 muOS: FULLSCREEN (takes over framebuffer)
+            # - Non-standard resolution: NOFRAME (avoids mode-switch issues)
+            if has_desktop:
+                flags = 0
+            elif (dw, dh) == (SCREEN_WIDTH, SCREEN_HEIGHT):
+                flags = pygame.FULLSCREEN
+            else:
+                flags = pygame.NOFRAME
+
             self._display = pygame.display.set_mode((dw, dh), flags)
             self._display_size = (dw, dh)
             pygame.display.set_caption("Artie Scraper")
