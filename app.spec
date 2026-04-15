@@ -14,6 +14,11 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
+# Exclude system SDL2 — pygame-ce bundles its own hash-named copy.
+# The system's libSDL2-2.0.so.0 (often older) causes a version conflict.
+a.binaries = [b for b in a.binaries if b[0] != 'libSDL2-2.0.so.0']
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
