@@ -7,6 +7,7 @@ import os
 import re
 import threading
 import time
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
@@ -145,21 +146,26 @@ def _sanitize_url(url: str) -> str:
 
 
 _MD5_CHUNK_SIZE = 1048576  # 1MB chunks for large ROMs
+_MD5_CACHE_MAX = 512  # cap cache size so it can't grow forever
 
-# Cache: file_path -> (mtime, size, md5_hex)
-_md5_cache: Dict[str, tuple] = {}
+# path -> (mtime, size, md5_hex). LRU eviction once we exceed the cap.
+_md5_cache: "OrderedDict[str, tuple]" = OrderedDict()
+_md5_cache_lock = threading.Lock()
 
 
 def calculate_md5(file_path: str) -> str:
-    """Calculate MD5 hash of a file, with mtime+size caching."""
+    """Calculate MD5 hash of a file, with bounded mtime+size caching."""
     try:
         stat = os.stat(file_path)
-        key = file_path
-        cached = _md5_cache.get(key)
-        if cached and cached[0] == stat.st_mtime and cached[1] == stat.st_size:
-            return cached[2]
     except OSError:
-        pass
+        stat = None
+
+    if stat is not None:
+        with _md5_cache_lock:
+            cached = _md5_cache.get(file_path)
+            if cached and cached[0] == stat.st_mtime and cached[1] == stat.st_size:
+                _md5_cache.move_to_end(file_path)
+                return cached[2]
 
     md5 = hashlib.md5()
     with open(file_path, "rb") as f:
@@ -167,11 +173,12 @@ def calculate_md5(file_path: str) -> str:
             md5.update(chunk)
     digest = md5.hexdigest()
 
-    try:
-        stat = os.stat(file_path)
-        _md5_cache[file_path] = (stat.st_mtime, stat.st_size, digest)
-    except OSError:
-        pass
+    if stat is not None:
+        with _md5_cache_lock:
+            _md5_cache[file_path] = (stat.st_mtime, stat.st_size, digest)
+            _md5_cache.move_to_end(file_path)
+            while len(_md5_cache) > _MD5_CACHE_MAX:
+                _md5_cache.popitem(last=False)
 
     return digest
 
