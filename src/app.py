@@ -130,6 +130,10 @@ class App:
 
         # Scraping cancellation
         self._scrape_cancelled = threading.Event()
+        # If the user confirms exit mid-batch, we finish cancellation
+        # gracefully and then exit — this flag carries that intent back to
+        # _scrape_all_roms.
+        self._exit_after_scrape: bool = False
 
         # OTA update state
         self._update_available = False
@@ -1266,11 +1270,39 @@ class App:
         self.skip_input_check = True
 
     def _check_scrape_cancelled(self) -> bool:
-        """Poll for B button press to cancel scraping (non-blocking)."""
-        if input.check_input_nonblocking() and input.key_pressed("B"):
+        """Poll for B/MENUF during batch scraping (non-blocking).
+
+        B cancels the batch gracefully. MENUF (the muOS exit button) opens
+        a confirm overlay — users frequently hit it by reflex, and silently
+        killing a half-finished batch would waste API quota. A confirms
+        exit (sets _exit_after_scrape, cancels the batch); B dismisses and
+        keeps scraping.
+        """
+        if not input.check_input_nonblocking():
+            return self._scrape_cancelled.is_set()
+
+        if input.key_pressed("B"):
             self._scrape_cancelled.set()
             return True
+
+        if input.key_pressed("MENUF"):
+            if self._confirm_exit_during_scrape():
+                self._exit_after_scrape = True
+                self._scrape_cancelled.set()
+                return True
+
         return self._scrape_cancelled.is_set()
+
+    def _confirm_exit_during_scrape(self) -> bool:
+        """Blocking prompt shown when the user hits MENU mid-batch."""
+        self.gui.draw_log("Batch in progress. Exit anyway? A=yes  B=keep scraping")
+        self.gui.draw_paint()
+        while True:
+            input.check_input()
+            if input.key_pressed("A"):
+                return True
+            if input.key_pressed("B") or input.key_pressed("MENUF"):
+                return False
 
     def _scrape_all_roms(self, roms_data: RomsData) -> None:
         """Scrape all ROMs using thread pool with performance monitoring and progress indicators."""
@@ -1279,6 +1311,7 @@ class App:
 
         total_roms = len(roms_data.roms_to_scrape)
         self._scrape_cancelled.clear()
+        self._exit_after_scrape = False
 
         # Keep a persistent input fd open so B presses are queued by the
         # kernel between polls (evdev queues events per open fd).
@@ -1430,6 +1463,13 @@ class App:
             input.stop_nonblocking()
 
         time.sleep(1)
+
+        # If the user confirmed exit mid-batch, honour that now rather than
+        # bouncing them back into the UI.
+        if self._exit_after_scrape:
+            self._exit_after_scrape = False
+            self._cleanup_and_exit()
+            return
 
         # Offer to retry failed ROMs (but not after cancel/quota — user had a
         # reason to stop; don't silently hammer the API again).
