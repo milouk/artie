@@ -33,6 +33,16 @@ export XDG_DATA_HOME="$STATICDIR"
 export HOME="$STATICDIR"
 export LD_LIBRARY_PATH="$BINDIR/libs.aarch64:$LD_LIBRARY_PATH"
 
+# Force pygame to use muOS's system SDL2 (which has the 'mali' video driver)
+# instead of pygame-ce's bundled headless copy (dummy/offscreen only).
+# On muOS setups with libmustage.so this already happens via SETUP_APP's
+# LD_PRELOAD; on setups without it (e.g. some RG40XXH firmwares) we have
+# to do it ourselves.
+SYSTEM_SDL2="/usr/lib/libSDL2-2.0.so.0"
+if [ -f "$SYSTEM_SDL2" ]; then
+    export LD_PRELOAD="$SYSTEM_SDL2:$LD_PRELOAD"
+fi
+
 # Launcher
 cd "$ARTIE_DIR" || exit
 

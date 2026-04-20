@@ -151,9 +151,10 @@ class GUI:
             pygame.mouse.set_visible(False)
             # Enable key repeat for smooth hold-to-scroll (400ms delay, 80ms interval)
             pygame.key.set_repeat(400, 80)
+            driver = pygame.display.get_driver()
             logger.log_info(
                 f"Pygame display initialized: {dw}x{dh} "
-                f"(internal {SCREEN_WIDTH}x{SCREEN_HEIGHT})"
+                f"(internal {SCREEN_WIDTH}x{SCREEN_HEIGHT}, driver={driver})"
             )
         except (pygame.error, OSError) as e:
             logger.log_warning(f"Display initialization failed: {e}")

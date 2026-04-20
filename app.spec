@@ -4,7 +4,14 @@
 a = Analysis(
     ['src/app.py'],
     pathex=[],
-    binaries=[],
+    binaries=[
+        # Bundle libdrm/libgbm so SDL2's dynamically-loaded kmsdrm driver
+        # can find them inside PyInstaller's temp extraction dir. Without
+        # these, SDL2 falls back to the offscreen driver on muOS devices
+        # that don't expose libdrm via a standard library path.
+        ('/usr/lib/aarch64-linux-gnu/libdrm.so.2', '.'),
+        ('/usr/lib/aarch64-linux-gnu/libgbm.so.1', '.'),
+    ],
     datas=[],
     hiddenimports=[],
     hookspath=[],
