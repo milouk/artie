@@ -62,14 +62,18 @@ class ImageProcessor:
                     f"Failed to load mask image from {mask_path}: {e}"
                 )
 
-            # Resize mask to match original image dimensions if requested
+            # Resize mask to match original image dimensions if requested.
+            # .resize() returns a NEW image — close the old one so we don't
+            # leak its pixel buffer during batch scraping with masks enabled.
             if resize_mask and mask_image.size != original_image.size:
                 logger.log_debug(
                     f"Resizing mask from {mask_image.size} to {original_image.size}"
                 )
-                mask_image = mask_image.resize(
+                old_mask = mask_image
+                mask_image = old_mask.resize(
                     original_image.size, Image.Resampling.LANCZOS
                 )
+                old_mask.close()
 
             # Apply mask using alpha compositing
             try:
