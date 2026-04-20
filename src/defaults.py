@@ -1,5 +1,7 @@
 """Hardcoded defaults for Artie Scraper."""
 
+import os
+
 # Paths — checked in order; first existing path wins
 ROMS_PATH_CANDIDATES = [
     "/mnt/sdcard/ROMS",
@@ -7,7 +9,29 @@ ROMS_PATH_CANDIDATES = [
 ]
 ROMS_PATH = "/mnt/sdcard/ROMS"  # fallback default
 LOGOS_PATH = "assets/logos"
-CATALOGUE_BASE = "/mnt/mmc/MUOS/info/catalogue"
+
+
+def _discover_catalogue_base() -> str:
+    """Find muOS's catalogue directory.
+
+    muOS hosts it under whichever mount is the primary storage (/mnt/mmc on
+    most SD1 installs, /mnt/sdcard on some devices, /mnt/sd2 when the user
+    has flipped storage). Check candidates in order; fall back to the
+    historical default if nothing's found.
+    """
+    candidates = [
+        "/mnt/mmc/MUOS/info/catalogue",
+        "/mnt/sdcard/MUOS/info/catalogue",
+        "/mnt/sd2/MUOS/info/catalogue",
+        "/run/muos/storage/info/catalogue",
+    ]
+    for path in candidates:
+        if os.path.isdir(path):
+            return path
+    return candidates[0]  # safe fallback for first-boot / testing
+
+
+CATALOGUE_BASE = _discover_catalogue_base()
 
 # Theme colors
 COLORS = {
@@ -97,7 +121,5 @@ DEFAULT_SETTINGS = {
 try:
     from dev_credentials import DEVID, DEVPASSWORD
 except ImportError:
-    import os
-
     DEVID = os.environ.get("SS_DEV_ID", "")
     DEVPASSWORD = os.environ.get("SS_DEV_PASSWORD", "")
