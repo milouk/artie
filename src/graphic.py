@@ -1,6 +1,7 @@
 """Pygame-based GUI module for Artie Scraper."""
 
 import os
+import time
 from collections import OrderedDict
 from pathlib import Path
 from typing import Optional, Tuple
@@ -76,6 +77,10 @@ class GUI:
         # Store last log message for text-only fallback
         self._last_log_message = ""
 
+        # Smoothed progress bar state (set by draw_log_with_progress)
+        self._displayed_progress: float = 0.0
+        self._progress_last_time: float = 0.0
+
     def apply_theme(self, theme: dict) -> None:
         """Apply a theme dict to all COLOR_* attributes."""
         self.COLOR_PRIMARY = theme.get("primary", self.COLOR_PRIMARY)
@@ -88,8 +93,12 @@ class GUI:
         self.COLOR_ROW_HOVER = theme.get("row_hover", self.COLOR_ROW_HOVER)
         self.COLOR_HEADER_BG = theme.get("header_bg", self.COLOR_HEADER_BG)
         self.COLOR_SECONDARY = theme.get("secondary", self.COLOR_SECONDARY)
-        self.COLOR_SECONDARY_LIGHT = theme.get("secondary_light", self.COLOR_SECONDARY_LIGHT)
-        self.COLOR_SECONDARY_DARK = theme.get("secondary_dark", self.COLOR_SECONDARY_DARK)
+        self.COLOR_SECONDARY_LIGHT = theme.get(
+            "secondary_light", self.COLOR_SECONDARY_LIGHT
+        )
+        self.COLOR_SECONDARY_DARK = theme.get(
+            "secondary_dark", self.COLOR_SECONDARY_DARK
+        )
         # Clear color cache since hex values changed
         self._color_cache.clear()
 
@@ -126,9 +135,7 @@ class GUI:
         """
         try:
             logger.log_info("Attempting to initialize pygame display...")
-            has_desktop = os.environ.get("DISPLAY") or os.environ.get(
-                "WAYLAND_DISPLAY"
-            )
+            has_desktop = os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
 
             # Use device resolution if provided, otherwise internal size
             dw = display_width if display_width > 0 else SCREEN_WIDTH
@@ -247,9 +254,7 @@ class GUI:
         if fill:
             pygame.draw.rect(self._active_surface, self._color(fill), rect)
         if outline:
-            pygame.draw.rect(
-                self._active_surface, self._color(outline), rect, width
-            )
+            pygame.draw.rect(self._active_surface, self._color(outline), rect, width)
 
     def draw_rectangle_r(
         self, position, radius, fill=COLOR_SECONDARY_DARK, outline=None
@@ -285,9 +290,7 @@ class GUI:
         cy = int(position[1] + radius // 2)
         r = max(1, int(radius // 2))
         if fill:
-            pygame.draw.circle(
-                self._active_surface, self._color(fill), (cx, cy), r
-            )
+            pygame.draw.circle(self._active_surface, self._color(fill), (cx, cy), r)
         if outline:
             pygame.draw.circle(
                 self._active_surface, self._color(outline), (cx, cy), r, 1
@@ -302,9 +305,7 @@ class GUI:
     ):
         if not self._active_surface:
             return
-        pygame.draw.line(
-            self._active_surface, self._color(fill), start, end, width
-        )
+        pygame.draw.line(self._active_surface, self._color(fill), start, end, width)
 
     def draw_progress_bar(
         self,
@@ -433,9 +434,7 @@ class GUI:
 
         x = (self.screen_width - width) / 2
         y = (self.screen_height - 70) / 2
-        self.draw_rectangle_r(
-            [x, y, x + width, y + 70], 8, fill=fill, outline=outline
-        )
+        self.draw_rectangle_r([x, y, x + width, y + 70], 8, fill=fill, outline=outline)
 
         # Accent bar at top of notification
         self.draw_rectangle_r(
@@ -448,8 +447,32 @@ class GUI:
         self.draw_text((text_x, text_y), text, anchor="mm")
 
     def draw_log_with_progress(self, text, progress, width=520):
-        """Draw a notification overlay with a progress bar."""
+        """Draw a notification overlay with a smoothly animated progress bar.
+
+        The bar eases toward `progress` (the real completion ratio) rather than
+        snapping. Movement is time-based — covers remaining distance at a rate
+        proportional to how far off we are — so fast jumps look fast and slow
+        trickles feel smooth. Caller should redraw frequently for best effect.
+        """
         self._last_log_message = text
+
+        target = max(0.0, min(1.0, progress))
+        now = time.time()
+
+        # First call or caller restarted (target went backward): snap.
+        if self._progress_last_time == 0.0 or target < self._displayed_progress:
+            self._displayed_progress = target
+        else:
+            dt = min(0.1, now - self._progress_last_time)  # clamp spikes
+            # Cover remaining distance at rate ≈ 3x/sec, with min rate so the
+            # bar always moves perceptibly even when target barely changed.
+            remaining = target - self._displayed_progress
+            speed = max(0.1, remaining * 3.0)
+            self._displayed_progress = min(
+                target, self._displayed_progress + speed * dt
+            )
+        self._progress_last_time = now
+        displayed = self._displayed_progress
 
         x = (self.screen_width - width) / 2
         y = (self.screen_height - 90) / 2
@@ -469,7 +492,7 @@ class GUI:
         text_x = x + width / 2
         self.draw_text((text_x, y + 30), text, anchor="mm")
 
-        # Progress bar
+        # Progress bar (uses smoothed value)
         bar_margin = 20
         self.draw_progress_bar(
             (
@@ -478,11 +501,11 @@ class GUI:
                 int(x + width - bar_margin),
                 int(y + 70),
             ),
-            progress,
+            displayed,
         )
 
-        # Percentage text
-        pct_text = f"{progress * 100:.0f}%"
+        # Percentage text (uses real target, not smoothed, so number is accurate)
+        pct_text = f"{target * 100:.0f}%"
         self.draw_text(
             (text_x, y + 80),
             pct_text,
@@ -490,3 +513,8 @@ class GUI:
             color=self.COLOR_MUTED,
             anchor="mm",
         )
+
+    def reset_progress_animation(self) -> None:
+        """Reset the smoothed progress state. Call before starting a new batch."""
+        self._displayed_progress = 0.0
+        self._progress_last_time = 0.0

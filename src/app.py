@@ -558,6 +558,7 @@ class App:
 
         except Exception as e:
             import traceback
+
             logger.log_error(f"Error in load_emulators: {e}")
             logger.log_error(traceback.format_exc())
             self._show_error_and_exit(f"Failed to load emulators: {e}")
@@ -587,9 +588,7 @@ class App:
 
         # Offline mode badge
         if self.config and self.config.offline_mode:
-            self.gui.draw_rectangle_r(
-                [276, 8, 350, 28], 10, fill=self.gui.COLOR_MUTED
-            )
+            self.gui.draw_rectangle_r([276, 8, 350, 28], 10, fill=self.gui.COLOR_MUTED)
             self.gui.draw_text(
                 (313, 18), "OFFLINE", font=10, color=self.gui.COLOR_WHITE, anchor="mm"
             )
@@ -1134,8 +1133,8 @@ class App:
         self.gui.draw_paint()
 
         try:
-            scraped_box, scraped_preview, scraped_synopsis, _ = (
-                self._process_rom(rom, roms_data)
+            scraped_box, scraped_preview, scraped_synopsis, _ = self._process_rom(
+                rom, roms_data
             )
             if not scraped_box and not scraped_preview and not scraped_synopsis:
                 # Nothing was scraped — offer refine search
@@ -1211,21 +1210,27 @@ class App:
         self.gui.draw_paint()
         time.sleep(self.LOG_WAIT)
 
-    def _process_rom_with_game(
-        self, rom: Rom, roms_data: RomsData, game: dict
-    ) -> None:
+    def _process_rom_with_game(self, rom: Rom, roms_data: RomsData, game: dict) -> None:
         """Process a single ROM using pre-fetched game data (from refine search)."""
         scraped_box, scraped_preview, scraped_synopsis, scraped_metadata = (
             self._scrape_media_from_game(game)
         )
-        self._save_scraped_media(rom, roms_data, scraped_box, scraped_preview,
-                                 scraped_synopsis, scraped_metadata)
+        self._save_scraped_media(
+            rom,
+            roms_data,
+            scraped_box,
+            scraped_preview,
+            scraped_synopsis,
+            scraped_metadata,
+        )
         # Download video if enabled
         game_id = game.get("response", {}).get("jeu", {}).get("id", "")
         if self.config.video_enabled and game_id:
             self._download_video_for_rom(rom, roms_data, str(game_id))
 
-    def _scrape_media_from_game(self, game: dict) -> Tuple[Any, Any, Any, Optional[dict]]:
+    def _scrape_media_from_game(
+        self, game: dict
+    ) -> Tuple[Any, Any, Any, Optional[dict]]:
         """Scrape media using pre-fetched game data."""
         scraped_box = scraped_preview = scraped_synopsis = None
         scraped_metadata = None
@@ -1291,9 +1296,13 @@ class App:
 
         completed = 0
         failed = 0
+        failed_roms: List[Rom] = []
         cancelled = False
         quota_exceeded = False
         start_time = time.time()
+
+        # Start progress bar animation from 0%
+        self.gui.reset_progress_animation()
 
         try:
             with concurrent.futures.ThreadPoolExecutor(
@@ -1309,6 +1318,7 @@ class App:
 
                 # Process completed tasks with cancellation polling
                 pending = set(future_to_rom.keys())
+                total_roms_count = len(pending)
                 while pending:
                     # Check for user cancellation
                     if self._check_scrape_cancelled():
@@ -1320,13 +1330,31 @@ class App:
                             f.cancel()
                         break
 
-                    # Wait for next completion with short timeout
-                    # so we can poll for cancellation regularly
+                    # Short poll timeout (70ms) gives smooth ~14 FPS progress
+                    # bar animation while still allowing quick cancellation.
                     done, pending = concurrent.futures.wait(
                         pending,
-                        timeout=0.3,
+                        timeout=0.07,
                         return_when=concurrent.futures.FIRST_COMPLETED,
                     )
+
+                    # Redraw progress every poll iteration (not just on
+                    # completion) so the animated bar plays out smoothly even
+                    # when no task has finished yet.
+                    if not done:
+                        processed_so_far = completed + failed
+                        if processed_so_far > 0:
+                            progress = processed_so_far / total_roms_count
+                            elapsed_so_far = time.time() - start_time
+                            avg_so_far = elapsed_so_far / processed_so_far
+                            eta = avg_so_far * (total_roms_count - processed_so_far)
+                            self.gui.draw_log_with_progress(
+                                f"{processed_so_far}/{total_roms_count} ROMs "
+                                f"- ETA: {eta/60:.1f}min "
+                                f"[B] Cancel",
+                                progress,
+                            )
+                            self.gui.draw_paint()
 
                     for future in done:
                         rom = future_to_rom[future]
@@ -1336,6 +1364,8 @@ class App:
                                 completed += 1
                             else:
                                 failed += 1
+                                if not result.get("skipped"):
+                                    failed_roms.append(rom)
                         except exceptions.RateLimitError as e:
                             logger.log_error(
                                 f"Rate limit error during batch scraping: {e}"
@@ -1350,9 +1380,11 @@ class App:
                                 f"API access forbidden for ROM {rom.name}: {e}"
                             )
                             failed += 1
+                            failed_roms.append(rom)
                         except Exception as e:
                             logger.log_error(f"Error scraping ROM {rom.name}: {e}")
                             failed += 1
+                            failed_roms.append(rom)
 
                     if quota_exceeded:
                         break
@@ -1423,15 +1455,59 @@ class App:
             input.stop_nonblocking()
 
         time.sleep(1)
+
+        # Offer to retry failed ROMs (but not after cancel/quota — user had a
+        # reason to stop; don't silently hammer the API again).
+        if failed_roms and not cancelled and not quota_exceeded:
+            self._offer_retry_failed(failed_roms, roms_data)
+
         self.skip_input_check = True
+
+    def _offer_retry_failed(self, failed_roms: List[Rom], roms_data: RomsData) -> None:
+        """Prompt the user to retry ROMs that failed during batch scraping."""
+        count = len(failed_roms)
+        self.gui.draw_log(
+            f"{count} ROM{'s' if count != 1 else ''} failed. A=retry B=skip"
+        )
+        self.gui.draw_paint()
+
+        input.start_nonblocking()
+        try:
+            # Wait up to 10s for A/B; default to skip
+            deadline = time.time() + 10.0
+            while time.time() < deadline:
+                input.check_input_nonblocking()
+                if input.key_pressed("A"):
+                    break
+                if input.key_pressed("B") or input.key_pressed("MENUF"):
+                    return
+                time.sleep(0.1)
+            else:
+                return
+        finally:
+            input.stop_nonblocking()
+
+        # Retry: re-run batch scrape on just the failed ROMs
+        original_list = roms_data.roms_to_scrape
+        roms_data.roms_to_scrape = failed_roms
+        try:
+            self._scrape_all_roms(roms_data)
+        finally:
+            roms_data.roms_to_scrape = original_list
 
     def _process_rom(self, rom: Rom, roms_data: RomsData) -> Tuple[Any, Any, Any, str]:
         """Process a single ROM (scrape and save media)."""
         scraped_box, scraped_preview, scraped_synopsis, scraped_metadata, game_id = (
             self._scrape_rom_media(rom, roms_data.system_id)
         )
-        self._save_scraped_media(rom, roms_data, scraped_box, scraped_preview,
-                                 scraped_synopsis, scraped_metadata)
+        self._save_scraped_media(
+            rom,
+            roms_data,
+            scraped_box,
+            scraped_preview,
+            scraped_synopsis,
+            scraped_metadata,
+        )
 
         # Download video if enabled and game was found
         if self.config.video_enabled and game_id:
