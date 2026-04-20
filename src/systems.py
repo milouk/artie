@@ -119,12 +119,83 @@ SYSTEMS = {
 }
 # fmt: on
 
+# Alternate directory names that point at the same system. Keeps Artie
+# working on devices where the user renamed folders or where a different
+# muOS skin uses a different convention. Keys and values are compared
+# lowercase in build_systems_mapping.
+ALIASES = {
+    # Sega
+    "GENESIS": "MEGADRIVE",
+    "MD": "MEGADRIVE",
+    "SMD": "MEGADRIVE",
+    "MASTERSYSTEM": "MS",
+    "SMS": "MS",
+    "GAMEGEAR": "GG",
+    "DREAMCAST": "DC",
+    "SEGACD-MCD": "SEGACD",
+    "MEGACD": "SEGACD",
+    "32X": "SEGA32X",
+    "SEGASATURN": "SATURN",
+    # Nintendo
+    "FAMICOM": "NES",
+    "SUPERNES": "SNES",
+    "SUPERFAMICOM": "SNES",
+    "SFC": "SNES",
+    "GAMEBOY": "GB",
+    "GAMEBOYCOLOR": "GBC",
+    "GAMEBOYADVANCE": "GBA",
+    "GBASP": "GBA",
+    "NINTENDO64": "N64",
+    "VIRTUALBOY": "VB",
+    "NDSI": "NDS",
+    # Sony
+    "PLAYSTATION": "PS",
+    "PSX": "PS",
+    "PS1": "PS",
+    "PSONE": "PS",
+    "PSP1000": "PSP",
+    # NEC / TurboGrafx
+    "TG16": "PCE",
+    "TURBOGRAFX": "PCE",
+    "TURBOGRAFX16": "PCE",
+    "PCENGINE": "PCE",
+    "TGCD": "PCECD",
+    "TG-CD": "PCECD",
+    "TURBOGRAFXCD": "PCECD",
+    # Atari
+    "ATARIJAGUAR": "JAGUAR",
+    "ATARILYNX": "LYNX",
+    # SNK
+    "NEOGEOPOCKET": "NGP",
+    "NEOGEOPOCKETCOLOR": "NGC",
+    # Arcade
+    "ARCADIA": "ARCADE",
+    "FBA": "FBALPHA",
+    "FBN": "FBNEO",
+    # Misc
+    "PICO8": "PICO",
+    "TIC80": "TIC",
+    "ZX81": "ZXEIGHTYONE",
+    "ZXSPECTRUM": "ZXS",
+    "SPECTRUM": "ZXS",
+    "COMMODORE64": "C64",
+    "AMSTRAD": "CPC",
+    "AMSTRADCPC": "CPC",
+    "MSX1": "MSX",
+    "GAMEANDWATCH": "GW",
+    "VIC-20": "VIC20",
+    "PLUS4": "CPLUS4",
+    "C-64": "C64",
+}
+
 
 def build_systems_mapping(roms_path: str = None) -> dict:
     """Build the systems mapping dict compatible with the old config format.
 
     Returns a dict keyed by lowercase dir name, with each value containing
-    id, name, dir, box, preview, and synopsis paths.
+    id, name, dir, box, preview, and synopsis paths. Aliases (see ALIASES
+    above) resolve to the same entry as their canonical name so users who
+    renamed ROM folders still get matched.
     """
     mapping = {}
     for dir_name, (sys_id, name, catalogue) in SYSTEMS.items():
@@ -139,4 +210,21 @@ def build_systems_mapping(roms_path: str = None) -> dict:
             "synopsis": f"{CATALOGUE_BASE}/{catalogue}/text/",
             "video": f"{CATALOGUE_BASE}/{catalogue}/video/",
         }
+
+    # Register aliases — each points to the canonical entry's config but
+    # keeps its own "dir" (so media is still written under the user's
+    # folder name).
+    for alias, canonical in ALIASES.items():
+        canonical_key = canonical.lower()
+        if canonical_key not in mapping:
+            continue
+        alias_key = alias.lower()
+        if alias_key in mapping:
+            # An alias that happens to also be a canonical system wins
+            # against itself — don't overwrite a real entry.
+            continue
+        entry = dict(mapping[canonical_key])
+        entry["dir"] = alias
+        mapping[alias_key] = entry
+
     return mapping
