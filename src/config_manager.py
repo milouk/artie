@@ -116,21 +116,33 @@ class ConfigManager:
                     data = json.load(f)
                 logger.log_info(f"Loaded settings from {settings_file}")
                 # Merge with defaults for any missing keys
-                merged = {**DEFAULT_SETTINGS, **data}
-                return merged
+                return {**DEFAULT_SETTINGS, **data}
             except (json.JSONDecodeError, IOError) as e:
-                logger.log_warning(f"Failed to read settings.json: {e}")
+                # settings.json exists but is corrupt. Don't silently drop
+                # credentials — move the broken file aside so the user
+                # can recover it, and surface the failure loudly in the
+                # log. First-launch credential prompt kicks in after.
+                backup = settings_file.with_suffix(".json.corrupt")
+                try:
+                    settings_file.rename(backup)
+                    logger.log_error(
+                        f"settings.json is corrupt ({e}); moved to {backup.name}. "
+                        f"Credentials reset — re-enter them on the settings screen."
+                    )
+                except OSError as move_err:
+                    logger.log_error(
+                        f"settings.json corrupt ({e}) and could not be "
+                        f"moved aside ({move_err}); using defaults."
+                    )
 
-        # Try migrating from old config.json
+        # Try migrating from old config.json (pre-4.x installs)
         old_config = Path(settings_dir) / "config.json"
         if old_config.exists():
             logger.log_info("Migrating from config.json to settings.json")
             settings = self._migrate_from_config(old_config)
-            # Save the new settings.json
             self._write_settings(settings_file, settings)
             return settings
 
-        # No settings file — use defaults
         logger.log_info("No settings file found, using defaults")
         return dict(DEFAULT_SETTINGS)
 
@@ -222,9 +234,7 @@ class ConfigManager:
                 "type": s.get("preview_type", "ss"),
                 "enabled": s.get("preview_enabled", True),
                 "apply_mask": s.get("preview_mask", False),
-                "mask_path": s.get(
-                    "preview_mask_path", PREVIEW_CONFIG["mask_path"]
-                ),
+                "mask_path": s.get("preview_mask_path", PREVIEW_CONFIG["mask_path"]),
             },
             "synopsis": {
                 "enabled": s.get("synopsis_enabled", True),
