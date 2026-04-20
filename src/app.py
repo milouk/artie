@@ -207,7 +207,6 @@ class App:
             self.gui.apply_theme(theme)
             input.open_persistent()
             self.gui.draw_start(self._display_width, self._display_height)
-            self.gui.screen_reset()
             main_gui = self.gui.create_image()
             self.gui.draw_active(main_gui)
         except Exception as e:

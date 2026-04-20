@@ -122,10 +122,6 @@ class GUI:
     # Lifecycle
     # ------------------------------------------------------------------
 
-    def screen_reset(self):
-        """No-op — pygame handles display configuration."""
-        pass
-
     def draw_start(self, display_width: int = 0, display_height: int = 0):
         """Create the display surface.
 
