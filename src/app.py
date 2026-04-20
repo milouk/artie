@@ -128,6 +128,10 @@ class App:
         self._emulators_dirty = True
         self._roms_dirty = True
 
+        # Network reachability (None = unknown, True/False once polled)
+        self._network_online: Optional[bool] = None
+        self._network_monitor_stop = threading.Event()
+
         # Scraping cancellation
         self._scrape_cancelled = threading.Event()
         # If the user confirms exit mid-batch, we finish cancellation
@@ -189,6 +193,10 @@ class App:
 
                 # Check for updates (non-blocking, don't fail startup)
                 self._check_for_updates()
+
+                # Background connectivity check so we can show an
+                # online/offline dot in the header.
+                self._start_network_monitor()
             else:
                 logger.log_info("Offline mode enabled — skipping API checks")
 
@@ -297,6 +305,41 @@ class App:
             logger.log_warning(
                 f"Continuing with {self.config.threads} threads (unvalidated)"
             )
+
+    def _start_network_monitor(self) -> None:
+        """Background thread that keeps self._network_online up to date.
+
+        Does a cheap TCP connect to the ScreenScraper host every 30 s. No
+        API quota consumed, no credentials used. The result drives the
+        connectivity dot in the header.
+        """
+        import socket
+
+        def _probe() -> bool:
+            try:
+                with socket.create_connection(
+                    ("api.screenscraper.fr", 443), timeout=3.0
+                ):
+                    return True
+            except OSError:
+                return False
+
+        def _loop():
+            # Short initial delay so the first check doesn't race startup
+            if self._network_monitor_stop.wait(2.0):
+                return
+            while True:
+                new_state = _probe()
+                if new_state != self._network_online:
+                    self._network_online = new_state
+                    # Force the emulator screen to repaint so the header
+                    # dot colour updates; the main loop only redraws on
+                    # dirty-flag changes.
+                    self._emulators_dirty = True
+                if self._network_monitor_stop.wait(30.0):
+                    return
+
+        threading.Thread(target=_loop, daemon=True).start()
 
     def _check_for_updates(self) -> None:
         """Check for OTA updates on startup (non-blocking)."""
@@ -588,6 +631,19 @@ class App:
         self.gui.draw_text(
             (235, 18), f"v{VERSION}", font=11, color=self.gui.COLOR_MUTED, anchor="mm"
         )
+
+        # Connectivity dot at far-right of the header (hidden while
+        # offline mode is on — that's its own big badge). Green when
+        # reachable, red when not, muted when the monitor hasn't
+        # reported yet.
+        if not (self.config and self.config.offline_mode):
+            if self._network_online is True:
+                dot_color = self.gui.COLOR_SUCCESS
+            elif self._network_online is False:
+                dot_color = "#c94c4c"
+            else:
+                dot_color = self.gui.COLOR_MUTED
+            self.gui.draw_circle((614, 14), 8, fill=dot_color, outline=None)
 
         # Offline mode badge
         if self.config and self.config.offline_mode:
