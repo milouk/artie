@@ -921,6 +921,10 @@ class App:
             self.skip_input_check = True
             return
 
+        if not self._any_media_enabled():
+            self._warn_no_media_enabled()
+            return
+
         # Show system selection screen
         selection_screen = SystemSelectionScreen(self.gui, available_systems)
         chosen = selection_screen.show()
@@ -1193,6 +1197,28 @@ class App:
         self._roms_dirty = True
         time.sleep(0.3)
 
+    def _any_media_enabled(self) -> bool:
+        """True if at least one media type is enabled in settings."""
+        c = self.config
+        return bool(
+            c
+            and (
+                c.box_enabled
+                or c.preview_enabled
+                or c.synopsis_enabled
+                or c.video_enabled
+            )
+        )
+
+    def _warn_no_media_enabled(self) -> None:
+        """Tell the user nothing will be scraped and bail gracefully."""
+        self.gui.draw_log(
+            "No media types enabled. Turn on Box/Preview/Synopsis/Video in Settings."
+        )
+        self.gui.draw_paint()
+        time.sleep(self.LOG_WAIT * 2)
+        self.skip_input_check = True
+
     def _scrape_single_rom(self, roms_data: RomsData) -> None:
         """Scrape a single ROM with proper error handling."""
         if not roms_data.roms_to_scrape:
@@ -1203,6 +1229,10 @@ class App:
             self.gui.draw_paint()
             time.sleep(self.LOG_WAIT)
             self.skip_input_check = True
+            return
+
+        if not self._any_media_enabled():
+            self._warn_no_media_enabled()
             return
 
         self._scrape_cancelled.clear()
@@ -1382,6 +1412,10 @@ class App:
     def _scrape_all_roms(self, roms_data: RomsData) -> None:
         """Scrape all ROMs using thread pool with performance monitoring and progress indicators."""
         if not roms_data.roms_to_scrape:
+            return
+
+        if not self._any_media_enabled():
+            self._warn_no_media_enabled()
             return
 
         total_roms = len(roms_data.roms_to_scrape)
