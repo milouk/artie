@@ -1341,19 +1341,11 @@ class App:
                     # completion) so the animated bar plays out smoothly even
                     # when no task has finished yet.
                     if not done:
-                        processed_so_far = completed + failed
-                        if processed_so_far > 0:
-                            progress = processed_so_far / total_roms_count
-                            elapsed_so_far = time.time() - start_time
-                            avg_so_far = elapsed_so_far / processed_so_far
-                            eta = avg_so_far * (total_roms_count - processed_so_far)
-                            self.gui.draw_log_with_progress(
-                                f"{processed_so_far}/{total_roms_count} ROMs "
-                                f"- ETA: {eta/60:.1f}min "
-                                f"[B] Cancel",
-                                progress,
-                            )
-                            self.gui.draw_paint()
+                        self._draw_batch_progress(
+                            completed + failed,
+                            total_roms_count,
+                            start_time,
+                        )
 
                     for future in done:
                         rom = future_to_rom[future]
@@ -1389,25 +1381,9 @@ class App:
                         break
 
                     # Show progress after processing completed batch
-                    processed = completed + failed
-                    if processed > 0:
-                        elapsed_time = time.time() - start_time
-                        avg_time_per_rom = elapsed_time / processed
-                        estimated_remaining = avg_time_per_rom * (
-                            total_roms - processed
-                        )
-                        progress_msg = (
-                            f"{processed}/{total_roms} ROMs "
-                            f"- ETA: {estimated_remaining/60:.1f}min "
-                            f"[B] Cancel"
-                        )
-                        logger.log_info(progress_msg)
-                        progress = processed / total_roms
-                        self.gui.draw_log_with_progress(
-                            progress_msg,
-                            progress,
-                        )
-                        self.gui.draw_paint()
+                    self._draw_batch_progress(
+                        completed + failed, total_roms, start_time, log=True
+                    )
 
             total_time = time.time() - start_time
             performance_summary = [
@@ -1461,6 +1437,33 @@ class App:
             self._offer_retry_failed(failed_roms, roms_data)
 
         self.skip_input_check = True
+
+    def _draw_batch_progress(
+        self,
+        processed: int,
+        total: int,
+        start_time: float,
+        log: bool = False,
+    ) -> None:
+        """Render the batch progress overlay with ETA and cache hit-rate.
+
+        `log=True` also writes the same line to the log file — set only on
+        real completions, not on animation-polling redraws (we don't want
+        hundreds of identical log lines per batch).
+        """
+        if processed <= 0 or total <= 0:
+            return
+        elapsed = time.time() - start_time
+        eta = (elapsed / processed) * (total - processed)
+        hit_rate = self.cache_manager.get_stats().get("hit_rate_percent", 0)
+        msg = (
+            f"{processed}/{total} • cache {hit_rate:.0f}% • "
+            f"ETA {eta/60:.1f}m • [B] Cancel"
+        )
+        if log:
+            logger.log_info(msg)
+        self.gui.draw_log_with_progress(msg, processed / total)
+        self.gui.draw_paint()
 
     def _offer_retry_failed(self, failed_roms: List[Rom], roms_data: RomsData) -> None:
         """Prompt the user to retry ROMs that failed during batch scraping."""
