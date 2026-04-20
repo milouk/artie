@@ -1,10 +1,29 @@
 """Settings screen and virtual keyboard for Artie Scraper."""
 
 import json
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 import input as inp
 from logger import LoggerSingleton as logger
+
+
+def _discover_masks() -> List[str]:
+    """Find PNG masks shipped in assets/masks/ and return relative paths.
+
+    Returned sorted alphabetically so the order is stable across builds.
+    """
+    masks_dir = Path("assets/masks")
+    if not masks_dir.is_dir():
+        return []
+    return sorted(
+        f"assets/masks/{p.name}"
+        for p in masks_dir.iterdir()
+        if p.suffix.lower() == ".png" and not p.name.startswith(".")
+    )
+
+
+MASK_CHOICES = _discover_masks()
 
 
 # ---------------------------------------------------------------------------
@@ -43,7 +62,13 @@ SETTINGS_DEFS: List[Tuple[str, str, str, str, dict]] = [
         {"options": ["mixrbv2", "mixrbv1", "box-2D", "box-3D"]},
     ),
     ("Media", "box_mask", "Box Mask", "toggle", {}),
-    ("Media", "box_mask_path", "Box Mask Path", "text", {}),
+    (
+        "Media",
+        "box_mask_path",
+        "Box Mask",
+        "choice" if MASK_CHOICES else "text",
+        {"options": MASK_CHOICES} if MASK_CHOICES else {},
+    ),
     ("Media", "preview_enabled", "Preview", "toggle", {}),
     (
         "Media",
@@ -53,7 +78,13 @@ SETTINGS_DEFS: List[Tuple[str, str, str, str, dict]] = [
         {"options": ["ss", "sstitle", "fanart"]},
     ),
     ("Media", "preview_mask", "Preview Mask", "toggle", {}),
-    ("Media", "preview_mask_path", "Preview Mask Path", "text", {}),
+    (
+        "Media",
+        "preview_mask_path",
+        "Preview Mask",
+        "choice" if MASK_CHOICES else "text",
+        {"options": MASK_CHOICES} if MASK_CHOICES else {},
+    ),
     ("Media", "synopsis_enabled", "Synopsis", "toggle", {}),
     ("Media", "video_enabled", "Video", "toggle", {}),
     ("Display", "show_logos", "Show Logos", "toggle", {}),
@@ -507,6 +538,12 @@ class SettingsScreen:
 
         elif vtype == "choice":
             display = str(val) if val else "?"
+            # Mask paths render as 'assets/masks/gradient_1.png' — too long for
+            # the row, so trim to the filename stem.
+            if "/" in display or display.endswith(".png"):
+                display = Path(display).stem
+            if len(display) > 16:
+                display = display[:15] + "…"
             g.draw_text(
                 (585, row_mid),
                 f"< {display} >",
@@ -619,9 +656,7 @@ class SystemSelectionScreen:
 
             # Checkbox
             cb_color = g.COLOR_SUCCESS if checked else g.COLOR_SECONDARY_LIGHT
-            g.draw_rectangle_r(
-                [30, y_pos + 6, 50, y_pos + 26], 4, fill=cb_color
-            )
+            g.draw_rectangle_r([30, y_pos + 6, 50, y_pos + 26], 4, fill=cb_color)
             if checked:
                 g.draw_text(
                     (40, y_pos + 16), "✓", font=12, color=g.COLOR_WHITE, anchor="mm"

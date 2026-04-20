@@ -54,7 +54,7 @@ BOX_CONFIG = {
     "height": 240,
     "width": 320,
     "apply_mask": False,
-    "mask_path": "assets/masks/box_mask.png",
+    "mask_path": "assets/masks/gradient_1.png",
     "resize_mask": True,
 }
 
@@ -62,7 +62,7 @@ PREVIEW_CONFIG = {
     "height": 275,
     "width": 515,
     "apply_mask": False,
-    "mask_path": "assets/masks/preview_mask.png",
+    "mask_path": "assets/masks/gradient_1.png",
     "resize_mask": True,
 }
 
@@ -78,11 +78,11 @@ DEFAULT_SETTINGS = {
     "box_enabled": True,
     "box_type": "mixrbv2",
     "box_mask": False,
-    "box_mask_path": "assets/masks/box_mask.png",
+    "box_mask_path": "assets/masks/gradient_1.png",
     "preview_enabled": True,
     "preview_type": "ss",
     "preview_mask": False,
-    "preview_mask_path": "assets/masks/preview_mask.png",
+    "preview_mask_path": "assets/masks/gradient_1.png",
     "synopsis_enabled": True,
     "synopsis_lang": "en",
     "regions": "us,eu,jp,br,ss,ame,wor",
