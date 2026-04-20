@@ -1171,8 +1171,27 @@ class App:
             self._handle_roms_page_navigation(
                 len(roms_data.roms_to_scrape), LARGE_NAVIGATION_STEP
             )
+        elif input.key_pressed("SELECT"):
+            self._toggle_show_scraped_roms()
 
         return False
+
+    def _toggle_show_scraped_roms(self) -> None:
+        """Flip show_scraped_roms and rebuild the ROM list.
+
+        Quick hotkey alternative to digging through settings to switch
+        between "show all ROMs" and "show only ROMs missing media".
+        """
+        new_value = not self.config.show_scraped_roms
+        self.config_manager.persist_setting("show_scraped_roms", new_value)
+        label = "all" if new_value else "missing media only"
+        self.gui.draw_log(f"Showing {label}")
+        self.gui.draw_paint()
+        # Invalidate caches so the list rebuilds with the new filter
+        self.cached_roms_data = None
+        self.roms_selected_position = 0
+        self._roms_dirty = True
+        time.sleep(0.3)
 
     def _scrape_single_rom(self, roms_data: RomsData) -> None:
         """Scrape a single ROM with proper error handling."""

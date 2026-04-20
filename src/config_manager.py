@@ -188,6 +188,19 @@ class ConfigManager:
         logger.log_info("Successfully migrated settings from config.json")
         return settings
 
+    def persist_setting(self, key: str, value: Any) -> None:
+        """Update a single setting both in-memory and on disk.
+
+        Used by hotkeys (e.g. SELECT to toggle show_scraped_roms on the
+        ROMs screen) where we don't want to drag the user through the
+        full settings screen just to flip a boolean.
+        """
+        self.settings[key] = value
+        if self.config is not None and hasattr(self.config, key):
+            setattr(self.config, key, value)
+        if self.settings_path:
+            self._write_settings(Path(self.settings_path), self.settings)
+
     def _write_settings(self, path: Path, settings: Dict[str, Any]) -> None:
         """Write settings to disk."""
         try:
