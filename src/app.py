@@ -1251,9 +1251,7 @@ class App:
 
     def _warn_no_media_enabled(self) -> None:
         """Tell the user nothing will be scraped and bail gracefully."""
-        self.gui.draw_log(
-            "Enable Box, Preview, Synopsis or Video in Settings"
-        )
+        self.gui.draw_log("Enable Box, Preview, Synopsis or Video in Settings")
         self.gui.draw_paint()
         time.sleep(self.LOG_WAIT * 2)
         self.skip_input_check = True
@@ -1628,12 +1626,7 @@ class App:
         # reason to stop; don't silently hammer the API again). Also don't
         # re-offer inside a retry itself: some ROMs (hacks, homebrew) will
         # fail forever and we'd loop holding A down.
-        if (
-            failed_roms
-            and not cancelled
-            and not quota_exceeded
-            and not self._in_retry
-        ):
+        if failed_roms and not cancelled and not quota_exceeded and not self._in_retry:
             self._offer_retry_failed(failed_roms, roms_data)
 
         self.skip_input_check = True
@@ -2098,20 +2091,23 @@ class App:
         )
 
     def _show_rom_detail(self, roms_data: RomsData) -> None:
-        """Show detailed view of selected ROM with scraped media previews."""
+        """Show detailed view of selected ROM with scraped media previews.
+
+        Up/Down while in this view cycles through the ROM list without
+        making the user back out and press Y again.
+        """
         if not roms_data.roms_to_scrape:
             return
 
+        def _media_flags(rom, data):
+            return (
+                self.config.box_enabled and rom not in data.roms_without_box,
+                self.config.preview_enabled and rom not in data.roms_without_preview,
+                self.config.synopsis_enabled and rom not in data.roms_without_synopsis,
+            )
+
         rom = roms_data.roms_to_scrape[self.roms_selected_position]
-
-        has_box = self.config.box_enabled and rom not in roms_data.roms_without_box
-        has_preview = (
-            self.config.preview_enabled and rom not in roms_data.roms_without_preview
-        )
-        has_text = (
-            self.config.synopsis_enabled and rom not in roms_data.roms_without_synopsis
-        )
-
+        has_box, has_preview, has_text = _media_flags(rom, roms_data)
         self._render_rom_detail(rom, roms_data, has_box, has_preview, has_text)
 
         # Blocking input loop — wait for user action
@@ -2119,8 +2115,24 @@ class App:
             input.check_input()
             if input.key_pressed("B") or input.key_pressed("MENUF"):
                 break
-            elif input.key_pressed("A"):
-                # Only scrape if ROM is missing at least one enabled media type
+
+            if input.key_pressed("DY"):
+                # Cycle through ROMs without leaving the detail view.
+                total = len(roms_data.roms_to_scrape)
+                if input.current_value == 1:
+                    self.roms_selected_position = (
+                        self.roms_selected_position + 1
+                    ) % total
+                else:
+                    self.roms_selected_position = (
+                        self.roms_selected_position - 1
+                    ) % total
+                rom = roms_data.roms_to_scrape[self.roms_selected_position]
+                has_box, has_preview, has_text = _media_flags(rom, roms_data)
+                self._render_rom_detail(rom, roms_data, has_box, has_preview, has_text)
+                continue
+
+            if input.key_pressed("A"):
                 missing_media = (
                     (self.config.box_enabled and not has_box)
                     or (self.config.preview_enabled and not has_preview)
@@ -2129,24 +2141,13 @@ class App:
                 if not missing_media:
                     continue
                 self._scrape_single_rom(roms_data)
-                # Refresh detail view after scraping
                 self._clear_rom_cache()
                 roms_data = self._prepare_roms_data()
                 if roms_data is None:
                     break
                 self.cached_roms_data = roms_data
                 self.cached_system = self.selected_system
-                has_box = (
-                    self.config.box_enabled and rom not in roms_data.roms_without_box
-                )
-                has_preview = (
-                    self.config.preview_enabled
-                    and rom not in roms_data.roms_without_preview
-                )
-                has_text = (
-                    self.config.synopsis_enabled
-                    and rom not in roms_data.roms_without_synopsis
-                )
+                has_box, has_preview, has_text = _media_flags(rom, roms_data)
                 self._render_rom_detail(rom, roms_data, has_box, has_preview, has_text)
 
         self.skip_input_check = True
