@@ -1000,31 +1000,38 @@ class App:
             if self.current_window != "roms":
                 return
 
-            # Check if we can use cached ROM data
-            if (
-                self.cached_system == self.selected_system
-                and self.cached_roms_data is not None
-            ):
-                roms_data = self.cached_roms_data
-            else:
-                roms_data = self._prepare_roms_data()
-
-                # Cache the prepared data if successful
-                if roms_data is not None:
-                    self.cached_roms_data = roms_data
+            def _get_roms_data():
+                """Return cached ROM data or rebuild on miss."""
+                if (
+                    self.cached_system == self.selected_system
+                    and self.cached_roms_data is not None
+                ):
+                    return self.cached_roms_data
+                data = self._prepare_roms_data()
+                if data is not None:
+                    self.cached_roms_data = data
                     self.cached_system = self.selected_system
+                return data
 
+            roms_data = _get_roms_data()
             if roms_data is None:
                 self._exit_roms_menu()
                 return
 
-            # Handle input
+            # Handle input. Some actions (e.g. SELECT to toggle missing-
+            # only) invalidate the ROM cache mid-frame; re-fetch afterwards
+            # so we render the new filter immediately instead of next tick.
             old_pos = self.roms_selected_position
             if self._handle_roms_input(roms_data):
                 self._exit_roms_menu()
                 return
             if self.roms_selected_position != old_pos:
                 self._roms_dirty = True
+            if self.cached_roms_data is None:
+                roms_data = _get_roms_data()
+                if roms_data is None:
+                    self._exit_roms_menu()
+                    return
 
             # Only re-render when something changed
             if self._roms_dirty:
@@ -2028,12 +2035,18 @@ class App:
     def _draw_roms_controls(self) -> None:
         """Draw control buttons for ROM screen."""
         y = 453
-        self._draw_button_pill((15, y), "ST", "All")
-        self._draw_button_pill((95, y), "A", "Scrape")
-        self._draw_button_pill((170, y), "X", "Del")
-        self._draw_button_pill((245, y), "Y", "View")
-        self._draw_button_pill((340, y), "B", "Back")
-        self._draw_button_pill((440, y), "M", "Exit")
+        # SE label tracks the state that SELECT will switch to — clearer
+        # than a generic "Filter".
+        filter_label = (
+            "Missing" if (self.config and self.config.show_scraped_roms) else "All"
+        )
+        self._draw_button_pill((10, y), "ST", "All")
+        self._draw_button_pill((78, y), "A", "Scrape")
+        self._draw_button_pill((150, y), "X", "Del")
+        self._draw_button_pill((210, y), "Y", "View")
+        self._draw_button_pill((275, y), "SE", filter_label)
+        self._draw_button_pill((370, y), "B", "Back")
+        self._draw_button_pill((445, y), "M", "Exit")
 
     def _draw_button_pill(self, pos: Tuple[int, int], button: str, text: str) -> None:
         """Draw a modern pill-shaped button with label."""
