@@ -309,6 +309,7 @@ class GUI:
         progress: float,
         bg_color=COLOR_SECONDARY_LIGHT,
         fill_color=COLOR_PRIMARY,
+        outline_color=None,
         radius: int = 4,
     ):
         if not self._active_surface:
@@ -329,6 +330,15 @@ class GUI:
                 fill_rect,
                 border_radius=r,
             )
+        # Outline on top so the fill doesn't bleed past the rounded corners.
+        outline = outline_color if outline_color is not None else self.COLOR_MUTED
+        pygame.draw.rect(
+            self._active_surface,
+            self._color(outline),
+            bg_rect,
+            width=1,
+            border_radius=r,
+        )
 
     # ------------------------------------------------------------------
     # Image helpers
