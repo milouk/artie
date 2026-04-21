@@ -224,9 +224,34 @@ class App:
             self.gui.draw_start(self._display_width, self._display_height)
             main_gui = self.gui.create_image()
             self.gui.draw_active(main_gui)
+            # Paint a branded loading state immediately so the user isn't
+            # staring at a black screen while credentials validate, etc.
+            self._draw_loading_splash("Loading...")
         except Exception as e:
             logger.log_error(f"Failed to initialize GUI: {e}")
             raise exceptions.ScraperError(f"GUI initialization failed: {e}")
+
+    def _draw_loading_splash(self, message: str) -> None:
+        """Paint a simple branded splash so startup doesn't look broken."""
+        if not self.gui:
+            return
+        scr = self.gui.create_image()
+        self.gui.draw_active(scr)
+        self.gui.draw_text(
+            (320, 220),
+            "ARTIE SCRAPER",
+            font=18,
+            color=self.gui.COLOR_PRIMARY,
+            anchor="mm",
+        )
+        self.gui.draw_text(
+            (320, 260),
+            message,
+            font=13,
+            color=self.gui.COLOR_MUTED,
+            anchor="mm",
+        )
+        self.gui.draw_paint()
 
     def _start_main_interface(self) -> None:
         """Start the main GUI interface."""
@@ -239,6 +264,7 @@ class App:
     def _validate_and_configure_threads(self) -> None:
         """Validate API credentials and configure thread limits in a single API call."""
         try:
+            self._draw_loading_splash("Checking credentials...")
             logger.log_info("Validating API credentials and configuring threads...")
             user_info = get_user_data(
                 self.config.dev_id,
@@ -389,10 +415,9 @@ class App:
         assert self.config is not None
         assert self.gui is not None
         while not self.config.username or not self.config.password:
-            self.gui.draw_log("Please configure your ScreenScraper credentials.")
-            self.gui.draw_paint()
-            time.sleep(self.LOG_WAIT)
-
+            # Go straight to the settings screen — showing an "error-
+            # looking" popup first felt broken. The settings screen's own
+            # Username/Password rows are the prompt.
             screen = SettingsScreen(
                 self.gui,
                 self.config_manager.settings_path,
