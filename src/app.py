@@ -635,18 +635,22 @@ class App:
             (235, 18), f"v{VERSION}", font=11, color=self.gui.COLOR_MUTED, anchor="mm"
         )
 
-        # Connectivity dot at far-right of the header (hidden while
-        # offline mode is on — that's its own big badge). Green when
-        # reachable, red when not, muted when the monitor hasn't
-        # reported yet.
+        # Connectivity icon (3 signal bars) at the far-right of the
+        # header. Hidden while offline mode is on — that's its own big
+        # badge. Green = reachable, red = unreachable, muted = unknown.
         if not (self.config and self.config.offline_mode):
             if self._network_online is True:
-                dot_color = self.gui.COLOR_SUCCESS
+                sig_color = self.gui.COLOR_SUCCESS
             elif self._network_online is False:
-                dot_color = "#c94c4c"
+                sig_color = "#c94c4c"
             else:
-                dot_color = self.gui.COLOR_MUTED
-            self.gui.draw_circle((614, 14), 8, fill=dot_color, outline=None)
+                sig_color = self.gui.COLOR_MUTED
+            # Three bars, bottoms aligned at y=22, heights 3/5/7
+            base_y = 22
+            for i, (x, h) in enumerate([(608, 3), (612, 5), (616, 7)]):
+                self.gui.draw_rectangle_r(
+                    [x, base_y - h, x + 3, base_y], 1, fill=sig_color
+                )
 
         # Offline mode badge
         if self.config and self.config.offline_mode:
@@ -675,11 +679,11 @@ class App:
 
         if available_systems:
             self._draw_available_systems(available_systems)
-            # Page indicator
+            # Page indicator (left of the connectivity dot at x=614)
             total_pages = (len(available_systems) + self.max_elem - 1) // self.max_elem
             current_page = (self.selected_position // self.max_elem) + 1
             self.gui.draw_text(
-                (620, 18),
+                (600, 18),
                 f"{current_page}/{total_pages}",
                 font=11,
                 color=self.gui.COLOR_MUTED,

@@ -84,9 +84,20 @@ class InputManager:
             logger.log_warning(f"Joystick init failed: {e}")
 
     def check_input(self) -> None:
-        """Block until a meaningful input event occurs."""
+        """Wait for a meaningful input event, with a periodic wake-up.
+
+        `pygame.event.wait(timeout)` returns a NOEVENT after the timeout so
+        the caller gets a chance to re-run its own draw loop — that way a
+        background state change (e.g. the connectivity icon flipping
+        colour) paints without needing the user to press a key. The input
+        state is cleared on timeout so callers' `key_pressed()` checks
+        don't see stale presses from the previous real event.
+        """
         while True:
-            event = pygame.event.wait()
+            event = pygame.event.wait(1500)
+            if event.type == pygame.NOEVENT:
+                self.state = InputState()
+                return
             if self._process_event(event):
                 return
 
