@@ -157,18 +157,23 @@ class VirtualKeyboard:
 
             if inp.key_pressed("DY"):
                 rows = self._rows()
+                # Vertical wrap: past the bottom jumps to the top and vice
+                # versa — faster to reach SHIFT/SPACE/OK that live on the
+                # bottom action row.
                 if inp.current_value == 1:
-                    self.row = min(self.row + 1, len(rows) - 1)
+                    self.row = (self.row + 1) % len(rows)
                 else:
-                    self.row = max(self.row - 1, 0)
+                    self.row = (self.row - 1) % len(rows)
                 self.col = min(self.col, len(rows[self.row]) - 1)
 
             elif inp.key_pressed("DX"):
+                # Horizontal wrap: past the right edge jumps to column 0,
+                # past the left edge jumps to the last column.
                 row_keys = self._rows()[self.row]
                 if inp.current_value == 1:
-                    self.col = min(self.col + 1, len(row_keys) - 1)
+                    self.col = (self.col + 1) % len(row_keys)
                 else:
-                    self.col = max(self.col - 1, 0)
+                    self.col = (self.col - 1) % len(row_keys)
 
             elif inp.key_pressed("A"):
                 key = self._rows()[self.row][self.col]
@@ -538,18 +543,20 @@ class SettingsScreen:
 
         elif vtype == "choice":
             display = str(val) if val else "?"
-            # Mask paths render as 'assets/masks/gradient_1.png' — too long for
-            # the row, so trim to the filename stem.
+            # Mask paths render as 'assets/masks/gradient_1.png' — too long
+            # for the row, so trim to the filename stem.
             if "/" in display or display.endswith(".png"):
                 display = Path(display).stem
-            if len(display) > 16:
-                display = display[:15] + "…"
+            if len(display) > 14:
+                display = display[:13] + "…"
+            # Right-anchor so long strings expand leftward and never run
+            # off the right edge of the 640 px screen.
             g.draw_text(
-                (585, row_mid),
+                (625, row_mid),
                 f"< {display} >",
                 font=14,
                 color=g.COLOR_WHITE if selected else g.COLOR_MUTED,
-                anchor="mm",
+                anchor="rm",
             )
 
         elif vtype in ("text", "password"):
