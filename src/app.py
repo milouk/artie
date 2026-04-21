@@ -1483,8 +1483,9 @@ class App:
                     )
 
                     # Redraw progress every poll iteration (not just on
-                    # completion) so the animated bar plays out smoothly even
-                    # when no task has finished yet.
+                    # completion) so the animated bar plays out smoothly
+                    # even when no task has finished yet. This one never
+                    # logs — the once-per-completion log happens below.
                     if not done:
                         self._draw_batch_progress(
                             completed + failed,
@@ -1492,6 +1493,7 @@ class App:
                             start_time,
                         )
 
+                    done_count = len(done)
                     for future in done:
                         rom = future_to_rom[future]
                         try:
@@ -1525,10 +1527,13 @@ class App:
                     if quota_exceeded:
                         break
 
-                    # Show progress after processing completed batch
-                    self._draw_batch_progress(
-                        completed + failed, total_roms, start_time, log=True
-                    )
+                    # Show progress after processing the completed batch.
+                    # Only logs when something actually changed — otherwise
+                    # the 70 ms polling loop spams identical log lines.
+                    if done_count:
+                        self._draw_batch_progress(
+                            completed + failed, total_roms, start_time, log=True
+                        )
 
             total_time = time.time() - start_time
             performance_summary = [
