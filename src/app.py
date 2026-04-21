@@ -134,6 +134,9 @@ class App:
 
         # Scraping cancellation
         self._scrape_cancelled = threading.Event()
+        # Suppresses the retry prompt inside a retry batch so permanently-
+        # failing ROMs can't trap the user in a loop.
+        self._in_retry: bool = False
         # If the user confirms exit mid-batch, we finish cancellation
         # gracefully and then exit — this flag carries that intent back to
         # _scrape_all_roms.
@@ -1581,8 +1584,15 @@ class App:
             return
 
         # Offer to retry failed ROMs (but not after cancel/quota — user had a
-        # reason to stop; don't silently hammer the API again).
-        if failed_roms and not cancelled and not quota_exceeded:
+        # reason to stop; don't silently hammer the API again). Also don't
+        # re-offer inside a retry itself: some ROMs (hacks, homebrew) will
+        # fail forever and we'd loop holding A down.
+        if (
+            failed_roms
+            and not cancelled
+            and not quota_exceeded
+            and not self._in_retry
+        ):
             self._offer_retry_failed(failed_roms, roms_data)
 
         self.skip_input_check = True
@@ -1638,13 +1648,18 @@ class App:
         finally:
             input.stop_nonblocking()
 
-        # Retry: re-run batch scrape on just the failed ROMs
+        # Retry: re-run batch scrape on just the failed ROMs. _in_retry
+        # suppresses the retry prompt inside this nested call so the user
+        # can't trap themselves in an infinite retry loop when a ROM
+        # genuinely can't be scraped (e.g. romhacks not in the database).
         original_list = roms_data.roms_to_scrape
         roms_data.roms_to_scrape = failed_roms
+        self._in_retry = True
         try:
             self._scrape_all_roms(roms_data)
         finally:
             roms_data.roms_to_scrape = original_list
+            self._in_retry = False
 
     def _process_rom(self, rom: Rom, roms_data: RomsData) -> Tuple[Any, Any, Any, str]:
         """Process a single ROM (scrape and save media)."""
