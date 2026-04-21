@@ -1227,7 +1227,7 @@ class App:
     def _warn_no_media_enabled(self) -> None:
         """Tell the user nothing will be scraped and bail gracefully."""
         self.gui.draw_log(
-            "No media types enabled. Turn on Box/Preview/Synopsis/Video in Settings."
+            "Enable Box, Preview, Synopsis or Video in Settings"
         )
         self.gui.draw_paint()
         time.sleep(self.LOG_WAIT * 2)
