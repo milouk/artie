@@ -52,6 +52,12 @@ class RomManager:
         ".inf",
     }
 
+    # How deep to walk under roms_base_path looking for system folders.
+    # 1 = direct children only (legacy behaviour). 3 covers the common
+    # /Roms/<Manufacturer>/<Console>/<Variant>/ structure that some users
+    # have without scanning the whole drive.
+    _DISCOVERY_MAX_DEPTH = 3
+
     def __init__(self, roms_base_path: str):
         """
         Initialize ROM manager.
@@ -61,6 +67,10 @@ class RomManager:
         """
         self.roms_base_path = Path(roms_base_path)
         self._validate_base_path()
+        # Populated by get_available_systems(); maps lowercased system
+        # name → the actual directory it was found in. get_roms() uses
+        # this so users with /Roms/Sega/MEGADRIVE layouts work.
+        self._discovered_paths: dict = {}
 
     def _validate_base_path(self) -> None:
         """Validate that the base ROM path exists and is accessible."""
@@ -76,30 +86,54 @@ class RomManager:
 
     def get_available_systems(self, systems_mapping: dict) -> List[str]:
         """
-        Get list of available systems based on directory structure.
+        Get list of available systems by walking the ROM base path.
+
+        Walks up to _DISCOVERY_MAX_DEPTH levels deep. Any directory
+        whose lowercased name is in `systems_mapping` is treated as a
+        system; we don't descend further into matched directories so a
+        user's `Sega/Genesis/` layout works without us also walking into
+        `Sega/Genesis/Hacks/` and trying to register `Hacks` as a
+        separate system.
+
+        The actual discovered path is cached per system so get_roms()
+        can find ROMs at any depth without us having to recompute.
 
         Args:
             systems_mapping: Mapping of system directories to configuration
 
         Returns:
-            Sorted list of available system names
+            Sorted list of available system names (lowercased keys
+            into systems_mapping)
         """
+        self._discovered_paths.clear()
         try:
-            available_systems = [
-                d.name.lower()
-                for d in self.roms_base_path.iterdir()
-                if d.is_dir() and not d.name.startswith(".")
-            ]
+            stack = [(self.roms_base_path, 0)]
+            while stack:
+                current, depth = stack.pop()
+                try:
+                    children = list(current.iterdir())
+                except (OSError, PermissionError) as e:
+                    logger.log_debug(f"Skipping {current}: {e}")
+                    continue
+                for child in children:
+                    if not child.is_dir() or child.name.startswith("."):
+                        continue
+                    key = child.name.lower()
+                    if key in systems_mapping and key not in self._discovered_paths:
+                        self._discovered_paths[key] = child
+                        # Don't descend into a matched system folder —
+                        # subdirs are ROM groupings (e.g. by region or
+                        # hack), not separate systems.
+                        continue
+                    if depth + 1 < self._DISCOVERY_MAX_DEPTH:
+                        stack.append((child, depth + 1))
 
-            # Filter to only include configured systems
-            configured_systems = [
-                system for system in available_systems if system in systems_mapping
-            ]
-
+            configured_systems = sorted(self._discovered_paths.keys())
             logger.log_debug(
-                f"Found {len(configured_systems)} configured systems: {configured_systems}"
+                f"Found {len(configured_systems)} configured systems: "
+                f"{configured_systems}"
             )
-            return sorted(configured_systems)
+            return configured_systems
 
         except Exception as e:
             logger.log_error(f"Error getting available systems: {e}")
@@ -115,8 +149,14 @@ class RomManager:
         Returns:
             List of ROM objects
         """
-        roms = []
-        system_path = self.roms_base_path / system
+        roms: List[Rom] = []
+        # Prefer the path discovered during scanning (handles nested
+        # layouts like /Roms/Sega/MEGADRIVE); fall back to the legacy
+        # roms_base_path / system join for callers that haven't run
+        # discovery yet.
+        system_path = self._discovered_paths.get(
+            system.lower(), self.roms_base_path / system
+        )
 
         if not system_path.exists():
             logger.log_warning(f"System path does not exist: {system_path}")
