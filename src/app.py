@@ -1631,6 +1631,16 @@ class App:
 
         self.skip_input_check = True
 
+    @staticmethod
+    def _fmt_duration(seconds: float) -> str:
+        """Compact, live-feeling duration: '12s', '1m12s', '1h12m'."""
+        s = max(0, int(seconds))
+        if s < 60:
+            return f"{s}s"
+        if s < 3600:
+            return f"{s // 60}m{s % 60:02d}s"
+        return f"{s // 3600}h{(s % 3600) // 60:02d}m"
+
     def _draw_batch_progress(
         self,
         processed: int,
@@ -1638,7 +1648,7 @@ class App:
         start_time: float,
         log: bool = False,
     ) -> None:
-        """Render the batch progress overlay with ETA and cache hit-rate.
+        """Render the batch progress overlay with elapsed, ETA, and cache.
 
         `log=True` also writes the same line to the log file — set only on
         real completions, not on animation-polling redraws (we don't want
@@ -1650,8 +1660,9 @@ class App:
         eta = (elapsed / processed) * (total - processed)
         hit_rate = self.cache_manager.get_stats().get("hit_rate_percent", 0)
         msg = (
-            f"{processed}/{total} • cache {hit_rate:.0f}% • "
-            f"ETA {eta/60:.1f}m • [B] Cancel"
+            f"{processed}/{total} • {self._fmt_duration(elapsed)} / "
+            f"ETA {self._fmt_duration(eta)} • cache {hit_rate:.0f}% • "
+            f"[B] Cancel"
         )
         if log:
             logger.log_info(msg)
