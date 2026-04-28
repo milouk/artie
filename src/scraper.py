@@ -26,6 +26,14 @@ VIDEO_DOWNLOAD_URL = "https://api.screenscraper.fr/api2/mediaVideoJeu.php"
 MANUAL_DOWNLOAD_URL = "https://api.screenscraper.fr/api2/mediaManuelJeu.php"
 MAX_FILE_SIZE_BYTES = 104857600  # 100MB
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+
+# Pre-compiled patterns — used in hot paths (URL logging, ROM name cleaning
+# during batch scrapes), so we compile once at import instead of on every call.
+_PASSWORD_QUERY_RE = re.compile(r"(sspassword|devpassword)=[^&]+")
+_ROM_NAME_NOISE_RE = re.compile(
+    r"(\.nkit|!|&|Disc |Rev |-|\s*\([^()]*\)|\s*\[[^\[\]]*\])"
+)
+_WHITESPACE_RE = re.compile(r"\s+")
 VALID_MEDIA_TYPES = {
     # Existing media types
     "box-2D",
@@ -138,9 +146,7 @@ def _sanitize_url(url: str) -> str:
     if not url:
         return str(url)
     try:
-        # Mask sspassword and devpassword
-        masked = re.sub(r"(sspassword|devpassword)=[^&]+", r"\1=***", str(url))
-        return masked
+        return _PASSWORD_QUERY_RE.sub(r"\1=***", str(url))
     except Exception:
         return "url_hidden"
 
@@ -288,12 +294,8 @@ def validate_rom_parameters(rom_path: str, system_id: str) -> Dict[str, str]:
 
 def clean_rom_name(file_path: str) -> str:
     file_name = os.path.basename(file_path)
-    cleaned = re.sub(
-        r"(\.nkit|!|&|Disc |Rev |-|\s*\([^()]*\)|\s*\[[^\[\]]*\])",
-        " ",
-        os.path.splitext(file_name)[0],
-    )
-    return re.sub(r"\s+", " ", cleaned).strip()
+    cleaned = _ROM_NAME_NOISE_RE.sub(" ", os.path.splitext(file_name)[0])
+    return _WHITESPACE_RE.sub(" ", cleaned).strip()
 
 
 def file_size(file_path: Union[str, Path]) -> int:
