@@ -180,7 +180,34 @@ When enabled, Artie skips credential validation, update checks, and all scraping
 
 110+ systems including: NES, SNES, Genesis, Game Boy, GBA, N64, PlayStation, Dreamcast, Saturn, Arcade (MAME, CPS1/2/3, Neo Geo), Atari (2600, 5200, 7800, Lynx, Jaguar, ST), Amiga, Commodore 64, MSX, Master System, Game Gear, TurboGrafx-16, PC Engine, WonderSwan, Virtual Boy, Neo Geo Pocket, Game & Watch, PICO-8, TIC-80, DOS, and many more.
 
-The full system list is built in automatically — any system directory on your SD card that matches a known mapping will appear in the interface.
+The full system list is built in automatically — any system directory on your SD card that matches a known mapping (or one of its aliases like `GENESIS` ↔ `MEGADRIVE`, `FAMICOM` ↔ `NES`) will appear in the interface.
+
+### Custom systems
+
+Want to add a new console, fix a wrong ScreenScraper ID, or override the muOS catalogue path for one of your folders? Drop a `systems.json` next to your `settings.json` (i.e. inside `.artie/`):
+
+```json
+{
+  "NGPC": {
+    "id": "82",
+    "name": "Neo Geo Pocket Color",
+    "catalogue": "SNK Neo Geo Pocket - Color"
+  },
+  "MYCONSOLE": {
+    "id": "999",
+    "name": "My Custom Console",
+    "catalogue": "MyConsole"
+  }
+}
+```
+
+Top-level keys are folder names (case-insensitive). Each value can set:
+
+- `id` — the ScreenScraper system ID (find them at [screenscraper.fr](https://screenscraper.fr/))
+- `name` — the display name shown in the systems list
+- `catalogue` — the muOS catalogue subfolder name (where art is saved)
+
+For an existing system you can specify just the fields you want to change; everything else is inherited. For a brand-new system, `id` is required.
 
 ## File Paths
 
