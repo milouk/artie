@@ -174,7 +174,7 @@ Apply custom PNG overlays (with alpha channel) to box art and/or previews. Enabl
 
 ### Offline Mode
 
-When enabled, Artie skips credential validation, update checks, and all scraping API calls. You can still browse your ROM library and view previously scraped media. Useful when you're away from Wi-Fi or just want to browse.
+When enabled, Artie skips credential validation, update checks, and all scraping API calls. You can still browse your ROM library and view previously scraped media. Useful when you're off the network or just want to browse.
 
 ## Supported Systems
 
