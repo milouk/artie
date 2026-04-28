@@ -6,9 +6,17 @@ Catalogue name is used to derive muOS paths:
   box:      {CATALOGUE_BASE}/{catalogue}/box/
   preview:  {CATALOGUE_BASE}/{catalogue}/preview/
   synopsis: {CATALOGUE_BASE}/{catalogue}/text/
+
+Users can override or add entries by dropping a `systems.json` next to
+their `settings.json`. See README ("Custom systems") for the format.
 """
 
+import json
+from pathlib import Path
+from typing import Optional
+
 from defaults import CATALOGUE_BASE
+from logger import LoggerSingleton as logger
 
 # fmt: off
 SYSTEMS = {
@@ -70,8 +78,9 @@ SYSTEMS = {
     "NEOCD": ("70", "Neo Geo CD", "SNK Neo Geo CD"),
     "NEOGEO": ("142", "Neo Geo", "SNK Neo Geo"),
     "NES": ("3", "NES / Famicom", "Nintendo NES-Famicom"),
-    "NGC": ("82", "Neo Geo Pocket Color", "SNK Neo Geo Pocket - Color"),
+    "NGC": ("13", "Nintendo GameCube", "Nintendo GameCube"),
     "NGP": ("25", "Neo Geo Pocket", "SNK Neo Geo Pocket - Color"),
+    "NGPC": ("82", "Neo Geo Pocket Color", "SNK Neo Geo Pocket - Color"),
     "ODYSSEY": ("104", "Magnavox Odyssey 2", "ODYSSEY"),
     "OPENBOR": ("214", "OpenBOR", "OPENBOR"),
     "PALMOS": ("219", "Palm OS", "Palm OS"),
@@ -167,7 +176,9 @@ ALIASES = {
     "ATARILYNX": "LYNX",
     # SNK
     "NEOGEOPOCKET": "NGP",
-    "NEOGEOPOCKETCOLOR": "NGC",
+    "NEOGEOPOCKETCOLOR": "NGPC",
+    "GAMECUBE": "NGC",
+    "NINTENDOGAMECUBE": "NGC",
     # Arcade
     "ARCADIA": "ARCADE",
     "FBA": "FBALPHA",
@@ -189,27 +200,83 @@ ALIASES = {
 }
 
 
-def build_systems_mapping(roms_path: str = None) -> dict:
+def _make_entry(dir_name: str, sys_id: str, name: str, catalogue: str) -> dict:
+    return {
+        "dir": dir_name,
+        "id": sys_id,
+        "name": name,
+        "box": f"{CATALOGUE_BASE}/{catalogue}/box/",
+        "preview": f"{CATALOGUE_BASE}/{catalogue}/preview/",
+        "synopsis": f"{CATALOGUE_BASE}/{catalogue}/text/",
+        "video": f"{CATALOGUE_BASE}/{catalogue}/video/",
+    }
+
+
+def _apply_user_overrides(mapping: dict, overrides_path: Path) -> None:
+    """Merge user-supplied entries from systems.json into the mapping.
+
+    Each top-level key is a folder name (e.g. "NGPC"); each value is a
+    dict of fields to override or add. Recognised fields: `id`, `name`,
+    `catalogue`. Anything missing falls back to the existing entry (or
+    the folder name as a sensible default for new entries). This lets
+    power users fix mappings without rebuilding the binary.
+    """
+    if not overrides_path.is_file():
+        return
+    try:
+        with open(overrides_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        logger.log_warning(f"Failed to read {overrides_path}: {e}")
+        return
+    if not isinstance(data, dict):
+        logger.log_warning(f"{overrides_path}: expected a JSON object at top level")
+        return
+
+    applied = 0
+    for raw_dir, fields in data.items():
+        if not isinstance(fields, dict):
+            logger.log_warning(f"{overrides_path}: skipping {raw_dir} (not an object)")
+            continue
+        dir_name = str(raw_dir)
+        key = dir_name.lower()
+        existing = mapping.get(key)
+        sys_id = str(fields.get("id", existing["id"] if existing else "")).strip()
+        name = str(fields.get("name", existing["name"] if existing else dir_name))
+        catalogue = str(
+            fields.get("catalogue", existing["dir"] if existing else dir_name)
+        )
+        if not sys_id:
+            logger.log_warning(
+                f"{overrides_path}: {dir_name} has no id and isn't a built-in system; skipping"
+            )
+            continue
+        mapping[key] = _make_entry(dir_name, sys_id, name, catalogue)
+        applied += 1
+
+    if applied:
+        logger.log_info(f"Applied {applied} system override(s) from {overrides_path}")
+
+
+def build_systems_mapping(
+    roms_path: Optional[str] = None,
+    settings_dir: Optional[str] = None,
+) -> dict:
     """Build the systems mapping dict compatible with the old config format.
 
     Returns a dict keyed by lowercase dir name, with each value containing
     id, name, dir, box, preview, and synopsis paths. Aliases (see ALIASES
     above) resolve to the same entry as their canonical name so users who
     renamed ROM folders still get matched.
+
+    If `settings_dir` is provided and contains a `systems.json` file, its
+    contents override or add to the built-in mapping.
     """
     mapping = {}
     for dir_name, (sys_id, name, catalogue) in SYSTEMS.items():
         if not sys_id:
             continue
-        mapping[dir_name.lower()] = {
-            "dir": dir_name,
-            "id": sys_id,
-            "name": name,
-            "box": f"{CATALOGUE_BASE}/{catalogue}/box/",
-            "preview": f"{CATALOGUE_BASE}/{catalogue}/preview/",
-            "synopsis": f"{CATALOGUE_BASE}/{catalogue}/text/",
-            "video": f"{CATALOGUE_BASE}/{catalogue}/video/",
-        }
+        mapping[dir_name.lower()] = _make_entry(dir_name, sys_id, name, catalogue)
 
     # Register aliases — each points to the canonical entry's config but
     # keeps its own "dir" (so media is still written under the user's
@@ -226,5 +293,9 @@ def build_systems_mapping(roms_path: str = None) -> dict:
         entry = dict(mapping[canonical_key])
         entry["dir"] = alias
         mapping[alias_key] = entry
+
+    # User overrides last so they win over both built-ins and aliases.
+    if settings_dir:
+        _apply_user_overrides(mapping, Path(settings_dir) / "systems.json")
 
     return mapping

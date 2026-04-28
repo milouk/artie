@@ -256,8 +256,12 @@ class ConfigManager:
             "regions": regions,
         }
 
-        # Systems mapping
-        systems_mapping = build_systems_mapping()
+        # Systems mapping (passes settings_dir so build_systems_mapping
+        # can apply user overrides from <settings_dir>/systems.json).
+        settings_dir = (
+            str(Path(self.settings_path).parent) if self.settings_path else None
+        )
+        systems_mapping = build_systems_mapping(settings_dir=settings_dir)
 
         # Auto-detect ROMs path
         roms_path = ROMS_PATH
