@@ -39,7 +39,7 @@ from scraper import (
 from settings import SettingsScreen, SystemSelectionScreen, VirtualKeyboard
 from updater import check_for_update, download_and_apply_update
 
-VERSION = "4.0.7"
+VERSION = "4.0.8"
 
 
 class _ScrapeCancelledError(Exception):
