@@ -510,7 +510,7 @@ def get(url: str, max_retries: int = 3, timeout: int = 30, cancel_event=None) ->
                 raise exceptions.ForbiddenError(error_msg)
 
             elif status == 404:
-                raise exceptions.ScraperError(
+                raise exceptions.ResourceNotFoundError(
                     f"Resource not found: {_sanitize_url(url)}"
                 )
 
@@ -821,11 +821,49 @@ def get_game_data(
             "API quota recently exceeded, avoiding additional calls"
         )
 
+    def _try_name_fallback(rom_path_for_log: str) -> Any:
+        """Search-by-name as a recovery for failed hash lookups.
+
+        Returns wrapped game data on success, None if no results, and
+        re-raises any quota/auth errors so the caller can react.
+        """
+        rom_name = clean_rom_name(rom_path_for_log)
+        from search_api import search_game_by_name  # avoid circular import
+        try:
+            search_result = search_game_by_name(
+                rom_name, system_id, dev_id, dev_password, username, password
+            )
+        except (exceptions.RateLimitError, exceptions.ForbiddenError):
+            raise
+        except Exception as e:
+            logger.log_warning(f"Fallback search failed for {rom_name}: {e}")
+            return None
+        if search_result:
+            logger.log_info(f"Fallback search successful for {rom_name}")
+            return {"header": {}, "response": {"jeu": search_result}}
+        logger.log_info(f"Fallback search found no results for {rom_name}")
+        return None
+
     try:
         game_url = parse_find_game_url(
             system_id, rom_path, dev_id, dev_password, username, password
         )
-        game_data = fetch_data(game_url)
+        try:
+            game_data = fetch_data(game_url)
+        except exceptions.ResourceNotFoundError:
+            # Hash isn't in the DB at all (common for romhacks, homebrew,
+            # rare regional variants). Fall through to name search instead
+            # of failing the whole ROM.
+            if not enable_fallback:
+                raise
+            logger.log_info(
+                f"ROM hash unknown for {os.path.basename(rom_path)}, "
+                f"trying fallback search"
+            )
+            fallback = _try_name_fallback(rom_path)
+            if fallback is not None:
+                return fallback
+            raise
 
         # Check if we got valid game data
         if game_data and isinstance(game_data, dict):
@@ -836,40 +874,18 @@ def get_game_data(
                 )
                 return game_data
 
-        # If ROM lookup didn't return valid data and fallback is enabled, try name search
+        # Empty / malformed response — also try fallback.
         if enable_fallback:
             logger.log_info(
-                f"ROM lookup failed for {os.path.basename(rom_path)}, trying fallback search"
+                f"ROM lookup empty for {os.path.basename(rom_path)}, "
+                f"trying fallback search"
             )
-
-            # Import here to avoid circular imports
-            from search_api import search_game_by_name
-
-            # Extract game name from ROM path
-            rom_name = clean_rom_name(rom_path)
-
-            try:
-                search_result = search_game_by_name(
-                    rom_name, system_id, dev_id, dev_password, username, password
-                )
-
-                if search_result:
-                    # Convert search result to same format as hash lookup
-                    fallback_data = {
-                        "header": game_data.get("header", {}) if game_data else {},
-                        "response": {"jeu": search_result},
-                    }
-                    logger.log_info(f"Fallback search successful for {rom_name}")
-                    return fallback_data
-                else:
-                    logger.log_info(f"Fallback search found no results for {rom_name}")
-
-            except (exceptions.RateLimitError, exceptions.ForbiddenError):
-                # Re-raise quota/auth errors from fallback search
-                raise
-            except Exception as e:
-                logger.log_warning(f"Fallback search failed for {rom_name}: {e}")
-                # Continue to return original result even if fallback fails
+            fallback = _try_name_fallback(rom_path)
+            if fallback is not None:
+                # Preserve the API header from the original response if any.
+                if game_data and isinstance(game_data, dict):
+                    fallback["header"] = game_data.get("header", {})
+                return fallback
 
         # Return original result (may be empty/invalid)
         return game_data

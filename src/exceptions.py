@@ -70,3 +70,14 @@ class NetworkError(ScraperError):
     """Exception raised for network-related errors."""
 
     pass
+
+
+class ResourceNotFoundError(ScraperError):
+    """Exception raised when the API returns 404 for a ROM lookup.
+
+    Distinct from generic ScraperError so callers like get_game_data can
+    react specifically (e.g. fall back to a search-by-name lookup) without
+    swallowing real failures.
+    """
+
+    pass
