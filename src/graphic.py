@@ -81,6 +81,11 @@ class GUI:
         self._displayed_progress: float = 0.0
         self._progress_last_time: float = 0.0
 
+        # Bounding rect of the last popup drawn (so the next popup can wipe
+        # it before drawing itself — otherwise a smaller popup leaves the
+        # previous popup's edges visible underneath).
+        self._last_popup_rect: Optional[Tuple[int, int, int, int]] = None
+
     def apply_theme(self, theme: dict) -> None:
         """Apply a theme dict to all COLOR_* attributes."""
         self.COLOR_PRIMARY = theme.get("primary", self.COLOR_PRIMARY)
@@ -181,6 +186,8 @@ class GUI:
     def create_image(self):
         """Return the pre-allocated frame buffer, cleared to black."""
         self._frame_buffer.fill(self._color(self.COLOR_BLACK))
+        # Buffer's now empty — no leftover popup to wipe before the next.
+        self._last_popup_rect = None
         return self._frame_buffer
 
     def draw_active(self, image):
@@ -430,6 +437,23 @@ class GUI:
     # Overlay helpers
     # ------------------------------------------------------------------
 
+    def _wipe_previous_popup(self) -> None:
+        """Erase the previous popup's footprint so the next one draws cleanly.
+
+        Without this, a popup smaller than its predecessor leaves a strip
+        of the older popup poking out underneath. We clear with the buffer's
+        background colour (black) — that matches the bg during popup-only
+        flows like batch scraping, and any underlying menu rebuilds itself
+        on the next dirty redraw anyway.
+        """
+        if not self._active_surface or self._last_popup_rect is None:
+            return
+        x1, y1, x2, y2 = self._last_popup_rect
+        self._active_surface.fill(
+            self._color(self.COLOR_BLACK),
+            pygame.Rect(int(x1), int(y1), int(x2 - x1), int(y2 - y1)),
+        )
+
     def draw_log(self, text, fill=None, outline=None, width=520):
         """Draw a centered notification overlay."""
         if fill is None:
@@ -437,6 +461,7 @@ class GUI:
         if outline is None:
             outline = self.COLOR_PRIMARY
         self._last_log_message = text
+        self._wipe_previous_popup()
 
         x = (self.screen_width - width) / 2
         y = (self.screen_height - 70) / 2
@@ -452,6 +477,8 @@ class GUI:
         text_y = y + 40
         self.draw_text((text_x, text_y), text, anchor="mm")
 
+        self._last_popup_rect = (int(x), int(y), int(x + width), int(y + 70))
+
     def draw_log_with_progress(self, text, progress, width=520):
         """Draw a notification overlay with a smoothly animated progress bar.
 
@@ -461,6 +488,7 @@ class GUI:
         trickles feel smooth. Caller should redraw frequently for best effect.
         """
         self._last_log_message = text
+        self._wipe_previous_popup()
 
         target = max(0.0, min(1.0, progress))
         now = time.time()
@@ -520,7 +548,10 @@ class GUI:
             anchor="mm",
         )
 
+        self._last_popup_rect = (int(x), int(y), int(x + width), int(y + 90))
+
     def reset_progress_animation(self) -> None:
         """Reset the smoothed progress state. Call before starting a new batch."""
         self._displayed_progress = 0.0
         self._progress_last_time = 0.0
+        self._last_popup_rect = None
