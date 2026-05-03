@@ -28,8 +28,12 @@ from systems import build_systems_mapping
 class ScraperConfig:
     """Configuration data structure for scraper settings."""
 
-    # Paths
+    # Paths.  `roms_path` is the primary mount (first one that exists)
+    # and is shown in user-facing messages; `roms_paths` is the full list
+    # of valid mounts so multi-SD setups (SD1 + SD2) work after muOS
+    # deprecated /mnt/union.
     roms_path: str
+    roms_paths: List[str]
     systems_logo_path: str
 
     # API credentials
@@ -263,16 +267,22 @@ class ConfigManager:
         )
         systems_mapping = build_systems_mapping(settings_dir=settings_dir)
 
-        # Auto-detect ROMs path
-        roms_path = ROMS_PATH
-        for candidate in ROMS_PATH_CANDIDATES:
-            if Path(candidate).is_dir():
-                roms_path = candidate
-                break
-        logger.log_info(f"ROMs path: {roms_path}")
+        # Auto-detect ROMs path(s). Collect every candidate that exists
+        # so multi-SD setups (SD1 + SD2 since muOS deprecated /mnt/union)
+        # all get scanned. The first one wins for the legacy `roms_path`
+        # field used in display/logging.
+        roms_paths = [c for c in ROMS_PATH_CANDIDATES if Path(c).is_dir()]
+        if not roms_paths:
+            roms_paths = [ROMS_PATH]
+        roms_path = roms_paths[0]
+        if len(roms_paths) > 1:
+            logger.log_info(f"ROM roots: {', '.join(roms_paths)}")
+        else:
+            logger.log_info(f"ROMs path: {roms_path}")
 
         return ScraperConfig(
             roms_path=roms_path,
+            roms_paths=roms_paths,
             systems_logo_path=LOGOS_PATH,
             dev_id=dev_id,
             dev_password=dev_password,
@@ -323,22 +333,32 @@ class ConfigManager:
         ]
 
     def validate_paths(self) -> bool:
-        """Validate that configured paths exist and are accessible."""
+        """Validate that configured paths exist and are accessible.
+
+        With multiple ROM roots (SD1 + SD2), at least one must exist and
+        be a non-empty directory; missing/empty roots are tolerated and
+        just get skipped during discovery. This avoids erroring out on
+        users who only have an SD1 even though we'd happily scan an SD2
+        if it were present.
+        """
         if not self.config:
             return False
 
-        roms_path = Path(self.config.roms_path)
-        if not roms_path.exists():
+        any_valid = False
+        for raw in self.config.roms_paths:
+            p = Path(raw)
+            if not p.is_dir():
+                continue
+            try:
+                if any(p.iterdir()):
+                    any_valid = True
+                    break
+            except OSError:
+                continue
+
+        if not any_valid:
             raise exceptions.ConfigurationError(
-                f"ROMs path does not exist: {self.config.roms_path}"
-            )
-        if not roms_path.is_dir():
-            raise exceptions.ConfigurationError(
-                f"ROMs path is not a directory: {self.config.roms_path}"
-            )
-        if not any(roms_path.iterdir()):
-            raise exceptions.ConfigurationError(
-                f"ROMs path is empty: {self.config.roms_path}"
+                f"No valid/non-empty ROMs path among: {self.config.roms_paths}"
             )
 
         logos_path = Path(self.config.systems_logo_path)

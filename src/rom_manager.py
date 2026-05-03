@@ -58,45 +58,75 @@ class RomManager:
     # have without scanning the whole drive.
     _DISCOVERY_MAX_DEPTH = 3
 
-    def __init__(self, roms_base_path: str):
+    def __init__(self, roms_base_path):
         """
         Initialize ROM manager.
 
         Args:
-            roms_base_path: Base path where ROM directories are located
+            roms_base_path: Either a single path string or an iterable of
+                paths. When multiple paths are given, ROMs from all of them
+                are merged — this matches muOS Jacaranda's split SD1/SD2
+                layout (`/mnt/union` is deprecated, both halves have to be
+                scanned explicitly).
         """
-        self.roms_base_path = Path(roms_base_path)
-        self._validate_base_path()
+        if isinstance(roms_base_path, (str, Path)):
+            raw = [roms_base_path]
+        else:
+            raw = list(roms_base_path)
+        # Drop empties / dupes / non-existent roots, preserve order so
+        # the first valid path remains the "primary" for back-compat.
+        seen: set = set()
+        self.roms_base_paths: List[Path] = []
+        for item in raw:
+            if not item:
+                continue
+            p = Path(item)
+            key = str(p)
+            if key in seen:
+                continue
+            seen.add(key)
+            if p.is_dir():
+                self.roms_base_paths.append(p)
+            else:
+                logger.log_debug(f"ROM root not present, skipping: {p}")
+
+        if not self.roms_base_paths:
+            raise exceptions.ConfigurationError(
+                f"No valid ROMs paths from {raw}"
+            )
+
+        # Back-compat: code that reads roms_base_path expects a single
+        # value. Expose the first valid one.
+        self.roms_base_path = self.roms_base_paths[0]
+        if len(self.roms_base_paths) > 1:
+            logger.log_info(
+                f"ROM roots: {', '.join(str(p) for p in self.roms_base_paths)}"
+            )
+
         # Populated by get_available_systems(); maps lowercased system
         # name → the actual directory it was found in. get_roms() uses
         # this so users with /Roms/Sega/MEGADRIVE layouts work.
         self._discovered_paths: dict = {}
 
-    def _validate_base_path(self) -> None:
-        """Validate that the base ROM path exists and is accessible."""
-        if not self.roms_base_path.exists():
-            raise exceptions.ConfigurationError(
-                f"ROMs base path does not exist: {self.roms_base_path}"
-            )
-
-        if not self.roms_base_path.is_dir():
-            raise exceptions.ConfigurationError(
-                f"ROMs base path is not a directory: {self.roms_base_path}"
-            )
-
     def get_available_systems(self, systems_mapping: dict) -> List[str]:
         """
-        Get list of available systems by walking the ROM base path.
+        Get list of available systems by walking every ROM base path.
 
-        Walks up to _DISCOVERY_MAX_DEPTH levels deep. Any directory
-        whose lowercased name is in `systems_mapping` is treated as a
-        system; we don't descend further into matched directories so a
-        user's `Sega/Genesis/` layout works without us also walking into
-        `Sega/Genesis/Hacks/` and trying to register `Hacks` as a
-        separate system.
+        Walks up to _DISCOVERY_MAX_DEPTH levels deep under each root.
+        Any directory whose lowercased name is in `systems_mapping` is
+        treated as a system; we don't descend further into matched
+        directories so a user's `Sega/Genesis/` layout works without
+        us also walking into `Sega/Genesis/Hacks/` and trying to
+        register `Hacks` as a separate system.
 
-        The actual discovered path is cached per system so get_roms()
-        can find ROMs at any depth without us having to recompute.
+        With multiple roots (SD1 + SD2 since muOS deprecated /mnt/union),
+        the *first* root that contains a given system wins — get_roms()
+        will only read from there. Roots are scanned in the order given
+        to __init__, so if a user has duplicates the primary root takes
+        precedence.
+
+        The discovered path is cached per system so get_roms() can find
+        ROMs at any depth without recomputing.
 
         Args:
             systems_mapping: Mapping of system directories to configuration
@@ -107,30 +137,33 @@ class RomManager:
         """
         self._discovered_paths.clear()
         try:
-            stack = [(self.roms_base_path, 0)]
-            while stack:
-                current, depth = stack.pop()
-                try:
-                    children = list(current.iterdir())
-                except (OSError, PermissionError) as e:
-                    logger.log_debug(f"Skipping {current}: {e}")
-                    continue
-                for child in children:
-                    if not child.is_dir() or child.name.startswith("."):
+            for root in self.roms_base_paths:
+                stack = [(root, 0)]
+                while stack:
+                    current, depth = stack.pop()
+                    try:
+                        children = list(current.iterdir())
+                    except (OSError, PermissionError) as e:
+                        logger.log_debug(f"Skipping {current}: {e}")
                         continue
-                    key = child.name.lower()
-                    if key in systems_mapping and key not in self._discovered_paths:
-                        self._discovered_paths[key] = child
-                        # Don't descend into a matched system folder —
-                        # subdirs are ROM groupings (e.g. by region or
-                        # hack), not separate systems.
-                        continue
-                    if depth + 1 < self._DISCOVERY_MAX_DEPTH:
-                        stack.append((child, depth + 1))
+                    for child in children:
+                        if not child.is_dir() or child.name.startswith("."):
+                            continue
+                        key = child.name.lower()
+                        if (
+                            key in systems_mapping
+                            and key not in self._discovered_paths
+                        ):
+                            self._discovered_paths[key] = child
+                            # Don't descend into a matched system folder.
+                            continue
+                        if depth + 1 < self._DISCOVERY_MAX_DEPTH:
+                            stack.append((child, depth + 1))
 
             configured_systems = sorted(self._discovered_paths.keys())
             logger.log_debug(
-                f"Found {len(configured_systems)} configured systems: "
+                f"Found {len(configured_systems)} configured systems "
+                f"across {len(self.roms_base_paths)} root(s): "
                 f"{configured_systems}"
             )
             return configured_systems

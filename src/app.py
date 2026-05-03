@@ -175,8 +175,9 @@ class App:
             self.config = self.config_manager.load_settings(settings_dir)
             self.config_manager.setup_logging()
 
-            # Initialize managers
-            self.rom_manager = RomManager(self.config.roms_path)
+            # Initialize managers (pass full root list so RomManager
+            # scans both SD1 and SD2 on muOS Jacaranda).
+            self.rom_manager = RomManager(self.config.roms_paths)
 
             # Validate configuration
             self.config_manager.validate_paths()
