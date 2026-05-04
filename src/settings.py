@@ -86,6 +86,17 @@ SETTINGS_DEFS: List[Tuple[str, str, str, str, dict]] = [
         {"options": MASK_CHOICES} if MASK_CHOICES else {},
     ),
     ("Media", "synopsis_enabled", "Synopsis", "toggle", {}),
+    (
+        "Media",
+        "synopsis_lang",
+        "Synopsis Lang",
+        "choice",
+        {"options": [
+            "en", "es", "fr", "de", "it", "pt",
+            "nl", "sv", "da", "no", "fi",
+            "ru", "pl", "cs", "ja", "zh",
+        ]},
+    ),
     ("Media", "video_enabled", "Video", "toggle", {}),
     ("Display", "show_logos", "Show Logos", "toggle", {}),
     (
