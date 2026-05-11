@@ -60,6 +60,20 @@ if [ -f "$SYSTEM_SDL2" ]; then
 	export LD_PRELOAD="$SYSTEM_SDL2:$LD_PRELOAD"
 fi
 
+# Workaround for RK3576 devices (Anbernic RG Vita Pro etc.) where the
+# default EGL loader can clash with the Mali Bifrost userspace driver.
+# Point SDL at the device's libmali and force GLES so the mali video
+# driver inside muOS's SDL2 has a working EGL stack to talk to.
+if grep -q "rk3576" /proc/device-tree/compatible 2>/dev/null; then
+	for _libmali in /usr/lib/libmali.so /usr/lib/aarch64-linux-gnu/libmali.so; do
+		if [ -e "$_libmali" ]; then
+			export SDL_VIDEO_EGL_DRIVER="$_libmali"
+			break
+		fi
+	done
+	export SDL_OPENGL_ES_DRIVER=1
+fi
+
 cd "$ARTIE_DIR" || exit 1
 
 if command -v SET_VAR >/dev/null 2>&1; then
