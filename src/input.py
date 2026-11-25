@@ -1,5 +1,6 @@
 """Input handling module using pygame events (keyboard + joystick)."""
 
+import os
 import threading
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
@@ -60,12 +61,33 @@ class InputManager:
         14: "R2",
     }
 
+    # SDL GameController field -> Artie button name, used to build the map
+    # from the device's own gamecontrollerdb.txt entry.
+    CONTROLLER_FIELDS: Dict[str, str] = {
+        "a": "A",
+        "b": "B",
+        "x": "X",
+        "y": "Y",
+        "leftshoulder": "L1",
+        "rightshoulder": "R1",
+        "lefttrigger": "L2",
+        "righttrigger": "R2",
+        "back": "SELECT",
+        "start": "START",
+        "guide": "MENUF",
+    }
+
+    DEFAULT_CONTROLLER_DB = "/usr/lib/gamecontrollerdb.txt"
+
     AXIS_DEADZONE = 0.5
 
     def __init__(self):
         self.state = InputState()
         self._joystick: Optional[pygame.joystick.Joystick] = None
+        self.button_map: Dict[int, str] = dict(self.JOYSTICK_BUTTON_MAP)
         self._init_joystick()
+        if self._joystick is not None:
+            self.button_map = self._load_button_map()
 
     def _init_joystick(self):
         """Detect and initialize the first joystick/gamepad."""
@@ -82,6 +104,65 @@ class InputManager:
                 logger.log_info("No joystick detected — using keyboard input")
         except pygame.error as e:
             logger.log_warning(f"Joystick init failed: {e}")
+
+    def _load_button_map(self) -> Dict[int, str]:
+        """Build the button map from the device's gamecontrollerdb.txt.
+
+        muOS renumbers the buttons of its virtual "muOS-Keys" joystick between
+        releases (2606.0 Andromeda added the volume keys as b0/b1 and shifted
+        everything else), so a hardcoded map goes stale. The controller
+        database shipped with the firmware always matches the running build.
+        Falls back to JOYSTICK_BUTTON_MAP when no entry is found.
+        """
+        path = os.environ.get("SDL_GAMECONTROLLERCONFIG_FILE") or self.DEFAULT_CONTROLLER_DB
+        try:
+            guid = self._joystick.get_guid()
+        except (AttributeError, pygame.error):
+            guid = ""
+        name = self._joystick.get_name()
+        try:
+            with open(path, encoding="utf-8", errors="replace") as f:
+                mapping = self.parse_controller_db(f.read(), guid, name)
+        except OSError as e:
+            logger.log_info(f"Controller DB not readable ({e}), using default button map")
+            return dict(self.JOYSTICK_BUTTON_MAP)
+        if not mapping:
+            logger.log_info(f"No controller DB entry for '{name}' ({guid}), using default button map")
+            return dict(self.JOYSTICK_BUTTON_MAP)
+        logger.log_info(f"Button map from {path}: {mapping}")
+        return mapping
+
+    @classmethod
+    def parse_controller_db(cls, text: str, guid: str, name: str) -> Dict[int, str]:
+        """Return {button index: Artie name} for the matching DB line.
+
+        An exact GUID match wins over a name match; lines for other
+        platforms are ignored. Returns {} when nothing matches.
+        """
+        by_name: Dict[int, str] = {}
+        for line in text.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split(",")
+            if len(parts) < 3:
+                continue
+            fields = dict(p.split(":", 1) for p in parts[2:] if ":" in p)
+            platform = fields.get("platform")
+            if platform and platform != "Linux":
+                continue
+            mapping = {}
+            for field, button in cls.CONTROLLER_FIELDS.items():
+                value = fields.get(field, "")
+                if value.startswith("b") and value[1:].isdigit():
+                    mapping[int(value[1:])] = button
+            if not mapping:
+                continue
+            if guid and parts[0].lower() == guid.lower():
+                return mapping
+            if not by_name and parts[1] == name:
+                by_name = mapping
+        return by_name
 
     def check_input(self) -> None:
         """Wait for a meaningful input event, with a periodic wake-up.
@@ -123,7 +204,7 @@ class InputManager:
                 return True
 
         elif event.type == pygame.JOYBUTTONDOWN:
-            btn_name = self.JOYSTICK_BUTTON_MAP.get(event.button)
+            btn_name = self.button_map.get(event.button)
             if btn_name:
                 self.state.current_code_name = btn_name
                 self.state.current_value = 1
